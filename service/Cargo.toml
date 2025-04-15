@@ -1,0 +1,12 @@
+[package]
+name = "service"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "service"
+path = "src/lib.rs"
+
+[dependencies]
+dotenvy.workspace = true
+sea-orm.workspace = true
