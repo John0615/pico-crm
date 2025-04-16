@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use server_fn::ServerFnError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TableUser {
@@ -10,6 +11,18 @@ struct TableUser {
     status: String,
     last_contact: String,
     value_level: String,
+}
+
+#[server]
+pub async fn fetch_contacts() -> Result<(), ServerFnError> {
+    use backend::db::Database;
+    let pool = expect_context::<Database>();
+    println!("pool {:?}", pool);
+
+    println!("Fetching contacts...");
+    let contacts = backend::operations::contacts::fetch_contacts(&pool.connection).await.map_err(|e| ServerFnError::<String>::ServerError(e.to_string()));
+    println!("Fetching contacts result {:?}", contacts);
+    Ok(())
 }
 
 #[component]
@@ -42,7 +55,24 @@ pub fn ContactsList() -> impl IntoView {
         set_sort_name_asc.update(|a| *a = !*a);
     };
 
+    let async_data = Resource::new(
+        move || sort_name_asc.get(),
+        // every time `count` changes, this will run
+        |count| fetch_contacts()
+    );
+
     view! {
+        <Suspense
+            fallback=move || view! { <p>"Loading..."</p> }
+        >
+            <h2>"My Data"</h2>
+            <h3>"B"</h3>
+            {move || {
+                async_data.get()
+                    .map(|_b| view! { <p>"加载完毕！"</p> })
+            }}
+        </Suspense>
+
         <div class="p-6">
           <div class="flex flex-col md:flex-row gap-4 mb-6">
             <div class="flex-1">
@@ -139,8 +169,8 @@ pub fn ContactsList() -> impl IntoView {
                                     <div class="rating rating-sm">
                                         {(0..5).map(|i| {
                                             view! {
-                                                <input 
-                                                    type="radio" 
+                                                <input
+                                                    type="radio"
                                                     name=format!("rating-{}", contact.username)
                                                     class="mask mask-star bg-yellow-400"
                                                     checked=i < stars

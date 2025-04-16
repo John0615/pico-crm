@@ -1,12 +1,13 @@
 [package]
-name = "service"
+name = "backend"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
-name = "service"
+name = "backend"
 path = "src/lib.rs"
 
 [dependencies]
 dotenvy.workspace = true
 sea-orm.workspace = true
+chrono.workspace = true

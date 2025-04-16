@@ -5,17 +5,15 @@ use app::*;
 use leptos::logging::log;
 use std::env;
 use migration::{Migrator, MigratorTrait};
-use state::AppState;
-use service::db::Database;
+use backend::db::Database;
 
-pub mod state;
 
 
 #[tokio::main]
 async fn main() {
 
     // 加载.env文件
-    let env = env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string()); 
+    let env = env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
     println!("当前环境: {}", env);
     let env_file = format!(".env.{}", env);
     dotenvy::from_filename(&env_file).unwrap_or_else(|_| panic!("无法读取 {} 文件", env_file));
@@ -31,18 +29,12 @@ async fn main() {
     // Generate the list of routes in your Leptos App
     let routes = generate_route_list(App);
 
-    let app_state = AppState {
-        leptos_options: leptos_options.clone(),
-        pool: db.clone(),
-    };
-
     let app = Router::new()
         .leptos_routes(&leptos_options, routes, {
             let leptos_options = leptos_options.clone();
-            let app_state = app_state.clone();
             move || {
                 // 如果需要，可以在这里提供上下文
-                provide_context(app_state.clone());
+                provide_context(db.clone());
                 shell(leptos_options.clone())
             }
         })

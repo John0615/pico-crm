@@ -151,6 +151,7 @@ checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 name = "app"
 version = "0.1.0"
 dependencies = [
+ "backend",
  "cfg-if",
  "http",
  "leptos",
@@ -448,6 +449,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "backend"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dotenvy",
+ "sea-orm",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -652,8 +662,10 @@ checksum = "1a7964611d71df112cb1730f2ee67324fcf4d0fc6606acbbe9bfe06df124637c"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
  "serde",
+ "wasm-bindgen",
  "windows-link",
 ]
 
@@ -3362,12 +3374,12 @@ version = "0.1.0"
 dependencies = [
  "app",
  "axum",
+ "backend",
  "dotenvy",
  "leptos",
  "leptos_axum",
  "log",
  "migration",
- "service",
  "simple_logger",
  "tokio",
  "tower",
@@ -3432,14 +3444,6 @@ checksum = "eb8b274f568c94226a8045668554aace8142a59b8bca5414ac5a79627c825568"
 dependencies = [
  "server_fn_macro",
  "syn 2.0.100",
-]
-
-[[package]]
-name = "service"
-version = "0.1.0"
-dependencies = [
- "dotenvy",
- "sea-orm",
 ]
 
 [[package]]
