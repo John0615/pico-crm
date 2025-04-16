@@ -30,14 +30,28 @@ async fn main() {
     let routes = generate_route_list(App);
 
     let app = Router::new()
-        .leptos_routes(&leptos_options, routes, {
-            let leptos_options = leptos_options.clone();
+        // 这是修改前模板生成的默认路由
+        // .leptos_routes(&leptos_options, routes, {
+        //     let leptos_options = leptos_options.clone();
+        //     move || {
+        //         // 如果需要，可以在这里提供上下文
+        //         provide_context(db.clone());
+        //         shell(leptos_options.clone())
+        //     }
+        // })
+        // 这是修改后的路由，前后端都能访问到context
+        .leptos_routes_with_context(
+            &leptos_options,
+            routes,
             move || {
-                // 如果需要，可以在这里提供上下文
+                // 注入必要的上下文（确保类型实现 Clone + Send + Sync）
                 provide_context(db.clone());
-                shell(leptos_options.clone())
+            },
+            {
+                let leptos_options = leptos_options.clone();
+                move || shell(leptos_options.clone())
             }
-        })
+        )
         .fallback(leptos_axum::file_and_error_handler(shell))
         .with_state(leptos_options);
 
