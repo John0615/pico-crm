@@ -15,6 +15,7 @@ http.workspace = true
 cfg-if.workspace = true
 thiserror.workspace = true
 backend = { path = "../backend", optional = true }
+shared = { path = "../shared" }
 
 [features]
 default = []

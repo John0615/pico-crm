@@ -1,5 +1,4 @@
 use sea_orm::entity::prelude::*;
-use sea_orm::EntityTrait;
 pub use super::_entities::contacts::{self, ActiveModel, Entity, Model};
 
 #[async_trait::async_trait]

@@ -8,6 +8,7 @@ name = "backend"
 path = "src/lib.rs"
 
 [dependencies]
+shared = { path = "../shared" }
 dotenvy.workspace = true
 sea-orm.workspace = true
 chrono.workspace = true

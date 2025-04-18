@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
+use shared::contact::Contact;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TableUser {
@@ -14,20 +15,20 @@ struct TableUser {
 }
 
 #[server]
-pub async fn fetch_contacts() -> Result<(), ServerFnError> {
+pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
     use backend::db::Database;
     let pool = expect_context::<Database>();
     println!("pool {:?}", pool);
 
     println!("Fetching contacts...");
-    let contacts = backend::operations::contacts::fetch_contacts(&pool.connection).await.map_err(|e| ServerFnError::<String>::ServerError(e.to_string()));
+    let contacts = backend::operations::contacts::fetch_contacts(&pool.connection).await.map_err(|e| ServerFnError::new(e))?;
     println!("Fetching contacts result {:?}", contacts);
-    Ok(())
+    Ok(contacts)
 }
 
 #[component]
 pub fn ContactsList() -> impl IntoView {
-    let (data, set_data) = signal(vec![
+    let (data, _set_data) = signal(vec![
         TableUser {
             username: "张三".to_string(),
             company: "ABC科技".to_string(),
@@ -58,7 +59,7 @@ pub fn ContactsList() -> impl IntoView {
     let async_data = Resource::new(
         move || sort_name_asc.get(),
         // every time `count` changes, this will run
-        |count| fetch_contacts()
+        |_count| fetch_contacts()
     );
 
     view! {
