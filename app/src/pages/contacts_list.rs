@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::contact::Contact;
 use leptos::logging;
+use crate::components::ContactModal;
 
 
 #[server]
@@ -19,6 +20,8 @@ pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
 #[component]
 pub fn ContactsList() -> impl IntoView {
     let (sort_name_asc, set_sort_name_asc) = signal(true);
+    let (is_open, set_open) = signal(false);
+
     let sort_name = move || {
         set_sort_name_asc.update(|a| *a = !*a);
     };
@@ -71,7 +74,29 @@ pub fn ContactsList() -> impl IntoView {
                 </button>
             </div>
           </div>
-
+          <div class="fixed bottom-8 right-8 z-10">
+            <button
+                on:click=move |_| set_open.set(true)
+                class="btn btn-circle btn-primary shadow-lg hover:shadow-xl transition-all"
+                style="width: 56px; height: 56px;"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 4v16m8-8H4"
+                    />
+                </svg>
+            </button>
+        </div>
+        <ContactModal />
           <div class="overflow-x-auto h-[calc(100vh-250px)] bg-base-100 rounded-lg shadow">
             <table class="table table-pin-rows">
               <thead>
@@ -105,8 +130,26 @@ pub fn ContactsList() -> impl IntoView {
               </thead>
               <tbody>
                 <Suspense
-                    fallback=move || view! { <tr><td colspan="8">Loading...</td></tr> }
+                    fallback=move || view! {
+                        <tr class="h-[calc(100vh-300px)]">
+                            <td colspan="9" class="h-32 text-center align-middle">
+                                <span class="loading loading-bars loading-xl"></span>
+                            </td>
+                        </tr>
+                    }
                 >
+                    <Show
+                        when=move || !data.with(|d| d.as_ref().map_or(true, |v| v.is_empty()))
+                        fallback=move || view! {
+                            <tr class="hover:bg-transparent h-[calc(100vh-300px)]">
+                                <td colspan="9" class="py-12 text-center align-middle">
+                                    <div class="inline-flex flex-col items-center">
+                                        <span class="text-gray-500 font-medium">暂无数据</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    >
                     <For
                         each=move || data.get().unwrap_or_default()
                         key=|contact| contact.contact_uuid.clone()
@@ -160,6 +203,8 @@ pub fn ContactsList() -> impl IntoView {
                             }
                         }
                     />
+                    </Show>
+
                 </Suspense>
 
 
