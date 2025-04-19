@@ -1,18 +1,8 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::contact::Contact;
+use leptos::logging;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct TableUser {
-    username: String,
-    company: String,
-    position: String,
-    phone_number: String,
-    email: String,
-    status: String,
-    last_contact: String,
-    value_level: String,
-}
 
 #[server]
 pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
@@ -28,52 +18,25 @@ pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
 
 #[component]
 pub fn ContactsList() -> impl IntoView {
-    let (data, _set_data) = signal(vec![
-        TableUser {
-            username: "张三".to_string(),
-            company: "ABC科技".to_string(),
-            position: "技术总监".to_string(),
-            phone_number: "13800138000".to_string(),
-            email: "zhangsan@abc.com".to_string(),
-            status: "已签约".to_string(),
-            last_contact: "2023-10-20".to_string(),
-            value_level: "3".to_string(), // 改为数字表示星级
-        },
-        TableUser {
-            username: "李四".to_string(),
-            company: "XYZ贸易".to_string(),
-            position: "销售经理".to_string(),
-            phone_number: "13900139000".to_string(),
-            email: "lisi@xyz.com".to_string(),
-            status: "待跟进".to_string(),
-            last_contact: "2023-10-18".to_string(),
-            value_level: "2".to_string(), // 改为数字表示星级
-        },
-    ]);
-
     let (sort_name_asc, set_sort_name_asc) = signal(true);
     let sort_name = move || {
         set_sort_name_asc.update(|a| *a = !*a);
     };
 
-    let async_data = Resource::new(
+    let data = Resource::new(
         move || sort_name_asc.get(),
         // every time `count` changes, this will run
-        |_count| fetch_contacts()
+        |_| async move {
+            fetch_contacts()
+                .await
+                .unwrap_or_else(|e| {
+                    logging::error!("Error loading contacts: {e}");
+                    Vec::new()
+                })
+        }
     );
 
     view! {
-        <Suspense
-            fallback=move || view! { <p>"Loading..."</p> }
-        >
-            <h2>"My Data"</h2>
-            <h3>"B"</h3>
-            {move || {
-                async_data.get()
-                    .map(|_b| view! { <p>"加载完毕！"</p> })
-            }}
-        </Suspense>
-
         <div class="p-6">
           <div class="flex flex-col md:flex-row gap-4 mb-6">
             <div class="flex-1">
@@ -141,59 +104,64 @@ pub fn ContactsList() -> impl IntoView {
                 </tr>
               </thead>
               <tbody>
-                  <For
-                    each=move || data.get()
-                    key=|contact| contact.username.clone()
-                    children=move |contact: TableUser| {
-                        let stars = contact.value_level.parse::<usize>().unwrap_or(0);
-                        let status = contact.status.clone();
-                        view! {
-                            <tr class="hover:bg-base-100">
-                                <td class="font-medium">{contact.username.clone()}</td>
-                                <td>{contact.company}</td>
-                                <td>{contact.position}</td>
-                                <td>{contact.phone_number}</td>
-                                <td>{contact.email}</td>
-                                <td>
-                                    <span class=format!("badge {}",
-                                        match status.as_str() {
-                                            "已签约" => "badge-success",
-                                            "待跟进" => "badge-warning",
-                                            _ => "badge-error",
-                                        }
-                                    )>
-                                        {status.clone()}
-                                    </span>
-                                </td>
-                                <td>{contact.last_contact}</td>
-                                <td>
-                                    <div class="rating rating-sm">
-                                        {(0..5).map(|i| {
-                                            view! {
-                                                <input
-                                                    type="radio"
-                                                    name=format!("rating-{}", contact.username)
-                                                    class="mask mask-star bg-yellow-400"
-                                                    checked=i < stars
-                                                />
+                <Suspense
+                    fallback=move || view! { <p>"Loading..."</p> }
+                >
+                    <For
+                        each=move || data.get().unwrap_or_default()
+                        key=|contact| contact.contact_uuid.clone()
+                        children=move |contact: Contact| {
+                            let stars = contact.value_level;
+                            let status = contact.status.clone();
+                            view! {
+                                <tr class="hover:bg-base-100">
+                                    <td class="font-medium">{contact.user_name.clone()}</td>
+                                    <td>{contact.company}</td>
+                                    <td>{contact.position}</td>
+                                    <td>{contact.phone_number}</td>
+                                    <td>{contact.email}</td>
+                                    <td>
+                                        <span class=format!("badge {}",
+                                            match status {
+                                                1 => "badge-success",
+                                                0 => "badge-warning",
+                                                _ => "badge-error",
                                             }
-                                        }).collect_view()}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="flex justify-end gap-1">
-                                        <a href=format!("/contacts/{}", contact.username) class="btn btn-ghost btn-xs">查看</a>
-                                        <button class="btn btn-ghost btn-xs">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
+                                        )>
+                                            {status.clone()}
+                                        </span>
+                                    </td>
+                                    <td>{contact.last_contact}</td>
+                                    <td>
+                                        <div class="rating rating-sm">
+                                            {(0..5).map(|i| {
+                                                view! {
+                                                    <input
+                                                        type="radio"
+                                                        name=format!("rating-{}", contact.user_name)
+                                                        class="mask mask-star bg-yellow-400"
+                                                        checked=i < stars
+                                                    />
+                                                }
+                                            }).collect_view()}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="flex justify-end gap-1">
+                                            <a href=format!("/contacts/{}", contact.user_name) class="btn btn-ghost btn-xs">查看</a>
+                                            <button class="btn btn-ghost btn-xs">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
                         }
-                    }
-                />
+                    />
+                </Suspense>
+
 
               </tbody>
             </table>
