@@ -105,7 +105,7 @@ pub fn ContactsList() -> impl IntoView {
               </thead>
               <tbody>
                 <Suspense
-                    fallback=move || view! { <p>"Loading..."</p> }
+                    fallback=move || view! { <tr><td colspan="8">Loading...</td></tr> }
                 >
                     <For
                         each=move || data.get().unwrap_or_default()
