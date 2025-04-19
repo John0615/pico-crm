@@ -2,7 +2,7 @@ use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::contact::Contact;
 use leptos::logging;
-use crate::components::ContactModal;
+use crate::components::features::ContactModal;
 
 
 #[server]

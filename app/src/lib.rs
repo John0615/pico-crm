@@ -5,11 +5,10 @@ use leptos_router::{
     path, StaticSegment,
 };
 
-use layout::*;
+use components::layouts::*;
 use pages::*;
 
 pub mod components;
-pub mod layout;
 pub mod pages;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {

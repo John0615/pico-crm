@@ -1,4 +1,4 @@
-use crate::components::{Navbar, Sidebar};
+use crate::components::features::{Navbar, Sidebar};
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
 
