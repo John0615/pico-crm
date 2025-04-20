@@ -20,7 +20,7 @@ pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
 #[component]
 pub fn ContactsList() -> impl IntoView {
     let (sort_name_asc, set_sort_name_asc) = signal(true);
-    let (is_open, set_open) = signal(false);
+    let show_modal =  RwSignal::new(false);
 
     let sort_name = move || {
         set_sort_name_asc.update(|a| *a = !*a);
@@ -74,9 +74,10 @@ pub fn ContactsList() -> impl IntoView {
                 </button>
             </div>
           </div>
+          // 添加客户按钮
           <div class="fixed bottom-8 right-8 z-10">
             <button
-                on:click=move |_| set_open.set(true)
+                on:click=move |_| show_modal.set(true)
                 class="btn btn-circle btn-primary shadow-lg hover:shadow-xl transition-all"
                 style="width: 56px; height: 56px;"
             >
@@ -96,7 +97,7 @@ pub fn ContactsList() -> impl IntoView {
                 </svg>
             </button>
         </div>
-        <ContactModal />
+        <ContactModal show=show_modal />
           <div class="overflow-x-auto h-[calc(100vh-250px)] bg-base-100 rounded-lg shadow">
             <table class="table table-pin-rows">
               <thead>

@@ -7,8 +7,9 @@ use leptos::logging::log;
 
 
 #[component]
-pub fn ContactModal() -> impl IntoView {
-    let show_modal = RwSignal::new(true);
+pub fn ContactModal(
+    show: RwSignal<bool>,
+) -> impl IntoView {
     let name = RwSignal::new("".to_string());
     let company = RwSignal::new("".to_string());
     let position = RwSignal::new("".to_string());
@@ -33,7 +34,7 @@ pub fn ContactModal() -> impl IntoView {
     };
 
     view! {
-        <Modal show=show_modal>
+        <Modal show=show>
             <FormContainer>
 
                 <form on:submit=handle_submit class="mt-4">
@@ -114,7 +115,7 @@ pub fn ContactModal() -> impl IntoView {
                     />
 
                     <div class="modal-action">
-                        <button type="button" class="btn btn-ghost">
+                        <button on:click= move |_| show.set(false) type="button" class="btn btn-ghost">
                             "取消"
                         </button>
                         <button type="submit" class="btn btn-primary">
