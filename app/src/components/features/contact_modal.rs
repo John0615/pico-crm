@@ -1,12 +1,14 @@
 use leptos::prelude::*;
 use crate::components::ui::form::{FormContainer, TextInput, EmailInput, SelectInput};
 use crate::components::ui::toast::{show_toast, ToastType};
+use crate::components::ui::modal::Modal;
 use leptos::ev::SubmitEvent;
 use leptos::logging::log;
 
 
 #[component]
 pub fn ContactModal() -> impl IntoView {
+    let show_modal = RwSignal::new(true);
     let name = RwSignal::new("".to_string());
     let company = RwSignal::new("".to_string());
     let position = RwSignal::new("".to_string());
@@ -31,8 +33,7 @@ pub fn ContactModal() -> impl IntoView {
     };
 
     view! {
-        <dialog class="modal modal-open">
-
+        <Modal show=show_modal>
             <FormContainer>
 
                 <form on:submit=handle_submit class="mt-4">
@@ -122,6 +123,6 @@ pub fn ContactModal() -> impl IntoView {
                     </div>
                 </form>
             </FormContainer>
-        </dialog>
+        </Modal>
     }
 }

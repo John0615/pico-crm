@@ -9,7 +9,7 @@ pub fn FormContainer(
     children: Children,
 ) -> impl IntoView {
     view! {
-        <div class=format!("card bg-base-100 shadow-xl p-6 {}", class)>
+        <div class=format!("bg-base-100 {}", class)>
             {title.map(|t| view! { <h2 class="card-title text-2xl mb-2">{t}</h2> })}
             {description.map(|d| view! { <p class="text-gray-500 mb-4">{d}</p> })}
             <div class="space-y-4">

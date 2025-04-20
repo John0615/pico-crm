@@ -16,11 +16,7 @@ pub fn Modal(
                     "✕"
                 </button>
                 {children()}
-                <div class="modal-action">
-                    <button class="btn">Close</button>
-                </div>
             </div>
-            <button on:click=move |_| show.set(false)>"close"</button>
         </dialog>
     }
 }
