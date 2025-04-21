@@ -39,16 +39,16 @@ pub fn show_toast(message: String, toast_type: ToastType) {
         );
 
         view! {
-            <div class="toast toast-top toast-center z-50">
-                <Show
-                    when=move || visible.get()
-                    fallback=|| ()
-                >
+            <Show
+                when=move || visible.get()
+                fallback=|| ()
+            >
+                <div class="toast toast-top toast-center z-50">
                     <div class=toast_class>
                         <span>{message.clone()}</span>
                     </div>
-                </Show>
-            </div>
+                </div>
+            </Show>
         }
     });
 
