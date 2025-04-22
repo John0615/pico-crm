@@ -126,13 +126,12 @@ pub fn ContactForm(#[prop(into)] submit_form: Callback<RwSignal<FormState>>) -> 
     let form_state = RwSignal::new(FormState::new(&fields));
 
     let submit = {
-        let form_state_value = form_state.get();
         let fields = fields.clone();
         move |_| {
-            if form_state_value.validate(&fields) {
-                form_state_value.is_submitting.set(true);
+            if form_state.get().validate(&fields) {
+                form_state.get().is_submitting.set(true);
                 // 提交逻辑...
-                log!("提交数据: {:?}", form_state_value.values.get());
+                log!("提交数据: {:?}", form_state.get().values.get());
                 submit_form.run(form_state);
             }
         }
@@ -144,7 +143,6 @@ pub fn ContactForm(#[prop(into)] submit_form: Callback<RwSignal<FormState>>) -> 
                 each=move || fields.clone()
                 key=|field| field.name.clone()
                 children={
-                    let form_state = form_state.clone();
                     move |field| {
                         view! {
                             <FormField field=field form_state=form_state.get()/>
@@ -158,8 +156,7 @@ pub fn ContactForm(#[prop(into)] submit_form: Callback<RwSignal<FormState>>) -> 
                     type="button"
                     class="btn btn-ghost"
                     on:click={
-                        let form_state = form_state.get();
-                        move |_| form_state.reset()
+                        move |_| form_state.get().reset()
                     }
                 >
                     "重置"
@@ -168,14 +165,10 @@ pub fn ContactForm(#[prop(into)] submit_form: Callback<RwSignal<FormState>>) -> 
                     type="button"
                     class="btn btn-primary"
                     on:click=submit
-                    disabled={
-                        let form_state = form_state.get();
-                        move || form_state.is_submitting.get()
-                    }
+                    disabled= move || form_state.get().is_submitting.get()
                 >
                     {
-                        let form_state = form_state.get();
-                        move || if form_state.is_submitting.get() {
+                        move || if form_state.get().is_submitting.get() {
                             "提交中..."
                         } else {
                             "提交"
