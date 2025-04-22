@@ -22,7 +22,7 @@ pub struct ContactsParams {
     pub search_conditions: SearchConditions,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Contact {
     pub contact_uuid: String,
     pub user_name: String,

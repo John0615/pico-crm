@@ -2,8 +2,15 @@ use leptos::prelude::*;
 use crate::components::ui::form::{FormContainer, TextInput, EmailInput, SelectInput};
 use crate::components::ui::toast::{show_toast, ToastType};
 use crate::components::ui::modal::Modal;
+use shared::contact::Contact;
 use leptos::ev::SubmitEvent;
 use leptos::logging::log;
+
+#[server]
+pub async fn add_contact(contact: Contact) -> Result<(), ServerFnError> {
+    println!("Adding contact: {:?}", contact);
+    Ok(())
+}
 
 
 #[component]
@@ -17,6 +24,16 @@ pub fn ContactModal(
     let email = RwSignal::new("".to_string());
     let value_level = RwSignal::new(3); // 1-5级
     let status = RwSignal::new(1); // 1:活跃 2:潜在 3:不活跃
+    let contact_act = ServerAction::<AddContact>::new();
+    let result = contact_act.value();
+
+    Effect::new(move |_| {
+        if let Some(Ok(())) = result.get() {
+            show_toast("操作成功".to_string(), ToastType::Success);
+        } else if let Some(Ok(_)) = result.get() {
+            show_toast("操作失败".to_string(), ToastType::Success);
+        }
+    });
 
     let handle_submit = move |ev: SubmitEvent| {
         ev.prevent_default();
@@ -30,12 +47,27 @@ pub fn ContactModal(
             value_level.get(),
             status.get()
         );
-        show_toast("操作成功".to_string(), ToastType::Success);
+        let contact = Contact {
+            contact_uuid: "".to_string(),
+            user_name: name.get(),
+            company: company.get(),
+            position: position.get(),
+            phone_number: phone.get(),
+            email: email.get(),
+            last_contact: "".to_string(),
+            value_level: value_level.get(),
+            status: status.get(),
+            ..Default::default()
+        };
+
+        contact_act.dispatch(AddContact{contact});
+        log!("result: {:?}", result.get());
+        show.set(false);
     };
 
     view! {
         <Modal show=show>
-            <FormContainer>
+            <FormContainer title="新建客户">
 
                 <form on:submit=handle_submit class="mt-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
