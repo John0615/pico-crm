@@ -5,7 +5,7 @@ use app::*;
 use leptos::logging::log;
 use std::env;
 use migration::{Migrator, MigratorTrait};
-use backend::db::Database;
+use backend::infrastructure::db::Database;
 
 
 

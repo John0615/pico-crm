@@ -7,7 +7,7 @@ use crate::components::features::ContactModal;
 
 #[server]
 pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
-    use backend::db::Database;
+    use backend::infrastructure::db::Database;
     let pool = expect_context::<Database>();
     println!("pool {:?}", pool);
 

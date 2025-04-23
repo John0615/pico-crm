@@ -1,4 +1,4 @@
-use crate::db::DatabaseConnection;
+use crate::infrastructure::db::DatabaseConnection;
 use sea_orm::{EntityTrait, ActiveModelTrait};
 use sea_orm::entity::prelude::{Uuid};
 use sea_orm::ActiveValue::{Set, NotSet};

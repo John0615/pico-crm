@@ -9,7 +9,7 @@ use leptos::logging::log;
 #[server]
 pub async fn add_contact(contact: Contact) -> Result<(), ServerFnError> {
     use backend::operations::contacts;
-    use backend::db::Database;
+    use backend::infrastructure::db::Database;
     let pool = expect_context::<Database>();
 
     println!("Adding contact: {:?}", contact);
