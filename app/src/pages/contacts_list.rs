@@ -2,8 +2,7 @@ use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::contact::Contact;
 use leptos::logging;
-// use crate::components::features::ContactModal;
-use crate::components::features::ContactModal1;
+use crate::components::features::ContactModal;
 
 
 #[server]
@@ -98,8 +97,7 @@ pub fn ContactsList() -> impl IntoView {
                 </svg>
             </button>
         </div>
-        // <ContactModal show=show_modal />
-        <ContactModal1 show=show_modal />
+        <ContactModal show=show_modal />
           <div class="overflow-x-auto h-[calc(100vh-250px)] bg-base-100 rounded-lg shadow">
             <table class="table table-pin-rows">
               <thead>

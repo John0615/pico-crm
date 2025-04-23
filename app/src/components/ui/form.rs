@@ -34,13 +34,6 @@ pub fn FormActions(
     }
 }
 
-
-#[derive(Debug, Clone, Default)]
-pub struct ValidationState {
-    pub is_valid: bool,
-    pub message: String,
-}
-
 #[component]
 pub fn TextInput(
     name: &'static str,
@@ -49,10 +42,6 @@ pub fn TextInput(
     #[prop(optional)] placeholder: &'static str,
     #[prop(optional)] required: bool,
     #[prop(optional)] class: &'static str,
-    #[prop(default=RwSignal::new(ValidationState{
-        is_valid: true,
-        message: String::new(),
-    }))] validation_state: RwSignal<ValidationState>,
 ) -> impl IntoView {
 
     view! {
@@ -64,10 +53,7 @@ pub fn TextInput(
             <input
                 type="text"
                 name=name
-                class=move || {format!(
-                    "input input-bordered {}",
-                    if !validation_state.get().is_valid { "input-error" } else { "" }
-                )}
+                class="input input-bordered {}"
                 placeholder=placeholder
                 required=required
                 prop:value=move || value.get()
@@ -78,11 +64,7 @@ pub fn TextInput(
             />
             <p class="label">
                 <span class="label-text-alt text-error h-4">
-                    {move || if !validation_state.get().is_valid {
-                        validation_state.get().message.clone()
-                    } else {
-                        "".to_string()
-                    }}
+                    ""
                 </span>
             </p>
         </fieldset>
@@ -190,10 +172,6 @@ pub fn EmailInput(
     #[prop(optional)] placeholder: &'static str,
     #[prop(optional)] required: bool,
     #[prop(optional)] class: &'static str,
-    #[prop(default=RwSignal::new(ValidationState{
-        is_valid: true,
-        message: String::new(),
-    }))] validation_state: RwSignal<ValidationState>,
 ) -> impl IntoView {
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -204,10 +182,7 @@ pub fn EmailInput(
             <input
                 type="email"
                 name=name
-                class=move || {format!(
-                    "input input-bordered {}",
-                    if !validation_state.get().is_valid { "input-error" } else { "" }
-                )}
+                class="input input-bordered"
                 placeholder=placeholder
                 required=required
                 prop:value=move || value.get()
@@ -218,11 +193,7 @@ pub fn EmailInput(
             />
             <p class="label">
                 <span class="label-text-alt text-error h-4">
-                    {move || if !validation_state.get().is_valid {
-                        validation_state.get().message.clone()
-                    } else {
-                        "".to_string()
-                    }}
+                    ""
                 </span>
             </p>
         </fieldset>
