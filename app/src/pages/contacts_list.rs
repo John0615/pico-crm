@@ -182,6 +182,7 @@ pub fn ContactsList() -> impl IntoView {
                                             {(0..5).map(|i| {
                                                 view! {
                                                     <input
+                                                        disabled
                                                         type="radio"
                                                         name=format!("rating-{}", contact.user_name)
                                                         class="mask mask-star bg-yellow-400"
