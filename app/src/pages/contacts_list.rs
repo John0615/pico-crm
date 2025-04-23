@@ -8,13 +8,14 @@ use crate::components::features::ContactModal;
 #[server]
 pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
     use backend::infrastructure::db::Database;
+    use backend::presentation::handlers::contacts;
     let pool = expect_context::<Database>();
     println!("pool {:?}", pool);
 
     println!("Fetching contacts...");
-    let contacts = backend::operations::contacts::fetch_contacts(&pool.connection).await.map_err(|e| ServerFnError::new(e))?;
-    println!("Fetching contacts result {:?}", contacts);
-    Ok(contacts)
+    let res = contacts::fetch_contacts(&pool.connection).await.map_err(|e| ServerFnError::new(e))?;
+    println!("Fetching contacts result {:?}", res);
+    Ok(res)
 }
 
 #[component]
