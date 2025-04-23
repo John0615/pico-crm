@@ -8,9 +8,23 @@ use shared::contact::Contact;
 
 pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<Vec<Contact>, String> {
     let contacts = Entity::find().all(db).await.map_err(|_| "err".to_string())?;
-
+    let contacts: Vec<Contact> = contacts.into_iter().map(|contact| {
+        Contact {
+            contact_uuid: contact.contact_uuid.to_string(),
+            user_name: contact.user_name,
+            company: contact.company,
+            position: contact.position,
+            phone_number: contact.phone_number,
+            email: contact.email,
+            last_contact: contact.last_contact.format("%Y-%m-%d %H:%M:%S").to_string(),
+            value_level: contact.value_level,
+            status: contact.status,
+            inserted_at: contact.inserted_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+            updated_at: contact.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+        }
+    }).collect();
     println!("contacts {:#?}", contacts);
-    Ok(vec![])
+    Ok(contacts)
 }
 
 pub async fn create_contact(db: &DatabaseConnection, contact: Contact) -> Result<(), String> {
