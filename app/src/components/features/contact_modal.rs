@@ -32,10 +32,12 @@ pub fn ContactModal(
     let value_level = RwSignal::new(3); // 1-5级
     let status = RwSignal::new(1); // 1:活跃 2:潜在 3:不活跃
     let contact_act = ServerAction::<AddContact>::new();
+    let pending = contact_act.pending();
     let result = contact_act.value();
 
     Effect::new(move |_| {
         if let Some(Ok(())) = result.get() {
+            show.set(false);
             show_toast("操作成功".to_string(), ToastType::Success);
         } else if let Some(Ok(_)) = result.get() {
             show_toast("操作失败".to_string(), ToastType::Success);
@@ -69,7 +71,6 @@ pub fn ContactModal(
 
         contact_act.dispatch(AddContact{contact});
         log!("result: {:?}", result.get());
-        show.set(false);
     };
 
     view! {
@@ -157,7 +158,7 @@ pub fn ContactModal(
                         <button on:click= move |_| show.set(false) type="button" class="btn btn-ghost">
                             "取消"
                         </button>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" disabled={pending.get()} class="btn btn-primary">
                             "保存客户"
                         </button>
                     </div>
