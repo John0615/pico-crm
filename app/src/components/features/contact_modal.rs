@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use crate::components::ui::form::{FormContainer, TextInput, EmailInput, SelectInput};
+use crate::components::ui::form::{FormContainer, TextInput, SelectInput};
 use crate::components::ui::toast::{show_toast, ToastType};
 use crate::components::ui::modal::Modal;
 use shared::contact::Contact;
@@ -80,47 +80,52 @@ pub fn ContactModal(
                 <form on:submit=handle_submit class="mt-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <TextInput
-                            name="name"
-                            label="客户姓名"
+                            field_type="text".to_string()
+                            name="name".to_string()
+                            label="客户姓名".to_string()
                             value=name
                             required=true
-                            placeholder="输入客户姓名"
+                            placeholder="输入客户姓名".to_string()
                         />
 
                         <TextInput
-                            name="company"
-                            label="公司名称"
+                            field_type="text".to_string()
+                            name="company".to_string()
+                            label="公司名称".to_string()
                             value=company
                             required=true
-                            placeholder="输入公司名称"
+                            placeholder="输入公司名称".to_string()
                         />
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <TextInput
-                            name="position"
-                            label="职位"
+                            field_type="text".to_string()
+                            name="position".to_string()
+                            label="职位".to_string()
                             value=position
                             required=true
-                            placeholder="输入职位"
+                            placeholder="输入职位".to_string()
                         />
 
                         <TextInput
-                            name="phone"
-                            label="联系电话"
+                            field_type="text".to_string()
+                            name="phone".to_string()
+                            label="联系电话".to_string()
                             value=phone
                             required=true
-                            placeholder="输入联系电话"
+                            placeholder="输入联系电话".to_string()
                         />
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <EmailInput
-                            name="email"
-                            label="电子邮箱"
+                        <TextInput
+                            field_type="email".to_string()
+                            name="email".to_string()
+                            label="电子邮箱".to_string()
                             value=email
                             required=true
-                            placeholder="输入电子邮箱"
+                            placeholder="输入电子邮箱".to_string()
                         />
 
                         <fieldset class="fieldset form-control">
@@ -143,8 +148,8 @@ pub fn ContactModal(
                     </div>
 
                     <SelectInput
-                        name="status"
-                        label="客户状态"
+                        name="status".to_string()
+                        label="客户状态".to_string()
                         value=status
                         required=true
                         options=vec![

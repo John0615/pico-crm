@@ -1,7 +1,7 @@
 use crate::infrastructure::db::DatabaseConnection;
 use sea_orm::{EntityTrait, ActiveModelTrait};
 use sea_orm::entity::prelude::{Uuid};
-use sea_orm::ActiveValue::{Set, NotSet};
+use sea_orm::ActiveValue::{Set};
 use crate::domain::models::contacts::{Entity, ActiveModel};
 use chrono::prelude::{Local, DateTime, NaiveDateTime};
 use shared::contact::Contact;

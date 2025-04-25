@@ -13,6 +13,7 @@ leptos = { version = "0.7.3" }
 leptos_meta = { version = "0.7.3" }
 leptos_router = { version = "0.7.3" }
 leptos_axum = { version = "0.7.3" }
+reactive_stores = "0.1.8"
 
 axum = "0.7"
 cfg-if = "1"

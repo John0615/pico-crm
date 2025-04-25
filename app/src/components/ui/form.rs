@@ -1,5 +1,283 @@
 use leptos::prelude::*;
+use leptos::logging::log;
+use std::future::Future;
+use leptos::ev::SubmitEvent;
+use leptos::task::spawn_local;
+use regex::Regex;
+use std::fmt;
+use std::sync::Arc;
 
+// 表单字段定义
+#[derive(Debug, Clone)]
+pub struct FormField {
+    pub name: String,
+    pub label: String,
+    pub field_type: FieldType,
+    pub required: bool,
+    pub value: RwSignal<String>,
+    pub placeholder: Option<String>,
+    pub error_message: RwSignal<Option<String>>,
+    pub validation: Option<ValidationRule>,
+}
+
+// 字段类型枚举
+#[derive(Debug, Clone)]
+pub enum FieldType {
+    Text,
+    Email,
+    Password,
+    Number,
+    TextArea,
+    Select(Vec<(String, String)>),
+    Checkbox
+}
+
+impl FieldType {
+    fn to_string(&self) -> String {
+        match self {
+            FieldType::Text => "text".to_string(),
+            FieldType::Email => "email".to_string(),
+            FieldType::Password => "password".to_string(),
+            FieldType::Number => "number".to_string(),
+            _ => "text".to_string(),
+        }
+    }
+}
+
+// 验证规则
+#[derive(Debug, Clone)]
+pub enum ValidationRule {
+    MinLength(usize),
+    MaxLength(usize),
+    Regex(String),
+    Custom(CustomValidator),
+}
+
+#[derive(Clone)]
+pub struct CustomValidator(Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync + 'static>);
+
+impl fmt::Debug for CustomValidator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<custom_validator>")
+    }
+}
+
+impl CustomValidator {
+    pub fn validate(&self, value: &str) -> Result<(), String> {
+        (self.0)(value)
+    }
+}
+
+// 表单状态
+#[derive(Debug, Clone)]
+pub struct FormState {
+    pub fields: RwSignal<Vec<FormField>>,
+    pub is_submitting: RwSignal<bool>,
+    pub submit_success: RwSignal<bool>,
+}
+
+#[component]
+pub fn DaisyForm<F, T>(
+    initial_fields: Vec<FormField>,
+    on_submit: F,
+    #[prop(optional)] submit_text: Option<String>,
+    #[prop(optional)] reset_text: Option<String>,
+) -> impl IntoView
+where
+    F: Fn(Vec<FormField>) -> T + Copy + 'static,
+    T: Future<Output = Result<(), Vec<String>>> + 'static,
+{
+
+    let form_state = RwSignal::new(FormState {
+        fields: RwSignal::new(initial_fields),
+        is_submitting: RwSignal::new(false),
+        submit_success: RwSignal::new(false),
+    });
+
+    // 验证单个字段
+    let validate_field = move |field: &FormField| -> Option<String> {
+        let value = field.value.get();
+        if field.required && value.is_empty() {
+            return Some(format!("{}不能为空", field.label));
+        }
+
+        if let Some(validation) = &field.validation {
+            match validation {
+                ValidationRule::MinLength(min) if value.len() < *min => {
+                    return Some(format!("{}长度至少{}", field.label, min));
+                }
+                ValidationRule::MaxLength(max) if value.len() > *max => {
+                    return Some(format!("{}长度最多{}", field.label, max));
+                }
+                ValidationRule::Regex(pattern) => {
+                    if let Ok(re) = Regex::new(pattern) {
+                        if !re.is_match(&value) {
+                            return Some(format!("{}格式不正确", field.label));
+                        }
+                    }
+                }
+                ValidationRule::Custom(validator) => {
+                    if let Err(msg) = validator.validate(&value) {
+                        return Some(msg);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    };
+
+    // 验证整个表单
+    let validate_form = move || {
+        let mut is_valid = true;
+        for field in form_state.get().fields.get().iter() {
+            let error = validate_field(field);
+            let error = error.clone();
+            field.error_message.set(error.clone());
+            if error.is_some() {
+                is_valid = false;
+            }
+        }
+        is_valid
+    };
+
+    // 提交表单
+    let submit = move |ev: SubmitEvent| {
+        ev.prevent_default();
+
+        if !validate_form() {
+            return;
+        }
+
+        form_state.get().is_submitting.set(true);
+        form_state.get().submit_success.set(false);
+
+        let fields = form_state.get().fields.clone();
+        spawn_local(async move {
+            let result = on_submit(fields.get()).await;
+
+            form_state.get().is_submitting.set(false);
+
+            match result {
+                Ok(_) => {
+                    form_state.get().submit_success.set(true);
+                }
+                Err(errors) => {
+                    for error in errors {
+                        log!("Form error: {}", error);
+                    }
+                }
+            }
+        });
+    };
+
+    // 重置表单
+    let reset = move |_| {
+        for field in form_state.get().fields.get().iter() {
+            field.value.set(String::new());
+            field.error_message.set(None);
+        }
+        form_state.get().submit_success.set(false);
+    };
+
+    view! {
+        <form class="form-control w-full max-w-md mx-auto" on:submit=submit>
+            <For
+                each=move || form_state.get().fields.get()
+                key=|field| field.name.clone()
+                children=move |field| {
+                    view! {
+                        <div class="form-control mb-4">
+                            <label class="label">
+                                <span class="label-text">{field.label.clone()}</span>
+                                {move || field.required.then(||
+                                    view! { <span class="text-error">"*"</span> }
+                                )}
+                            </label>
+
+                            {match field.field_type.clone() {
+                                FieldType::Text | FieldType::Email | FieldType::Password | FieldType::Number =>
+                                    view! {
+                                        <TextInput
+                                            field_type=field.field_type.to_string()
+                                            name=field.name
+                                            label=field.label
+                                            value=field.value
+                                            required=field.required
+                                            placeholder=field.placeholder.unwrap_or_default()
+                                        />
+                                    }.into_any(),
+                                FieldType::TextArea =>
+                                    view! {
+                                        <TextAreaInput
+                                            name=field.name
+                                            label=field.label
+                                            value=field.value
+                                            required=field.required
+                                            placeholder=field.placeholder.unwrap_or_default()
+                                        />
+                                    }.into_any(),
+                                FieldType::Select(options) =>
+                                    view! {
+                                        <SelectInput
+                                            name=field.name
+                                            label=field.label
+                                            value=field.value
+                                            required=true
+                                            options=options
+                                        />
+                                    }.into_any(),
+                                FieldType::Checkbox =>
+                                    view! {
+                                        <CheckboxInput
+                                            name=field.name
+                                            label=field.label
+                                            checked=RwSignal::new(false)
+                                        />
+                                    }.into_any(),
+                            }}
+
+                            {move || field.error_message.get().map(|msg|
+                                view! {
+                                    <label class="label">
+                                        <span class="label-text-alt text-error">{msg}</span>
+                                    </label>
+                                }
+                            )}
+                        </div>
+                    }
+                }
+            />
+
+            <div class="flex gap-2 justify-end mt-6">
+                <button
+                    type="button"
+                    class="btn btn-ghost"
+                    on:click=reset
+                    disabled=move || form_state.get().is_submitting.get()
+                >
+                    {reset_text.unwrap_or("重置".into())}
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                    disabled=move || form_state.get().is_submitting.get()
+                >
+                    {move || if form_state.get().is_submitting.get() {
+                        view! {
+                            <span class="loading loading-spinner"></span>
+                        }.into_view().into_any()
+                    } else {
+                        view! {
+                            {submit_text.clone().unwrap_or("提交".into())}
+                        }.into_view().into_any()
+                    }}
+                </button>
+            </div>
+        </form>
+    }
+}
 
 #[component]
 pub fn FormContainer(
@@ -36,12 +314,13 @@ pub fn FormActions(
 
 #[component]
 pub fn TextInput(
-    name: &'static str,
-    label: &'static str,
+    name: String,
+    field_type: String,
+    label: String,
     value: RwSignal<String>,
-    #[prop(optional)] placeholder: &'static str,
+    #[prop(optional)] placeholder: String,
     #[prop(optional)] required: bool,
-    #[prop(optional)] class: &'static str,
+    #[prop(optional)] class: String,
 ) -> impl IntoView {
 
     view! {
@@ -51,7 +330,7 @@ pub fn TextInput(
                 {required.then(|| view! { <span class="text-error">*</span> })}
             </label>
             <input
-                type="text"
+                type=field_type
                 name=name
                 class="input input-bordered {}"
                 placeholder=placeholder
@@ -73,10 +352,10 @@ pub fn TextInput(
 
 #[component]
 pub fn CheckboxInput(
-    name: &'static str,
-    label: &'static str,
+    name: String,
+    label: String,
     checked: RwSignal<bool>,
-    #[prop(optional)] class: &'static str,
+    #[prop(optional)] class: String,
 ) -> impl IntoView {
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -96,12 +375,13 @@ pub fn CheckboxInput(
 
 #[component]
 pub fn TextAreaInput(
-    name: &'static str,
-    label: &'static str,
+    name: String,
+    label: String,
     value: RwSignal<String>,
-    #[prop(optional)] placeholder: &'static str,
+    #[prop(optional)] placeholder: String,
+    #[prop(optional)] required: bool,
     #[prop(optional)] rows: usize,
-    #[prop(optional)] class: &'static str,
+    #[prop(optional)] class: String,
 ) -> impl IntoView {
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -110,6 +390,7 @@ pub fn TextAreaInput(
             </label>
             <textarea
                 name=name
+                required=required
                 class="textarea textarea-bordered"
                 placeholder=placeholder
                 rows=rows
@@ -122,12 +403,12 @@ pub fn TextAreaInput(
 
 #[component]
 pub fn SelectInput<T>(
-    name: &'static str,
-    label: &'static str,
+    name: String,
+    label: String,
     value: RwSignal<T>,
     options: Vec<(T, String)>,
     #[prop(optional)] required: bool,
-    #[prop(optional)] class: &'static str,
+    #[prop(optional)] class: String,
 ) -> impl IntoView
 where
     T: Clone + PartialEq + Send +  Sync + 'static,  // 移除了 ToString 约束
@@ -160,42 +441,6 @@ where
                     }
                 />
             </select>
-        </fieldset>
-    }
-}
-
-#[component]
-pub fn EmailInput(
-    name: &'static str,
-    label: &'static str,
-    value: RwSignal<String>,
-    #[prop(optional)] placeholder: &'static str,
-    #[prop(optional)] required: bool,
-    #[prop(optional)] class: &'static str,
-) -> impl IntoView {
-    view! {
-        <fieldset class=format!("fieldset form-control {}", class)>
-            <label class="label">
-                <span class="label-text">{label}</span>
-                {required.then(|| view! { <span class="text-error">*</span> })}
-            </label>
-            <input
-                type="email"
-                name=name
-                class="input input-bordered"
-                placeholder=placeholder
-                required=required
-                prop:value=move || value.get()
-                on:input=move |ev| {
-                    let new_value = event_target_value(&ev);
-                    value.set(new_value.clone());
-                }
-            />
-            <p class="label">
-                <span class="label-text-alt text-error h-4">
-                    ""
-                </span>
-            </p>
         </fieldset>
     }
 }

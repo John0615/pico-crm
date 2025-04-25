@@ -10,6 +10,7 @@ leptos.workspace = true
 leptos_meta.workspace = true
 leptos_router.workspace = true
 leptos_axum = { workspace = true, optional = true }
+reactive_stores.workspace = true
 
 http.workspace = true
 cfg-if.workspace = true
