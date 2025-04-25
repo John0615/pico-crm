@@ -182,72 +182,74 @@ where
 
     view! {
         <form class="form-control w-full max-w-md mx-auto" on:submit=submit>
-            <For
-                each=move || form_state.get().fields.get()
-                key=|field| field.name.clone()
-                children=move |field| {
-                    view! {
-                        <div class="form-control mb-4">
-                            <label class="label">
-                                <span class="label-text">{field.label.clone()}</span>
-                                {move || field.required.then(||
-                                    view! { <span class="text-error">"*"</span> }
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <For
+                    each=move || form_state.get().fields.get()
+                    key=|field| field.name.clone()
+                    children=move |field| {
+                        view! {
+                            <div class="form-control mb-4">
+                                <label class="label">
+                                    <span class="label-text">{field.label.clone()}</span>
+                                    {move || field.required.then(||
+                                        view! { <span class="text-error">"*"</span> }
+                                    )}
+                                </label>
+
+                                {match field.field_type.clone() {
+                                    FieldType::Text | FieldType::Email | FieldType::Password | FieldType::Number =>
+                                        view! {
+                                            <TextInput
+                                                field_type=field.field_type.to_string()
+                                                name=field.name
+                                                label=field.label
+                                                value=field.value
+                                                required=field.required
+                                                placeholder=field.placeholder.unwrap_or_default()
+                                            />
+                                        }.into_any(),
+                                    FieldType::TextArea =>
+                                        view! {
+                                            <TextAreaInput
+                                                name=field.name
+                                                label=field.label
+                                                value=field.value
+                                                required=field.required
+                                                placeholder=field.placeholder.unwrap_or_default()
+                                            />
+                                        }.into_any(),
+                                    FieldType::Select(options) =>
+                                        view! {
+                                            <SelectInput
+                                                name=field.name
+                                                label=field.label
+                                                value=field.value
+                                                required=true
+                                                options=options
+                                            />
+                                        }.into_any(),
+                                    FieldType::Checkbox =>
+                                        view! {
+                                            <CheckboxInput
+                                                name=field.name
+                                                label=field.label
+                                                checked=RwSignal::new(false)
+                                            />
+                                        }.into_any(),
+                                }}
+
+                                {move || field.error_message.get().map(|msg|
+                                    view! {
+                                        <label class="label">
+                                            <span class="label-text-alt text-error">{msg}</span>
+                                        </label>
+                                    }
                                 )}
-                            </label>
-
-                            {match field.field_type.clone() {
-                                FieldType::Text | FieldType::Email | FieldType::Password | FieldType::Number =>
-                                    view! {
-                                        <TextInput
-                                            field_type=field.field_type.to_string()
-                                            name=field.name
-                                            label=field.label
-                                            value=field.value
-                                            required=field.required
-                                            placeholder=field.placeholder.unwrap_or_default()
-                                        />
-                                    }.into_any(),
-                                FieldType::TextArea =>
-                                    view! {
-                                        <TextAreaInput
-                                            name=field.name
-                                            label=field.label
-                                            value=field.value
-                                            required=field.required
-                                            placeholder=field.placeholder.unwrap_or_default()
-                                        />
-                                    }.into_any(),
-                                FieldType::Select(options) =>
-                                    view! {
-                                        <SelectInput
-                                            name=field.name
-                                            label=field.label
-                                            value=field.value
-                                            required=true
-                                            options=options
-                                        />
-                                    }.into_any(),
-                                FieldType::Checkbox =>
-                                    view! {
-                                        <CheckboxInput
-                                            name=field.name
-                                            label=field.label
-                                            checked=RwSignal::new(false)
-                                        />
-                                    }.into_any(),
-                            }}
-
-                            {move || field.error_message.get().map(|msg|
-                                view! {
-                                    <label class="label">
-                                        <span class="label-text-alt text-error">{msg}</span>
-                                    </label>
-                                }
-                            )}
-                        </div>
+                            </div>
+                        }
                     }
-                }
-            />
+                />
+            </div>
 
             <div class="flex gap-2 justify-end mt-6">
                 <button
@@ -342,7 +344,7 @@ pub fn TextInput(
                 }
             />
             <p class="label">
-                <span class="label-text-alt text-error h-4">
+                <span class="label-text-alt text-error h-2">
                     ""
                 </span>
             </p>

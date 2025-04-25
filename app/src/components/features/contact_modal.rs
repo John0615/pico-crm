@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use crate::components::ui::form::{FormContainer, TextInput, SelectInput};
+use crate::components::ui::form::{FormContainer, TextInput, SelectInput, DaisyForm, FieldType, FormField, ValidationRule};
 use crate::components::ui::toast::{show_toast, ToastType};
 use crate::components::ui::modal::Modal;
 use shared::contact::Contact;
@@ -96,9 +96,7 @@ pub fn ContactModal(
                             required=true
                             placeholder="输入公司名称".to_string()
                         />
-                    </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <TextInput
                             field_type="text".to_string()
                             name="position".to_string()
@@ -116,9 +114,7 @@ pub fn ContactModal(
                             required=true
                             placeholder="输入联系电话".to_string()
                         />
-                    </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <TextInput
                             field_type="email".to_string()
                             name="email".to_string()
@@ -145,19 +141,19 @@ pub fn ContactModal(
                                 }).collect::<Vec<_>>()}
                             </div>
                         </fieldset>
-                    </div>
 
-                    <SelectInput
-                        name="status".to_string()
-                        label="客户状态".to_string()
-                        value=status
-                        required=true
-                        options=vec![
-                            (1, "活跃客户".to_string()),
-                            (2, "潜在客户".to_string()),
-                            (3, "不活跃客户".to_string()),
-                        ]
-                    />
+                        <SelectInput
+                            name="status".to_string()
+                            label="客户状态".to_string()
+                            value=status
+                            required=true
+                            options=vec![
+                                (1, "活跃客户".to_string()),
+                                (2, "潜在客户".to_string()),
+                                (3, "不活跃客户".to_string()),
+                            ]
+                        />
+                    </div>
 
                     <div class="modal-action">
                         <button on:click= move |_| show.set(false) type="button" class="btn btn-ghost">
@@ -168,6 +164,53 @@ pub fn ContactModal(
                         </button>
                     </div>
                 </form>
+            </FormContainer>
+        </Modal>
+    }
+}
+
+
+#[component]
+pub fn UserRegistrationForm() -> impl IntoView {
+    let initial_fields = vec![
+        FormField {
+            name: "username".to_string(),
+            label: "用户名".to_string(),
+            field_type: FieldType::Text,
+            required: true,
+            value: RwSignal::new("".to_string()),
+            placeholder: Some("请输入用户名".to_string()),
+            validation: Some(ValidationRule::MinLength(3)),
+            error_message: RwSignal::new(None)
+        },
+        FormField {
+            name: "password".to_string(),
+            label: "密码".to_string(),
+            field_type: FieldType::Password,
+            required: true,
+            value: RwSignal::new("".to_string()),
+            placeholder: Some("请输入密码".to_string()),
+            validation: Some(ValidationRule::MinLength(8)),
+            error_message: RwSignal::new(None)
+        },
+    ];
+
+    let show = RwSignal::new(false);
+    let submit = move |fields: Vec<FormField>| async move {
+        // 这里添加实际提交逻辑
+        log!("Submitting: {:?}", fields);
+        Ok(())
+    };
+
+    view! {
+        <Modal show=show>
+            <FormContainer title="新建客户">
+                <DaisyForm
+                    initial_fields
+                    on_submit=submit
+                    submit_text="注册".to_string()
+                    reset_text="清空".to_string()
+                />
             </FormContainer>
         </Modal>
     }
