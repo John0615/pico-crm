@@ -206,6 +206,7 @@ where
                                                 value=field.value
                                                 required=field.required
                                                 placeholder=field.placeholder.unwrap_or_default()
+                                                error_message=field.error_message
                                             />
                                         }.into_any(),
                                     FieldType::TextArea =>
@@ -323,6 +324,7 @@ pub fn TextInput(
     #[prop(optional)] placeholder: String,
     #[prop(optional)] required: bool,
     #[prop(optional)] class: String,
+    #[prop(optional)] error_message: RwSignal<Option<String>>,
 ) -> impl IntoView {
 
     view! {
@@ -334,7 +336,7 @@ pub fn TextInput(
             <input
                 type=field_type
                 name=name
-                class="input input-bordered {}"
+                class="input input-bordered"
                 placeholder=placeholder
                 required=required
                 prop:value=move || value.get()
@@ -345,7 +347,7 @@ pub fn TextInput(
             />
             <p class="label">
                 <span class="label-text-alt text-error h-2">
-                    ""
+                    {move || error_message.get().unwrap_or_default()}
                 </span>
             </p>
         </fieldset>
@@ -358,6 +360,7 @@ pub fn CheckboxInput(
     label: String,
     checked: RwSignal<bool>,
     #[prop(optional)] class: String,
+    #[prop(optional)] error_message: RwSignal<Option<String>>,
 ) -> impl IntoView {
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -371,6 +374,11 @@ pub fn CheckboxInput(
                 />
                 <span class="label-text">{label}</span>
             </label>
+            <p class="label">
+                <span class="label-text-alt text-error h-2">
+                    {move || error_message.get().unwrap_or_default()}
+                </span>
+            </p>
         </fieldset>
     }
 }
@@ -384,6 +392,7 @@ pub fn TextAreaInput(
     #[prop(optional)] required: bool,
     #[prop(optional)] rows: usize,
     #[prop(optional)] class: String,
+    #[prop(optional)] error_message: RwSignal<Option<String>>,
 ) -> impl IntoView {
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -399,6 +408,11 @@ pub fn TextAreaInput(
                 prop:value=move || value.get()
                 on:input=move |ev| value.set(event_target_value(&ev))
             ></textarea>
+            <p class="label">
+                <span class="label-text-alt text-error h-2">
+                    {move || error_message.get().unwrap_or_default()}
+                </span>
+            </p>
         </fieldset>
     }
 }
@@ -411,6 +425,7 @@ pub fn SelectInput<T>(
     options: Vec<(T, String)>,
     #[prop(optional)] required: bool,
     #[prop(optional)] class: String,
+    #[prop(optional)] error_message: RwSignal<Option<String>>,
 ) -> impl IntoView
 where
     T: Clone + PartialEq + Send +  Sync + 'static,  // 移除了 ToString 约束
@@ -443,6 +458,11 @@ where
                     }
                 />
             </select>
+            <p class="label">
+                <span class="label-text-alt text-error h-2">
+                    {move || error_message.get().unwrap_or_default()}
+                </span>
+            </p>
         </fieldset>
     }
 }
