@@ -19,9 +19,13 @@ pub async fn add_contact(contact: Contact) -> Result<(), ServerFnError> {
 }
 
 #[component]
-pub fn ContactModal(
+pub fn ContactModal<F>(
     show: RwSignal<bool>,
-) -> impl IntoView {
+    on_finish: F
+) -> impl IntoView
+where
+    F: Fn() + Copy + Send + 'static
+{
     let initial_fields =
         vec![
             FormField {
@@ -112,7 +116,7 @@ pub fn ContactModal(
             }
         ];
     let submit = move |fields: Vec<FormField>| async move {
-    let contact =  Contact {
+        let contact =  Contact {
             user_name: fields[0].value.get_untracked().clone(),
             company: fields[1].value.get_untracked().clone(),
             position: fields[2].value.get_untracked().clone(),
@@ -129,6 +133,7 @@ pub fn ContactModal(
                 log!("添加成功");
                 show.set(false);
                 show_toast("操作成功".to_string(), ToastType::Success);
+                on_finish();
                 Ok(())
             }
             Err(e) => {

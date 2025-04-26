@@ -22,14 +22,14 @@ pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
 pub fn ContactsList() -> impl IntoView {
     let (sort_name_asc, set_sort_name_asc) = signal(true);
     let show_modal =  RwSignal::new(false);
-    let refresh = RwSignal::new(0);
+    let refresh_count = RwSignal::new(0);
 
     let sort_name = move || {
         set_sort_name_asc.update(|a| *a = !*a);
     };
 
     let data = Resource::new(
-        move || (sort_name_asc.get(), refresh.get()),
+        move || (sort_name_asc.get(), refresh_count.get()),
         // every time `count` changes, this will run
         |_| async move {
             fetch_contacts()
@@ -40,6 +40,10 @@ pub fn ContactsList() -> impl IntoView {
                 })
         }
     );
+
+    let on_contact_modal_finish = move || {
+        refresh_count.set(refresh_count.get() + 1);
+    };
 
     view! {
         <div class="p-6">
@@ -99,7 +103,7 @@ pub fn ContactsList() -> impl IntoView {
                 </svg>
             </button>
         </div>
-        <ContactModal show=show_modal />
+        <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
           <div class="overflow-x-auto h-[calc(100vh-250px)] bg-base-100 rounded-lg shadow">
             <table class="table table-pin-rows">
               <thead>
