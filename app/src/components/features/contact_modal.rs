@@ -240,7 +240,7 @@ pub fn UserRegistrationForm() -> impl IntoView {
                     ("5".to_string(), "超级价值".to_string())
                 ]),
                 required: true,
-                value: RwSignal::new("3".to_string()), // 默认选中3星
+                value: RwSignal::new("2".to_string()), // 默认选中3星
                 placeholder: None,
                 error_message: RwSignal::new(None),
                 validation: None,
@@ -255,7 +255,7 @@ pub fn UserRegistrationForm() -> impl IntoView {
                     ("3".to_string(), "不活跃客户".to_string()),
                 ]),
                 required: true,
-                value: RwSignal::new("潜在客户".to_string()), // 默认值
+                value: RwSignal::new("2".to_string()), // 默认值
                 placeholder: None,
                 error_message: RwSignal::new(None),
                 validation: None,
