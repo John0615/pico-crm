@@ -1,5 +1,5 @@
 use sea_orm::entity::prelude::*;
-pub use super::_entities::contacts::{self, ActiveModel, Entity, Model};
+pub use super::_entities::contacts::{self, Column, ActiveModel, Entity, Model};
 
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {

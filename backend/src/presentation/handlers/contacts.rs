@@ -1,13 +1,18 @@
 use crate::infrastructure::db::DatabaseConnection;
-use sea_orm::{EntityTrait, ActiveModelTrait};
+use sea_orm::{EntityTrait, ActiveModelTrait, QueryOrder, QuerySelect};
 use sea_orm::entity::prelude::{Uuid};
 use sea_orm::ActiveValue::{Set};
-use crate::domain::models::contacts::{Entity, ActiveModel};
+use crate::domain::models::contacts::{Column, Entity, ActiveModel};
 use chrono::prelude::{Local, DateTime, NaiveDateTime};
 use shared::contact::Contact;
 
 pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<Vec<Contact>, String> {
-    let contacts = Entity::find().all(db).await.map_err(|_| "err".to_string())?;
+    let contacts = Entity::find()
+        .order_by_desc(Column::InsertedAt)
+        .limit(10)
+        .all(db)
+        .await
+        .map_err(|_| "err".to_string())?;
     let contacts: Vec<Contact> = contacts.into_iter().map(|contact| {
         Contact {
             contact_uuid: contact.contact_uuid.to_string(),
