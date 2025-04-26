@@ -73,7 +73,6 @@ impl CustomValidator {
 pub struct FormState {
     pub fields: RwSignal<Vec<FormField>>,
     pub is_submitting: RwSignal<bool>,
-    pub submit_success: RwSignal<bool>,
 }
 
 #[component]
@@ -91,7 +90,6 @@ where
     let form_state = RwSignal::new(FormState {
         fields: RwSignal::new(initial_fields),
         is_submitting: RwSignal::new(false),
-        submit_success: RwSignal::new(false),
     });
 
     // 验证单个字段
@@ -141,6 +139,14 @@ where
         is_valid
     };
 
+    // 重置表单
+    let reset = move || {
+        for field in form_state.get_untracked().fields.get_untracked().iter() {
+            field.value.set(String::new());
+            field.error_message.set(None);
+        }
+    };
+
     // 提交表单
     let submit = move |ev: SubmitEvent| {
         ev.prevent_default();
@@ -150,35 +156,29 @@ where
         }
 
         form_state.get().is_submitting.set(true);
-        form_state.get().submit_success.set(false);
 
-        let fields = form_state.get().fields.clone();
         spawn_local(async move {
-            let result = on_submit(fields.get()).await;
+            // 使用 get_untracked 获取初始值（不建立响应依赖）
+            let fields = form_state.with_untracked(|s| s.fields.with_untracked(|f| f.clone()));
+            let result = on_submit(fields).await;
 
-            form_state.get().is_submitting.set(false);
-
-            match result {
-                Ok(_) => {
-                    form_state.get().submit_success.set(true);
-                }
-                Err(errors) => {
-                    for error in errors {
-                        log!("Form error: {}", error);
+            // 更新状态时也使用 untracked 访问
+            form_state.with_untracked(|s| {
+                s.is_submitting.set(false);
+                match result {
+                    Ok(_) => {
+                        reset()
+                    }
+                    Err(errors) => {
+                        for error in errors {
+                            log!("Form error: {}", error);
+                        }
                     }
                 }
-            }
+            });
         });
     };
 
-    // 重置表单
-    let reset = move |_| {
-        for field in form_state.get().fields.get().iter() {
-            field.value.set(String::new());
-            field.error_message.set(None);
-        }
-        form_state.get().submit_success.set(false);
-    };
 
     view! {
         <form class="form-control w-full max-w-md mx-auto" on:submit=submit>
@@ -188,65 +188,48 @@ where
                     key=|field| field.name.clone()
                     children=move |field| {
                         view! {
-                            <div class="form-control mb-4">
-                                <label class="label">
-                                    <span class="label-text">{field.label.clone()}</span>
-                                    {move || field.required.then(||
-                                        view! { <span class="text-error">"*"</span> }
-                                    )}
-                                </label>
-
-                                {match field.field_type.clone() {
-                                    FieldType::Text | FieldType::Email | FieldType::Password | FieldType::Number =>
-                                        view! {
-                                            <TextInput
-                                                field_type=field.field_type.to_string()
-                                                name=field.name
-                                                label=field.label
-                                                value=field.value
-                                                required=field.required
-                                                placeholder=field.placeholder.unwrap_or_default()
-                                                error_message=field.error_message
-                                            />
-                                        }.into_any(),
-                                    FieldType::TextArea =>
-                                        view! {
-                                            <TextAreaInput
-                                                name=field.name
-                                                label=field.label
-                                                value=field.value
-                                                required=field.required
-                                                placeholder=field.placeholder.unwrap_or_default()
-                                            />
-                                        }.into_any(),
-                                    FieldType::Select(options) =>
-                                        view! {
-                                            <SelectInput
-                                                name=field.name
-                                                label=field.label
-                                                value=field.value
-                                                required=true
-                                                options=options
-                                            />
-                                        }.into_any(),
-                                    FieldType::Checkbox =>
-                                        view! {
-                                            <CheckboxInput
-                                                name=field.name
-                                                label=field.label
-                                                checked=RwSignal::new(false)
-                                            />
-                                        }.into_any(),
-                                }}
-
-                                {move || field.error_message.get().map(|msg|
+                            {match field.field_type.clone() {
+                                FieldType::Text | FieldType::Email | FieldType::Password | FieldType::Number =>
                                     view! {
-                                        <label class="label">
-                                            <span class="label-text-alt text-error">{msg}</span>
-                                        </label>
-                                    }
-                                )}
-                            </div>
+                                        <TextInput
+                                            field_type=field.field_type.to_string()
+                                            name=field.name
+                                            label=field.label
+                                            value=field.value
+                                            required=field.required
+                                            placeholder=field.placeholder.unwrap_or_default()
+                                            error_message=field.error_message
+                                        />
+                                    }.into_any(),
+                                FieldType::TextArea =>
+                                    view! {
+                                        <TextAreaInput
+                                            name=field.name
+                                            label=field.label
+                                            value=field.value
+                                            required=field.required
+                                            placeholder=field.placeholder.unwrap_or_default()
+                                        />
+                                    }.into_any(),
+                                FieldType::Select(options) =>
+                                    view! {
+                                        <SelectInput
+                                            name=field.name
+                                            label=field.label
+                                            value=field.value
+                                            required=true
+                                            options=options
+                                        />
+                                    }.into_any(),
+                                FieldType::Checkbox =>
+                                    view! {
+                                        <CheckboxInput
+                                            name=field.name
+                                            label=field.label
+                                            checked=RwSignal::new(false)
+                                        />
+                                    }.into_any(),
+                            }}
                         }
                     }
                 />
@@ -256,7 +239,7 @@ where
                 <button
                     type="button"
                     class="btn btn-ghost"
-                    on:click=reset
+                    on:click=move |_|reset()
                     disabled=move || form_state.get().is_submitting.get()
                 >
                     {reset_text.unwrap_or("重置".into())}
