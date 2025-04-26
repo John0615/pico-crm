@@ -209,6 +209,7 @@ where
                                             value=field.value
                                             required=field.required
                                             placeholder=field.placeholder.unwrap_or_default()
+                                            error_message=field.error_message
                                         />
                                     }.into_any(),
                                 FieldType::Select(options) =>
@@ -219,6 +220,7 @@ where
                                             value=field.value
                                             required=true
                                             options=options
+                                            error_message=field.error_message
                                         />
                                     }.into_any(),
                                 FieldType::Checkbox =>
@@ -227,6 +229,7 @@ where
                                             name=field.name
                                             label=field.label
                                             checked=RwSignal::new(false)
+                                            error_message=field.error_message
                                         />
                                     }.into_any(),
                             }}
@@ -424,9 +427,21 @@ where
                 name=name
                 class="select select-bordered w-full"
                 required=required
+                on:input={
+                    let options = options.clone();
+                    move |ev| {
+                        let new_value = event_target_value(&ev);
+                        if let Some((val, _)) = options.clone().iter().find(|(_, display)| *display == new_value) {
+                            value.set(val.clone());
+                        }
+                    }
+                }
             >
                 <For
-                    each=move || options.clone()
+                    each={
+                        let options = options.clone();
+                        move || options.clone()
+                    }
                     key=|(_, text)| text.clone()
                     children=move |(val, text)| {
                         let is_selected = move || value.get() == val;

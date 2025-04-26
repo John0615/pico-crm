@@ -42,7 +42,7 @@ pub fn ContactsList() -> impl IntoView {
     );
 
     let on_contact_modal_finish = move || {
-        refresh_count.set(refresh_count.get() + 1);
+        refresh_count.set(refresh_count.get_untracked() + 1);
     };
 
     view! {
