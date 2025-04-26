@@ -232,6 +232,7 @@ pub fn UserRegistrationForm() -> impl IntoView {
                 name: "value_level".to_string(),
                 label: "客户价值".to_string(),
                 field_type: FieldType::Select(vec![
+                    ("".to_string(), "请选择客户价值".to_string()),
                     ("1".to_string(), "低价值".to_string()),
                     ("2".to_string(), "中等价值".to_string()),
                     ("3".to_string(), "高价值".to_string()),
@@ -248,6 +249,7 @@ pub fn UserRegistrationForm() -> impl IntoView {
                 name: "status".to_string(),
                 label: "客户状态".to_string(),
                 field_type: FieldType::Select(vec![
+                    ("".to_string(), "请选择客户状态".to_string()),
                     ("1".to_string(), "活跃客户".to_string()),
                     ("2".to_string(), "潜在客户".to_string()),
                     ("3".to_string(), "不活跃客户".to_string()),
