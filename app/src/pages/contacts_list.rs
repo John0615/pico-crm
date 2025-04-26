@@ -48,16 +48,21 @@ pub fn ContactsList() -> impl IntoView {
     view! {
         <div class="p-6">
           <div class="flex flex-col md:flex-row gap-4 mb-6">
-            <div class="flex-1">
-              <div class="join w-full">
-                <input type="text" placeholder="搜索客户..." class="input input-bordered join-item w-full" />
-                <button class="btn btn-primary join-item">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+            <label class="input">
+              <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <g
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                  stroke-width="2.5"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.3-4.3"></path>
+                </g>
+              </svg>
+              <input type="search" required placeholder="搜索客户..." />
+            </label>
             <div class="flex gap-2 items-center">
               <select class="select select-bordered">
                 <option disabled selected>状态筛选</option>
