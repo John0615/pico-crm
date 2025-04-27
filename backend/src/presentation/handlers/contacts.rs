@@ -46,9 +46,9 @@ pub async fn create_contact(db: &DatabaseConnection, contact: Contact) -> Result
         phone_number: Set(contact.phone_number),
         email: Set(contact.email),
         last_contact: Set(naive_now),
-        value_level: Set(1),
+        value_level: Set(contact.value_level),
         creator_uuid: Set(uuid),
-        status: Set(1),
+        status: Set(contact.status),
         inserted_at: Set(naive_now),
         updated_at: Set(naive_now),
         ..Default::default()

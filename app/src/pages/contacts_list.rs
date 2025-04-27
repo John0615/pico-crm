@@ -14,7 +14,7 @@ pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
 
     println!("Fetching contacts...");
     let res = contacts::fetch_contacts(&pool.connection).await.map_err(|e| ServerFnError::new(e))?;
-    println!("Fetching contacts result {:?}", res);
+    // println!("Fetching contacts result {:?}", res);
     Ok(res)
 }
 
