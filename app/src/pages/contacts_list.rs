@@ -178,11 +178,19 @@ pub fn ContactsList() -> impl IntoView {
                                         <span class=format!("badge {}",
                                             match status {
                                                 1 => "badge-success",
-                                                0 => "badge-warning",
-                                                _ => "badge-error",
+                                                2 => "badge-warning",
+                                                3 => "badge-error",
+                                                _ => "badge-info"
                                             }
                                         )>
-                                            {status.clone()}
+                                            {
+                                                match status.clone() {
+                                                    1 => "已签约",
+                                                    2 => "待跟进",
+                                                    3 => "已流失",
+                                                    _ => "未知状态",
+                                                }
+                                            }
                                         </span>
                                     </td>
                                     <td>{contact.last_contact}</td>
