@@ -167,6 +167,7 @@ pub fn ContactsList() -> impl IntoView {
                         key=|contact| contact.contact_uuid.clone()
                         children=move |contact: Contact| {
                             let status = contact.status.clone();
+                            let value_level = contact.value_level.clone();
                             view! {
                                 <tr class="hover:bg-base-100">
                                     <th class="font-medium">{contact.user_name.clone()}</th>
@@ -188,20 +189,34 @@ pub fn ContactsList() -> impl IntoView {
                                                     1 => "已签约",
                                                     2 => "待跟进",
                                                     3 => "已流失",
-                                                    _ => "未知状态",
+                                                    _ => "未知",
                                                 }
                                             }
                                         </span>
                                     </td>
                                     <td>{contact.last_contact}</td>
                                     <td>
-                                        <div class="rating rating-sm">
-                                           {contact.value_level}
-                                        </div>
+                                        <span class=format!("badge {}",
+                                            match value_level {
+                                                1 => "badge-success",
+                                                2 => "badge-warning",
+                                                3 => "badge-error",
+                                                _ => "badge-info"
+                                            }
+                                        )>
+                                            {
+                                                match value_level.clone() {
+                                                    1 => "活跃客户",
+                                                    2 => "潜在客户",
+                                                    3 => "不活跃客户",
+                                                    _ => "未知",
+                                                }
+                                            }
+                                        </span>
                                     </td>
                                     <th>
                                         <div class="flex justify-end gap-1">
-                                            <a href=format!("/contacts/{}", contact.user_name) class="btn btn-ghost btn-xs">查看</a>
+                                            <a href=format!("/contacts/{}", contact.contact_uuid) class="btn btn-ghost btn-xs">查看</a>
                                             <button class="btn btn-soft btn-warning btn-xs">修改</button>
                                             <button class="btn btn-soft btn-error btn-xs">删除</button>
                                         </div>
