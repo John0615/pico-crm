@@ -12,6 +12,13 @@ pub fn Navbar() -> impl IntoView {
                 </label>
             </div>
 
+            <div class="breadcrumbs text-sm pl-2">
+              <ul>
+                <li><a>客户管理</a></li>
+                <li>客户列表</li>
+              </ul>
+            </div>
+
             <div class="flex-1 px-2 mx-2">
                 <span class="font-bold text-xl bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                     PicoCRM

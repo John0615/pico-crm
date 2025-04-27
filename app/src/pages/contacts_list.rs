@@ -46,8 +46,8 @@ pub fn ContactsList() -> impl IntoView {
     };
 
     view! {
-        <div class="p-6">
-          <div class="flex flex-col md:flex-row gap-4 mb-6">
+        <div class="">
+          <div class="flex flex-col md:flex-row gap-4 mb-4">
             <label class="input">
               <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <g
@@ -109,7 +109,7 @@ pub fn ContactsList() -> impl IntoView {
             </button>
         </div>
         <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
-          <div class="overflow-x-auto h-[calc(100vh-250px)] bg-base-100 rounded-lg shadow">
+          <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
             <table class="table table-pin-rows table-pin-cols whitespace-nowrap">
               <thead>
                 <tr class="bg-base-200">
