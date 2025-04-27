@@ -93,7 +93,7 @@ where
             },
             FormField {
                 name: "value_level".to_string(),
-                label: "".to_string(),
+                label: "客户价值".to_string(),
                 field_type: FieldType::Select(vec![
                     ("".to_string(), "请选择客户价值".to_string()),
                     ("1".to_string(), "活跃客户".to_string()),
@@ -101,14 +101,14 @@ where
                     ("3".to_string(), "不活跃客户".to_string()),
                 ]),
                 required: true,
-                value: RwSignal::new("2".to_string()), // 默认选中3星
+                value: RwSignal::new("".to_string()), // 默认选中3星
                 placeholder: None,
                 error_message: RwSignal::new(None),
                 validation: None,
             },
             FormField {
                 name: "status".to_string(),
-                label: "".to_string(),
+                label: "客户状态".to_string(),
                 field_type: FieldType::Select(vec![
                     ("".to_string(), "请选择客户状态".to_string()),
                     ("1".to_string(), "已签约".to_string()),
@@ -116,7 +116,7 @@ where
                     ("3".to_string(), "已流失".to_string())
                 ]),
                 required: true,
-                value: RwSignal::new("2".to_string()), // 默认值
+                value: RwSignal::new("".to_string()), // 默认值
                 placeholder: None,
                 error_message: RwSignal::new(None),
                 validation: None,
