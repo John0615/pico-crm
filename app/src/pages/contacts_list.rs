@@ -110,10 +110,10 @@ pub fn ContactsList() -> impl IntoView {
         </div>
         <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
           <div class="overflow-x-auto h-[calc(100vh-250px)] bg-base-100 rounded-lg shadow">
-            <table class="table table-pin-rows">
+            <table class="table table-pin-rows table-pin-cols whitespace-nowrap">
               <thead>
                 <tr class="bg-base-200">
-                  <th class="cursor-pointer hover:bg-base-300" on:click=move |_| sort_name()>
+                  <th class="cursor-pointer" on:click=move |_| sort_name()>
                     姓名
                     <span class="ml-1 inline-block">
                       {move || if sort_name_asc.get() {
@@ -124,19 +124,19 @@ pub fn ContactsList() -> impl IntoView {
                       }
                     </span>
                   </th>
-                  <th>公司</th>
-                  <th>职位</th>
-                  <th>电话</th>
-                  <th>邮箱</th>
-                  <th class="cursor-pointer hover:bg-base-300" onclick="sortTable(5)">
+                  <td>公司</td>
+                  <td>职位</td>
+                  <td>电话</td>
+                  <td>邮箱</td>
+                  <td class="cursor-pointer hover:bg-base-300">
                     状态
                     <span class="ml-1 inline-block">"↑↓"</span>
-                  </th>
-                  <th class="cursor-pointer hover:bg-base-300" onclick="sortTable(6)">
+                  </td>
+                  <td class="cursor-pointer hover:bg-base-300">
                     最后联系
                     <span class="ml-1 inline-block">"↑↓"</span>
-                  </th>
-                  <th>价值等级</th>
+                  </td>
+                  <td>价值等级</td>
                   <th class="text-right">操作</th>
                 </tr>
               </thead>
@@ -166,11 +166,10 @@ pub fn ContactsList() -> impl IntoView {
                         each=move || data.get().unwrap_or_default()
                         key=|contact| contact.contact_uuid.clone()
                         children=move |contact: Contact| {
-                            let stars = contact.value_level;
                             let status = contact.status.clone();
                             view! {
                                 <tr class="hover:bg-base-100">
-                                    <td class="font-medium">{contact.user_name.clone()}</td>
+                                    <th class="font-medium">{contact.user_name.clone()}</th>
                                     <td>{contact.company}</td>
                                     <td>{contact.position}</td>
                                     <td>{contact.phone_number}</td>
@@ -189,29 +188,15 @@ pub fn ContactsList() -> impl IntoView {
                                     <td>{contact.last_contact}</td>
                                     <td>
                                         <div class="rating rating-sm">
-                                            {(0..5).map(|i| {
-                                                view! {
-                                                    <input
-                                                        disabled
-                                                        type="radio"
-                                                        name=format!("rating-{}", contact.user_name)
-                                                        class="mask mask-star bg-yellow-400"
-                                                        checked=i < stars
-                                                    />
-                                                }
-                                            }).collect_view()}
+                                           {contact.value_level}
                                         </div>
                                     </td>
-                                    <td>
+                                    <th>
                                         <div class="flex justify-end gap-1">
                                             <a href=format!("/contacts/{}", contact.user_name) class="btn btn-ghost btn-xs">查看</a>
-                                            <button class="btn btn-ghost btn-xs">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                                </svg>
-                                            </button>
+                                            <button class="btn btn-soft btn-error btn-xs">删除</button>
                                         </div>
-                                    </td>
+                                    </th>
                                 </tr>
                             }
                         }
