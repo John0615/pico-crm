@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use crate::components::ui::form::{FormContainer, DaisyForm, FieldType, FormField, ValidationRule};
+use crate::components::ui::form::{FormContainer, DaisyForm, FieldType, FormField, ValidationRule, CustomValidator};
 use crate::components::ui::toast::{show_toast, ToastType};
 use crate::components::ui::modal::Modal;
 use shared::contact::Contact;
@@ -36,7 +36,16 @@ where
                 value: RwSignal::new("".to_string()),
                 placeholder: Some("输入客户姓名".into()),
                 error_message: RwSignal::new(None),
-                validation: Some(ValidationRule::MinLength(2)), // 至少2个字符
+                validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
+                    let len = val.len();
+                    if len < 2 {
+                        Err("至少2个字符".into())
+                    }else if len > 50 {
+                        Err("超出50个字符".into())
+                    } else {
+                        Ok(())
+                    }
+                }))),
             },
             FormField {
                 name: "company".to_string(),

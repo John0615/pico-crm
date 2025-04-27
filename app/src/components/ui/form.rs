@@ -54,7 +54,7 @@ pub enum ValidationRule {
 }
 
 #[derive(Clone)]
-pub struct CustomValidator(Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync + 'static>);
+pub struct CustomValidator(pub Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync + 'static>);
 
 impl fmt::Debug for CustomValidator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -63,6 +63,9 @@ impl fmt::Debug for CustomValidator {
 }
 
 impl CustomValidator {
+    pub fn new(f: impl Fn(&str) -> Result<(), String> + Send + Sync + 'static) -> Self {
+        Self(Arc::new(f))
+    }
     pub fn validate(&self, value: &str) -> Result<(), String> {
         (self.0)(value)
     }
