@@ -194,6 +194,7 @@ pub fn ContactsList() -> impl IntoView {
                                     <th>
                                         <div class="flex justify-end gap-1">
                                             <a href=format!("/contacts/{}", contact.user_name) class="btn btn-ghost btn-xs">查看</a>
+                                            <button class="btn btn-soft btn-warning btn-xs">修改</button>
                                             <button class="btn btn-soft btn-error btn-xs">删除</button>
                                         </div>
                                     </th>
