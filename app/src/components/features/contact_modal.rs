@@ -96,11 +96,9 @@ where
                 label: "客户价值".to_string(),
                 field_type: FieldType::Select(vec![
                     ("".to_string(), "请选择客户价值".to_string()),
-                    ("1".to_string(), "低价值".to_string()),
-                    ("2".to_string(), "中等价值".to_string()),
-                    ("3".to_string(), "高价值".to_string()),
-                    ("4".to_string(), "超高价值".to_string()),
-                    ("5".to_string(), "超级价值".to_string())
+                    ("1".to_string(), "活跃客户".to_string()),
+                    ("2".to_string(), "潜在客户".to_string()),
+                    ("3".to_string(), "不活跃客户".to_string()),
                 ]),
                 required: true,
                 value: RwSignal::new("2".to_string()), // 默认选中3星
@@ -113,9 +111,9 @@ where
                 label: "客户状态".to_string(),
                 field_type: FieldType::Select(vec![
                     ("".to_string(), "请选择客户状态".to_string()),
-                    ("1".to_string(), "活跃客户".to_string()),
-                    ("2".to_string(), "潜在客户".to_string()),
-                    ("3".to_string(), "不活跃客户".to_string()),
+                    ("1".to_string(), "已签约".to_string()),
+                    ("2".to_string(), "待跟进".to_string()),
+                    ("3".to_string(), "已流失".to_string())
                 ]),
                 required: true,
                 value: RwSignal::new("2".to_string()), // 默认值
