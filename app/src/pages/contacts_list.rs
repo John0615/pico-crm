@@ -1,12 +1,12 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
-use shared::contact::Contact;
+use shared::contact::{Contact, ContactsResult};
 use leptos::logging;
 use crate::components::features::ContactModal;
 
 
 #[server]
-pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
+pub async fn fetch_contacts() -> Result<ContactsResult, ServerFnError> {
     use backend::infrastructure::db::Database;
     use backend::presentation::handlers::contacts;
     let pool = expect_context::<Database>();
@@ -23,7 +23,6 @@ pub fn ContactsList() -> impl IntoView {
     let (sort_name_asc, set_sort_name_asc) = signal(true);
     let (_current_page, _set_current_page) = signal(1);
     let (page_size, _set_page_size) = signal(10);
-    let (total_items, _set_total_items) = signal(128);
     let show_modal =  RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
 
@@ -39,7 +38,10 @@ pub fn ContactsList() -> impl IntoView {
                 .await
                 .unwrap_or_else(|e| {
                     logging::error!("Error loading contacts: {e}");
-                    Vec::new()
+                    ContactsResult{
+                        contacts: Vec::new(),
+                        total: 0,
+                    }
                 })
         }
     );
@@ -154,7 +156,7 @@ pub fn ContactsList() -> impl IntoView {
                     }
                 >
                     <Show
-                        when=move || !data.with(|d| d.as_ref().map_or(true, |v| v.is_empty()))
+                        when=move || !data.with(|d| d.as_ref().map_or(true, |v| v.contacts.is_empty()))
                         fallback=move || view! {
                             <tr class="hover:bg-transparent h-[calc(100vh-300px)]">
                                 <td colspan="9" class="py-12 text-center align-middle">
@@ -166,7 +168,7 @@ pub fn ContactsList() -> impl IntoView {
                         }
                     >
                     <For
-                        each=move || data.get().unwrap_or_default()
+                        each=move || data.with(|opt| opt.clone().unwrap_or_default().contacts)
                         key=|contact| contact.contact_uuid.clone()
                         children=move |contact: Contact| {
                             let status = contact.status.clone();
@@ -245,7 +247,9 @@ pub fn ContactsList() -> impl IntoView {
                 <option selected=move || page_size.get() == 20>20</option>
                 <option selected=move || page_size.get() == 50>50</option>
               </select>
-              <span class="text-sm shrink-0">共 {move || total_items.get()} 条记录</span>
+              <Transition>
+                <span class="text-sm shrink-0">共 {move || data.with(|d| d.as_ref().map_or(0, |v| v.total))} 条记录</span>
+              </Transition>
             </div>
 
             <div class="join">

@@ -36,3 +36,9 @@ pub struct Contact {
     pub inserted_at: String,
     pub updated_at: String,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ContactsResult {
+    pub total: u64,
+    pub contacts: Vec<Contact>,
+}

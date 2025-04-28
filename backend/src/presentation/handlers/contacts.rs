@@ -4,9 +4,9 @@ use sea_orm::entity::prelude::{Uuid};
 use sea_orm::ActiveValue::{Set};
 use crate::domain::models::contacts::{Column, Entity, ActiveModel};
 use chrono::prelude::{Local, DateTime, NaiveDateTime};
-use shared::contact::Contact;
+use shared::contact::{Contact, ContactsResult};
 
-pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<Vec<Contact>, String> {
+pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<ContactsResult, String> {
     let paginator = Entity::find()
         .order_by_desc(Column::InsertedAt)
         .paginate(db, 10); // 每页10条
@@ -36,7 +36,10 @@ pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<Vec<Contact>, Str
         }
     }).collect();
     println!("contacts {:#?} {}", contacts, total);
-    Ok(contacts)
+    Ok(ContactsResult{
+        contacts,
+        total
+    })
 }
 
 pub async fn create_contact(db: &DatabaseConnection, contact: Contact) -> Result<(), String> {
