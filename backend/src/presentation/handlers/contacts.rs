@@ -1,5 +1,5 @@
 use crate::infrastructure::db::DatabaseConnection;
-use sea_orm::{EntityTrait, ActiveModelTrait, QueryOrder, QuerySelect};
+use sea_orm::{EntityTrait, ActiveModelTrait, PaginatorTrait, QueryOrder};
 use sea_orm::entity::prelude::{Uuid};
 use sea_orm::ActiveValue::{Set};
 use crate::domain::models::contacts::{Column, Entity, ActiveModel};
@@ -7,12 +7,19 @@ use chrono::prelude::{Local, DateTime, NaiveDateTime};
 use shared::contact::Contact;
 
 pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<Vec<Contact>, String> {
-    let contacts = Entity::find()
+    let paginator = Entity::find()
         .order_by_desc(Column::InsertedAt)
-        .limit(10)
-        .all(db)
+        .paginate(db, 10); // 每页10条
+    // 获取当前页数据
+    let contacts = paginator
+        .fetch_page(0) // 第一页（页码从0开始）
         .await
-        .map_err(|_| "err".to_string())?;
+        .map_err(|_| "获取数据失败".to_string())?;
+    // 获取总数
+    let _total = paginator
+        .num_items()
+        .await
+        .map_err(|_| "获取总数失败".to_string())?;
     let contacts: Vec<Contact> = contacts.into_iter().map(|contact| {
         Contact {
             contact_uuid: contact.contact_uuid.to_string(),

@@ -21,6 +21,9 @@ pub async fn fetch_contacts() -> Result<Vec<Contact>, ServerFnError> {
 #[component]
 pub fn ContactsList() -> impl IntoView {
     let (sort_name_asc, set_sort_name_asc) = signal(true);
+    let (_current_page, _set_current_page) = signal(1);
+    let (page_size, _set_page_size) = signal(10);
+    let (total_items, _set_total_items) = signal(128);
     let show_modal =  RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
 
@@ -238,18 +241,20 @@ pub fn ContactsList() -> impl IntoView {
             <div class="flex items-center gap-2">
               <span class="text-sm shrink-0">每页</span>
               <select class="select select-bordered select-sm min-w-24">
-                <option>10</option>
-                <option selected>20</option>
-                <option>50</option>
+                <option selected=move || page_size.get() == 10>10</option>
+                <option selected=move || page_size.get() == 20>20</option>
+                <option selected=move || page_size.get() == 50>50</option>
               </select>
-              <span class="text-sm shrink-0">共 128 条记录</span>
+              <span class="text-sm shrink-0">共 {move || total_items.get()} 条记录</span>
             </div>
 
             <div class="join">
               <button class="join-item btn btn-sm">"«"</button>
-              <button class="join-item btn btn-sm">1</button>
-              <button class="join-item btn btn-sm btn-active">2</button>
-              <button class="join-item btn btn-sm">3</button>
+              <button class="join-item btn btn-sm btn-active">1</button>
+              <button class="join-item btn btn-sm">2</button>
+              <button class="join-item btn btn-sm btn-disabled">"..."</button>
+              <button class="join-item btn btn-sm">99</button>
+              <button class="join-item btn btn-sm">100</button>
               <button class="join-item btn btn-sm">"»"</button>
             </div>
 
