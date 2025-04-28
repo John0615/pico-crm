@@ -16,7 +16,7 @@ pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<Vec<Contact>, Str
         .await
         .map_err(|_| "获取数据失败".to_string())?;
     // 获取总数
-    let _total = paginator
+    let total = paginator
         .num_items()
         .await
         .map_err(|_| "获取总数失败".to_string())?;
@@ -35,7 +35,7 @@ pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<Vec<Contact>, Str
             updated_at: contact.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
         }
     }).collect();
-    println!("contacts {:#?}", contacts);
+    println!("contacts {:#?} {}", contacts, total);
     Ok(contacts)
 }
 
