@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use leptos_router::hooks::use_query_map;
 use server_fn::ServerFnError;
 use shared::contact::{Contact, ContactsResult};
 use leptos::logging;
@@ -21,19 +22,22 @@ pub async fn fetch_contacts() -> Result<ContactsResult, ServerFnError> {
 #[component]
 pub fn ContactsList() -> impl IntoView {
     let (sort_name_asc, set_sort_name_asc) = signal(true);
-    let (_current_page, _set_current_page) = signal(1);
-    let (page_size, _set_page_size) = signal(10);
     let show_modal =  RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
+    let query = use_query_map();
 
     let sort_name = move || {
         set_sort_name_asc.update(|a| *a = !*a);
     };
 
     let data = Resource::new(
-        move || (sort_name_asc.get(), refresh_count.get()),
+        move || (sort_name_asc.get(), refresh_count.get(), query.get()),
         // every time `count` changes, this will run
-        |_| async move {
+        |(_, _, query)| async move {
+            let _page = query.get("page").unwrap_or_default().parse::<u64>().unwrap_or(0);
+            let _page_size = query.get("page_size").unwrap_or_default().parse::<u64>().unwrap_or(10);
+            // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
+
             fetch_contacts()
                 .await
                 .unwrap_or_else(|e| {
@@ -243,9 +247,15 @@ pub fn ContactsList() -> impl IntoView {
             <div class="flex items-center gap-2">
               <span class="text-sm shrink-0">每页</span>
               <select class="select select-bordered select-sm min-w-24">
-                <option selected=move || page_size.get() == 10>10</option>
-                <option selected=move || page_size.get() == 20>20</option>
-                <option selected=move || page_size.get() == 50>50</option>
+                <For
+                    each=move || [10, 20, 50]
+                    key=|p| p.clone()
+                    children=move |p: u64| {
+                        view! {
+                            <option selected=move || (query.get().get("page_size").unwrap_or_default().parse::<u64>().unwrap_or(10) == p)>{p}</option>
+                        }
+                    }
+                />
               </select>
               <Transition>
                 <span class="text-sm shrink-0">共 {move || data.with(|d| d.as_ref().map_or(0, |v| v.total))} 条记录</span>
