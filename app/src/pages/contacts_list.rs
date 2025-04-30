@@ -4,6 +4,7 @@ use server_fn::ServerFnError;
 use shared::contact::{Contact, ContactsResult};
 use leptos::logging;
 use crate::components::features::ContactModal;
+use crate::components::ui::pagination::Pagination;
 
 
 #[server]
@@ -25,6 +26,8 @@ pub fn ContactsList() -> impl IntoView {
     let show_modal =  RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
+    let current_page = RwSignal::new(1);
+    let page_size = RwSignal::new(10);
 
     let sort_name = move || {
         set_sort_name_asc.update(|a| *a = !*a);
@@ -49,6 +52,10 @@ pub fn ContactsList() -> impl IntoView {
                 })
         }
     );
+
+    // 解构数据为单独的信号
+    let total_items = move || data.get().map(|d| d.total).unwrap_or(0);
+    let contacts = move || data.get().map(|d| d.contacts).unwrap_or_default();
 
     let on_contact_modal_finish = move || {
         refresh_count.set(refresh_count.get_untracked() + 1);
@@ -160,7 +167,7 @@ pub fn ContactsList() -> impl IntoView {
                     }
                 >
                     <Show
-                        when=move || !data.with(|d| d.as_ref().map_or(true, |v| v.contacts.is_empty()))
+                        when=move || !contacts().is_empty()
                         fallback=move || view! {
                             <tr class="hover:bg-transparent h-[calc(100vh-300px)]">
                                 <td colspan="9" class="py-12 text-center align-middle">
@@ -172,7 +179,7 @@ pub fn ContactsList() -> impl IntoView {
                         }
                     >
                     <For
-                        each=move || data.with(|opt| opt.clone().unwrap_or_default().contacts)
+                        each=move || contacts()
                         key=|contact| contact.contact_uuid.clone()
                         children=move |contact: Contact| {
                             let status = contact.status.clone();
@@ -243,37 +250,45 @@ pub fn ContactsList() -> impl IntoView {
             </table>
           </div>
 
-          <div class="absolute bottom-4 flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
-            <div class="flex items-center gap-2">
-              <span class="text-sm shrink-0">每页</span>
-              <select class="select select-bordered select-sm min-w-24">
-                <For
-                    each=move || [10, 20, 50]
-                    key=|p| p.clone()
-                    children=move |p: u64| {
-                        view! {
-                            <option selected=move || (query.get().get("page_size").unwrap_or_default().parse::<u64>().unwrap_or(10) == p)>{p}</option>
-                        }
-                    }
+          // <div class="absolute bottom-4 flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
+          //   <div class="flex items-center gap-2">
+          //     <span class="text-sm shrink-0">每页</span>
+          //     <select class="select select-bordered select-sm min-w-24">
+          //       <For
+          //           each=move || [10, 20, 50]
+          //           key=|p| p.clone()
+          //           children=move |p: u64| {
+          //               view! {
+          //                   <option selected=move || (query.get().get("page_size").unwrap_or_default().parse::<u64>().unwrap_or(10) == p)>{p}</option>
+          //               }
+          //           }
+          //       />
+          //     </select>
+          //     <Transition>
+          //       <span class="text-sm shrink-0">共 {move || data.with(|d| d.as_ref().map_or(0, |v| v.total))} 条记录</span>
+          //     </Transition>
+          //   </div>
+
+          //   <div class="join">
+          //     <button class="join-item btn btn-sm">"«"</button>
+          //     <button class="join-item btn btn-sm btn-active">1</button>
+          //     <button class="join-item btn btn-sm">2</button>
+          //     <button class="join-item btn btn-sm btn-disabled">"..."</button>
+          //     <button class="join-item btn btn-sm">99</button>
+          //     <button class="join-item btn btn-sm">100</button>
+          //     <button class="join-item btn btn-sm">"»"</button>
+          //   </div>
+
+
+          // </div>
+
+            <Transition>
+                <Pagination
+                    total_items=Signal::derive(total_items)
+                    page_size=page_size
+                    current_page=current_page
                 />
-              </select>
-              <Transition>
-                <span class="text-sm shrink-0">共 {move || data.with(|d| d.as_ref().map_or(0, |v| v.total))} 条记录</span>
-              </Transition>
-            </div>
-
-            <div class="join">
-              <button class="join-item btn btn-sm">"«"</button>
-              <button class="join-item btn btn-sm btn-active">1</button>
-              <button class="join-item btn btn-sm">2</button>
-              <button class="join-item btn btn-sm btn-disabled">"..."</button>
-              <button class="join-item btn btn-sm">99</button>
-              <button class="join-item btn btn-sm">100</button>
-              <button class="join-item btn btn-sm">"»"</button>
-            </div>
-
-
-          </div>
+            </Transition>
         </div>
     }
 }
