@@ -1,26 +1,56 @@
 use leptos::prelude::*;
+use leptos_router::hooks::{use_query_map, use_navigate};
 
 #[component]
 pub fn Pagination(
-    current_page: RwSignal<usize>,
-    page_size: RwSignal<usize>,
     #[prop(into)]
     total_items: Signal<u64>
 ) -> impl IntoView {
+
+    // 从URL查询参数获取当前页和每页数量，并提供默认值
+    let query = use_query_map();
+    let _navigate = use_navigate();
+
+    // 响应式查询参数
+    let (current_page, set_current_page) = signal(
+        query.get_untracked().get("page").and_then(|p| p.parse().ok()).unwrap_or(1)
+    );
+    let (page_size, set_page_size) = signal(
+        query.get_untracked().get("page_size").and_then(|p| p.parse().ok()).unwrap_or(10)
+    );
+
+    // 当查询参数变化时更新信号
+    Effect::new(move |_| {
+        if let Some(page) = query.get().get("page").and_then(|p| p.parse().ok()) {
+            set_current_page.set(page);
+        }
+        if let Some(size) = query.get().get("page_size").and_then(|p| p.parse().ok()) {
+            set_page_size.set(size);
+        }
+    });
+
+    // 当分页状态变化时更新URL
+    Effect::new(move |_| {
+        // navigate(
+        //     &format!("?page={}&page_size={}", current_page.get(), page_size.get()),
+        //     Default::default()
+        // );
+    });
+
     let total_pages = move || (total_items.get() as f64 / page_size.get() as f64).ceil() as usize;
 
     // 处理页码变化
     let on_page_change = move |page: usize| {
         if page >= 1 && page <= total_pages() {
-            current_page.set(page);
+            set_current_page.set(page);
         }
     };
 
     // 处理每页数量变化
     let on_page_size_change = move |ev: leptos::ev::Event| {
         let value = event_target_value(&ev).parse::<usize>().unwrap_or(10);
-        page_size.set(value);
-        current_page.set(1); // 重置到第一页
+        set_page_size.set(value);
+        set_current_page.set(1); // 重置到第一页
     };
 
     // 生成页码按钮的逻辑

@@ -26,8 +26,6 @@ pub fn ContactsList() -> impl IntoView {
     let show_modal =  RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
-    let current_page = RwSignal::new(1);
-    let page_size = RwSignal::new(10);
 
     let sort_name = move || {
         set_sort_name_asc.update(|a| *a = !*a);
@@ -54,7 +52,6 @@ pub fn ContactsList() -> impl IntoView {
     );
 
     // 解构数据为单独的信号
-    let total_items = move || data.get().map(|d| d.total).unwrap_or(0);
     let contacts = move || data.get().map(|d| d.contacts).unwrap_or_default();
 
     let on_contact_modal_finish = move || {
@@ -284,9 +281,7 @@ pub fn ContactsList() -> impl IntoView {
 
             <Transition>
                 <Pagination
-                    total_items=Signal::derive(total_items)
-                    page_size=page_size
-                    current_page=current_page
+                    total_items=Signal::derive(move || data.get().map(|d| d.total).unwrap_or(0))
                 />
             </Transition>
         </div>
