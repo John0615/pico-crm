@@ -6,13 +6,13 @@ use crate::domain::models::contacts::{Column, Entity, ActiveModel};
 use chrono::prelude::{Local, DateTime, NaiveDateTime};
 use shared::contact::{Contact, ContactsResult};
 
-pub async fn fetch_contacts(db: &DatabaseConnection) -> Result<ContactsResult, String> {
+pub async fn fetch_contacts(db: &DatabaseConnection, page: u64, page_size: u64) -> Result<ContactsResult, String> {
     let paginator = Entity::find()
         .order_by_desc(Column::InsertedAt)
-        .paginate(db, 10); // 每页10条
+        .paginate(db, page_size); // 每页10条
     // 获取当前页数据
     let contacts = paginator
-        .fetch_page(0) // 第一页（页码从0开始）
+        .fetch_page(page-1) // 第一页（页码从0开始）
         .await
         .map_err(|_| "获取数据失败".to_string())?;
     // 获取总数

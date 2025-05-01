@@ -8,14 +8,14 @@ use crate::components::ui::pagination::Pagination;
 
 
 #[server]
-pub async fn fetch_contacts() -> Result<ContactsResult, ServerFnError> {
+pub async fn fetch_contacts(page: u64, page_size: u64) -> Result<ContactsResult, ServerFnError> {
     use backend::infrastructure::db::Database;
     use backend::presentation::handlers::contacts;
     let pool = expect_context::<Database>();
     println!("pool {:?}", pool);
 
     println!("Fetching contacts...");
-    let res = contacts::fetch_contacts(&pool.connection).await.map_err(|e| ServerFnError::new(e))?;
+    let res = contacts::fetch_contacts(&pool.connection, page, page_size).await.map_err(|e| ServerFnError::new(e))?;
     // println!("Fetching contacts result {:?}", res);
     Ok(res)
 }
@@ -35,10 +35,10 @@ pub fn ContactsList() -> impl IntoView {
         move || (sort_name_asc.get(), refresh_count.get(), query.get()),
         // every time `count` changes, this will run
         |(_, _, query)| async move {
-            let _page = query.get("page").unwrap_or_default().parse::<u64>().unwrap_or(0);
-            let _page_size = query.get("page_size").unwrap_or_default().parse::<u64>().unwrap_or(10);
+            let page = query.get("page").unwrap_or_default().parse::<u64>().unwrap_or(1);
+            let page_size = query.get("page_size").unwrap_or_default().parse::<u64>().unwrap_or(10);
             // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
-            fetch_contacts()
+            fetch_contacts(page, page_size)
                 .await
                 .unwrap_or_else(|e| {
                     logging::error!("Error loading contacts: {e}");
