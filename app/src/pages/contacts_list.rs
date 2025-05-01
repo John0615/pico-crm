@@ -146,7 +146,7 @@ pub fn ContactsList() -> impl IntoView {
                             <span class="ml-1 inline-block">"↑↓"</span>
                         </td>
                         <td>价值等级</td>
-                        <th class="text-right">操作</th>
+                        <th>操作</th>
                     </tr>
                     </thead>
                     <tbody>
