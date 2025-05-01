@@ -129,10 +129,8 @@ pub fn Pagination(
                         } else {
                             view! {
                                 <button
-                                    class=format!(
-                                        "join-item btn btn-sm {}",
-                                        if page == current_page.get() { "btn-active" } else { "" }
-                                    )
+                                    class="join-item btn btn-sm"
+                                    class:btn-active=move || page == current_page.get()
                                     on:click=move |_| on_page_change(page)
                                 >
                                     {page}
