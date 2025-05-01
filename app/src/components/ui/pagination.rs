@@ -42,7 +42,7 @@ pub fn Pagination(
     let on_page_change = move |page: usize| {
         if page >= 1 && page <= total_pages() {
             set_current_page.set(page);
-            nav_handler.get_value()();
+            nav_handler.with_value(|f| f());
         }
     };
 
@@ -51,7 +51,7 @@ pub fn Pagination(
         let value = event_target_value(&ev).parse::<usize>().unwrap_or(10);
         set_page_size.set(value);
         set_current_page.set(1); // 重置到第一页
-        nav_handler.get_value()();
+        nav_handler.with_value(|f| f());
     };
 
     // 生成页码按钮的逻辑
