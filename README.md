@@ -8,7 +8,7 @@
 ### 核心框架
 - **前端**: Leptos (SSR + WASM)
 - **后端**: Axum + Tokio
-- **数据库**: PostgreSQL/SQLite
+- **数据库**: PostgreSQL
 - **样式**: TailwindCSS
 
 ### 关键库
@@ -32,7 +32,6 @@
 - JWT 身份验证
 - RBAC 权限控制
 - 数据导出 (CSV/Excel)
-- API 文档 (OpenAPI)
 
 ## 快速开始
 
