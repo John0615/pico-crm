@@ -9,7 +9,7 @@ pub fn Pagination(
 
     // 从URL查询参数获取当前页和每页数量，并提供默认值
     let query = use_query_map();
-    let _navigate = use_navigate();
+    let navigate = use_navigate();
 
     // 响应式查询参数
     let (current_page, set_current_page) = signal(
@@ -29,20 +29,20 @@ pub fn Pagination(
         }
     });
 
-    // 当分页状态变化时更新URL
-    Effect::new(move |_| {
-        // navigate(
-        //     &format!("?page={}&page_size={}", current_page.get(), page_size.get()),
-        //     Default::default()
-        // );
-    });
-
     let total_pages = move || (total_items.get() as f64 / page_size.get() as f64).ceil() as usize;
+
+    let nav_handler = StoredValue::new(move || {
+        navigate(
+            &format!("?page={}&page_size={}", current_page.get(), page_size.get()),
+            Default::default()
+        );
+    });
 
     // 处理页码变化
     let on_page_change = move |page: usize| {
         if page >= 1 && page <= total_pages() {
             set_current_page.set(page);
+            nav_handler.get_value()();
         }
     };
 
@@ -51,6 +51,7 @@ pub fn Pagination(
         let value = event_target_value(&ev).parse::<usize>().unwrap_or(10);
         set_page_size.set(value);
         set_current_page.set(1); // 重置到第一页
+        nav_handler.get_value()();
     };
 
     // 生成页码按钮的逻辑
