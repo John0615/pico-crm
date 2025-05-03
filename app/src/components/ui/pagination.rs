@@ -1,4 +1,3 @@
-use leptos::logging;
 use leptos::prelude::*;
 use leptos_router::hooks::{use_navigate, use_query_map};
 
@@ -27,7 +26,6 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
     // 当查询参数变化时更新信号
     Effect::new(move |_| {
         if let Some(page) = query.get().get("page").and_then(|p| p.parse().ok()) {
-            logging::log!("Page changed to {}", page);
             set_current_page.set(page);
         }
         if let Some(size) = query.get().get("page_size").and_then(|p| p.parse().ok()) {
