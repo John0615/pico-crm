@@ -4,7 +4,7 @@ use leptos::{context::Provider, prelude::*};
 #[slot]
 pub struct Column {
     pub label: String,
-    #[prop(default=false)]
+    #[prop(default = false)]
     freeze: bool,
     #[prop(optional, into)]
     pub class: Option<String>,
@@ -23,27 +23,26 @@ pub fn DaisyTable<T: Clone + Send + Sync + 'static>(
         <table class="table table-pin-rows table-pin-cols whitespace-nowrap">
             <thead>
                 <tr class="bg-base-200">
-                    {move || {
+                    <For
                         // 关键修改2：使用 with_value 获取数据
-                        columns.with_value(|cols| {
-                            cols.iter().map(|col| {
-                                if col.freeze {
-                                    view! {
-                                        <th class=col.class.clone().unwrap_or_default()>
-                                            {col.label.clone()}
-                                        </th>
-                                    }.into_any()
-                                } else {
-                                    view! {
-                                        <td class=col.class.clone().unwrap_or_default()>
-                                            {col.label.clone()}
-                                        </td>
-                                    }.into_any()
-                                }
-
-                            }).collect_view()
-                        })
-                    }}
+                        each=move || columns.with_value(|c| c.clone().into_iter().enumerate())
+                        key=|(index, _col)| *index
+                        children=move |(_index, col)| {
+                            if col.freeze {
+                                view! {
+                                    <th class=col.class.clone().unwrap_or_default()>
+                                        {col.label.clone()}
+                                    </th>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <td class=col.class.clone().unwrap_or_default()>
+                                        {col.label.clone()}
+                                    </td>
+                                }.into_any()
+                            }
+                        }
+                    />
                 </tr>
             </thead>
             <tbody>
@@ -85,19 +84,26 @@ pub fn DaisyTable<T: Clone + Send + Sync + 'static>(
     }
 }
 
- #[derive(Clone)]
+#[derive(Clone)]
 struct User {
     id: u64,
     name: String,
     email: String,
 }
 
-
 #[component]
 pub fn Demo() -> impl IntoView {
     let users = vec![
-        User { id: 1, name: "Alice".into(), email: "alice@example.com".into() },
-        User { id: 2, name: "Bob".into(), email: "bob@example.com".into() },
+        User {
+            id: 1,
+            name: "Alice".into(),
+            email: "alice@example.com".into(),
+        },
+        User {
+            id: 2,
+            name: "Bob".into(),
+            email: "bob@example.com".into(),
+        },
     ];
 
     view! {
