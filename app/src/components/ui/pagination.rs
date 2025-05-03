@@ -1,27 +1,33 @@
+use leptos::logging;
 use leptos::prelude::*;
-use leptos_router::hooks::{use_query_map, use_navigate};
+use leptos_router::hooks::{use_navigate, use_query_map};
 
 #[component]
-pub fn Pagination(
-    #[prop(into)]
-    total_items: Signal<u64>
-) -> impl IntoView {
-
+pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
     // 从URL查询参数获取当前页和每页数量，并提供默认值
     let query = use_query_map();
     let navigate = use_navigate();
 
     // 响应式查询参数
     let (current_page, set_current_page) = signal(
-        query.get_untracked().get("page").and_then(|p| p.parse().ok()).unwrap_or(1)
+        query
+            .get_untracked()
+            .get("page")
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(1),
     );
     let (page_size, set_page_size) = signal(
-        query.get_untracked().get("page_size").and_then(|p| p.parse().ok()).unwrap_or(10)
+        query
+            .get_untracked()
+            .get("page_size")
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(10),
     );
 
     // 当查询参数变化时更新信号
     Effect::new(move |_| {
         if let Some(page) = query.get().get("page").and_then(|p| p.parse().ok()) {
+            logging::log!("Page changed to {}", page);
             set_current_page.set(page);
         }
         if let Some(size) = query.get().get("page_size").and_then(|p| p.parse().ok()) {
@@ -34,7 +40,7 @@ pub fn Pagination(
     let nav_handler = StoredValue::new(move || {
         navigate(
             &format!("?page={}&page_size={}", current_page.get(), page_size.get()),
-            Default::default()
+            Default::default(),
         );
     });
 
@@ -117,10 +123,10 @@ pub fn Pagination(
                 >
                     "‹"
                 </button>
-
-                // 显示页码按钮（带省略逻辑）
-                {move || {
-                    render_page_buttons().into_iter().map(|page| {
+                <For
+                    each=move || render_page_buttons()
+                    key=|page| *page
+                    children=move |page| {
                         if page == 0 {
                             view! {
                                 <button class="join-item btn btn-sm" disabled=true>
@@ -131,16 +137,15 @@ pub fn Pagination(
                             view! {
                                 <button
                                     class="join-item btn btn-sm"
-                                    class:btn-active=move || page == current_page.get()
+                                    class:btn-active=(move || page == current_page.get())
                                     on:click=move |_| on_page_change(page)
                                 >
                                     {page}
                                 </button>
                             }.into_any()
                         }
-                    }).collect_view()
-                }}
-
+                    }
+                />
                 <button
                     class="join-item btn btn-sm"
                     on:click=move |_| on_page_change(current_page.get() + 1)
