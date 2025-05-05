@@ -13,7 +13,11 @@ impl<R: ContactRepository> ContactService<R> {
         self.repository.create_contact(contact).await
     }
 
-    pub async fn fetch_contacts(&self, page: u64, page_size: u64) -> Result<Vec<Contact>, String> {
+    pub async fn fetch_contacts(
+        &self,
+        page: u64,
+        page_size: u64,
+    ) -> Result<(Vec<Contact>, u64), String> {
         self.repository.contacts(page, page_size).await
     }
 }

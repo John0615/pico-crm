@@ -9,16 +9,27 @@ use shared::contact::{Contact, ContactsResult};
 
 #[server]
 pub async fn fetch_contacts(page: u64, page_size: u64) -> Result<ContactsResult, ServerFnError> {
-    use backend::application::services::contact_service;
+    use backend::application::services::new_contact_service::ContactAppService;
+    use backend::domain::services::contact_service::ContactService;
     use backend::infrastructure::db::Database;
+    use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+
     let pool = expect_context::<Database>();
+
+    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
+    let contact_service = ContactService::new(contact_repository);
+    let app_service = ContactAppService::new(contact_service);
+
     println!("pool {:?}", pool);
 
     println!("Fetching contacts...");
-    let res = contact_service::fetch_contacts(&pool.connection, page, page_size)
+
+    let res = app_service
+        .fetch_contacts(page, page_size)
         .await
         .map_err(|e| ServerFnError::new(e))?;
-    // println!("Fetching contacts result {:?}", res);
+
+    println!("Fetching contacts result {:?}", res);
     Ok(res)
 }
 

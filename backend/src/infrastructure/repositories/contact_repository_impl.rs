@@ -40,7 +40,7 @@ impl ContactRepository for SeaOrmContactRepository {
         &self,
         page: u64,
         page_size: u64,
-    ) -> impl std::future::Future<Output = Result<Vec<Contact>, String>> + Send {
+    ) -> impl std::future::Future<Output = Result<(Vec<Contact>, u64), String>> + Send {
         async move {
             let paginator = Entity::find()
                 .order_by_desc(Column::InsertedAt)
@@ -51,7 +51,7 @@ impl ContactRepository for SeaOrmContactRepository {
                 .await
                 .map_err(|_| "获取数据失败".to_string())?;
             // 获取总数
-            let _total = paginator
+            let total = paginator
                 .num_items()
                 .await
                 .map_err(|_| "获取总数失败".to_string())?;
@@ -59,7 +59,7 @@ impl ContactRepository for SeaOrmContactRepository {
                 .into_iter()
                 .map(|contact| ContactMapper::to_domain(contact))
                 .collect();
-            Ok(contacts)
+            Ok((contacts, total))
         }
     }
 
