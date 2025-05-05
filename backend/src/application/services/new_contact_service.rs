@@ -3,7 +3,7 @@ use crate::domain::services::contact_service::ContactService;
 use shared::contact::{Contact, ContactsResult};
 
 pub struct ContactAppService<R: ContactRepository> {
-    pub contact_service: ContactService<R>,
+    contact_service: ContactService<R>,
 }
 
 impl<R: ContactRepository> ContactAppService<R> {
