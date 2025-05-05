@@ -1,4 +1,4 @@
-use crate::domain::models::contacts::{ActiveModel, Column, Entity};
+use crate::entity::contacts::{ActiveModel, Column, Entity};
 use crate::infrastructure::db::DatabaseConnection;
 use chrono::prelude::{DateTime, Local, NaiveDateTime};
 use sea_orm::ActiveValue::Set;
