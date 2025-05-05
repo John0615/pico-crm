@@ -1,18 +1,22 @@
+use crate::domain::models::contacts::{ActiveModel, Column, Entity};
 use crate::infrastructure::db::DatabaseConnection;
-use sea_orm::{EntityTrait, ActiveModelTrait, PaginatorTrait, QueryOrder};
-use sea_orm::entity::prelude::{Uuid};
-use sea_orm::ActiveValue::{Set};
-use crate::domain::models::contacts::{Column, Entity, ActiveModel};
-use chrono::prelude::{Local, DateTime, NaiveDateTime};
+use chrono::prelude::{DateTime, Local, NaiveDateTime};
+use sea_orm::ActiveValue::Set;
+use sea_orm::entity::prelude::Uuid;
+use sea_orm::{ActiveModelTrait, EntityTrait, PaginatorTrait, QueryOrder};
 use shared::contact::{Contact, ContactsResult};
 
-pub async fn fetch_contacts(db: &DatabaseConnection, page: u64, page_size: u64) -> Result<ContactsResult, String> {
+pub async fn fetch_contacts(
+    db: &DatabaseConnection,
+    page: u64,
+    page_size: u64,
+) -> Result<ContactsResult, String> {
     let paginator = Entity::find()
         .order_by_desc(Column::InsertedAt)
         .paginate(db, page_size); // 每页10条
     // 获取当前页数据
     let contacts = paginator
-        .fetch_page(page-1) // 第一页（页码从0开始）
+        .fetch_page(page - 1) // 第一页（页码从0开始）
         .await
         .map_err(|_| "获取数据失败".to_string())?;
     // 获取总数
@@ -20,8 +24,9 @@ pub async fn fetch_contacts(db: &DatabaseConnection, page: u64, page_size: u64) 
         .num_items()
         .await
         .map_err(|_| "获取总数失败".to_string())?;
-    let contacts: Vec<Contact> = contacts.into_iter().map(|contact| {
-        Contact {
+    let contacts: Vec<Contact> = contacts
+        .into_iter()
+        .map(|contact| Contact {
             contact_uuid: contact.contact_uuid.to_string(),
             user_name: contact.user_name,
             company: contact.company,
@@ -33,13 +38,10 @@ pub async fn fetch_contacts(db: &DatabaseConnection, page: u64, page_size: u64) 
             status: contact.status,
             inserted_at: contact.inserted_at.format("%Y-%m-%d %H:%M:%S").to_string(),
             updated_at: contact.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
-        }
-    }).collect();
+        })
+        .collect();
     println!("contacts {:#?} {}", contacts, total);
-    Ok(ContactsResult{
-        contacts,
-        total
-    })
+    Ok(ContactsResult { contacts, total })
 }
 
 pub async fn create_contact(db: &DatabaseConnection, contact: Contact) -> Result<(), String> {
