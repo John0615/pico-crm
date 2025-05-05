@@ -33,6 +33,24 @@
 - RBAC 权限控制
 - 数据导出 (CSV/Excel)
 
+### 后端调用关系
+- app server function
+- 调用 backend::application::services::service_a
+- 调用 backend::domain::services::domain_service_a
+- 调用 backend::infranstructure::repositories::repository_a
+- 使用 backend::infranstructure::mappers::mapper_a
+- 返回 shared::dtos::dto_a
+
+### 关键原则
+## 领域纯洁性
+- domain/models/ 只包含业务逻辑和领域行为
+- 完全不涉及任何序列化/持久化相关朱姐
+## 转换责任
+- 数据库实体->DTO的转换属于技术设施层的职责
+- 领域模型->DTO的转换可以放在应用层
+## 依赖方向
+- 共享DTO <- 应用层 <- 领域层 <-基础设施层
+
 ## 快速开始
 
 ### 开发环境
