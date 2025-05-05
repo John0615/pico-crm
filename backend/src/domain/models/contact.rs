@@ -1,34 +1,36 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]
 pub struct Contact {
     pub uuid: String,
     pub name: String,
+    pub company: String,
+    pub position: String,
     pub email: String,
     pub phone: String,
-    pub inserted_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub last_contact: DateTime<Utc>,
+    pub value: CustomerValue,
+    pub status: CustomerStatus,
+    pub inserted_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+// 领域层的状态类型（强类型，避免魔法字符串）
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum CustomerStatus {
+    Signed,  // 已签约
+    Pending, // 待跟进
+    Churned, // 已流失
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CustomerValue {
+    Active,    // 活跃客户
+    Potential, // 潜在客户
+    Inactive,  // 不活跃客户
 }
 
 impl Contact {
-    pub fn new(
-        uuid: String,
-        name: String,
-        email: String,
-        phone: String,
-        inserted_at: NaiveDateTime,
-        updated_at: NaiveDateTime,
-    ) -> Self {
-        Contact {
-            uuid,
-            name,
-            email,
-            phone,
-            inserted_at,
-            updated_at,
-        }
-    }
-
     pub fn uuid(&self) -> String {
         self.uuid.clone()
     }

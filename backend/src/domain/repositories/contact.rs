@@ -5,7 +5,11 @@ pub trait ContactRepository: Send + Sync {
         &self,
         contact: Contact,
     ) -> impl std::future::Future<Output = Result<Contact, String>> + Send;
-    fn contacts(&self) -> impl std::future::Future<Output = Result<Vec<Contact>, String>> + Send;
+    fn contacts(
+        &self,
+        page: u64,
+        page_size: u64,
+    ) -> impl std::future::Future<Output = Result<Vec<Contact>, String>> + Send;
     // fn get_contact(
     //     &self,
     //     uuid: String,

@@ -1,8 +1,9 @@
 use crate::{
-    domain::models::contact::Contact, entity::contacts::ActiveModel as ActiveContactEntity,
+    domain::models::contact::{Contact, CustomerStatus, CustomerValue},
+    entity::contacts::ActiveModel as ActiveContactEntity,
     entity::contacts::Model as ContactEntity,
 };
-use chrono::prelude::{DateTime, Local, NaiveDateTime};
+use chrono::prelude::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::Uuid;
 
@@ -10,33 +11,58 @@ pub struct ContactMapper;
 
 impl ContactMapper {
     pub fn to_domain(entity: ContactEntity) -> Contact {
+        let value = match entity.value_level {
+            1 => CustomerValue::Active,
+            2 => CustomerValue::Potential,
+            3 => CustomerValue::Inactive,
+            _ => CustomerValue::Active,
+        };
+        let status = match entity.status {
+            1 => CustomerStatus::Signed,
+            2 => CustomerStatus::Pending,
+            3 => CustomerStatus::Churned,
+            _ => CustomerStatus::Signed,
+        };
         Contact {
             uuid: entity.contact_uuid.to_string(),
             name: entity.user_name,
+            company: entity.company,
+            position: entity.position,
             email: entity.email,
             phone: entity.phone_number,
-            inserted_at: entity.inserted_at,
-            updated_at: entity.updated_at,
+            last_contact: naive_to_utc(entity.last_contact),
+            value,
+            status,
+            inserted_at: naive_to_utc(entity.inserted_at),
+            updated_at: naive_to_utc(entity.updated_at),
         }
     }
 
     pub fn to_entity(contact: Contact) -> ContactEntity {
         let uuid = Uuid::new_v4();
-        let now: DateTime<Local> = Local::now();
-        let naive_now: NaiveDateTime = now.naive_local();
+        let value_level = match contact.value {
+            CustomerValue::Active => 1,
+            CustomerValue::Potential => 2,
+            CustomerValue::Inactive => 3,
+        };
+        let status = match contact.status {
+            CustomerStatus::Signed => 1,
+            CustomerStatus::Pending => 2,
+            CustomerStatus::Churned => 3,
+        };
         ContactEntity {
             contact_uuid: uuid,
             user_name: contact.name,
             email: contact.email,
             phone_number: contact.phone,
-            inserted_at: contact.inserted_at,
-            updated_at: contact.updated_at,
-            company: String::new(),
-            position: String::new(),
-            last_contact: naive_now,
-            value_level: 1,
+            inserted_at: utc_to_naive(contact.inserted_at),
+            updated_at: utc_to_naive(contact.updated_at),
+            company: contact.company,
+            position: contact.position,
+            last_contact: utc_to_naive(contact.last_contact),
+            value_level,
+            status,
             creator_uuid: uuid,
-            status: 1,
         }
     }
 
@@ -49,8 +75,8 @@ impl ContactMapper {
             user_name: Set(contact.name),
             email: Set(contact.email),
             phone_number: Set(contact.phone),
-            inserted_at: Set(contact.inserted_at),
-            updated_at: Set(contact.updated_at),
+            inserted_at: Set(utc_to_naive(contact.inserted_at)),
+            updated_at: Set(utc_to_naive(contact.updated_at)),
             company: Set(String::new()),
             position: Set(String::new()),
             last_contact: Set(naive_now),
@@ -59,4 +85,12 @@ impl ContactMapper {
             status: Set(1),
         }
     }
+}
+
+fn naive_to_utc(naive: NaiveDateTime) -> DateTime<Utc> {
+    Utc.from_utc_datetime(&naive)
+}
+
+fn utc_to_naive(utc: DateTime<Utc>) -> NaiveDateTime {
+    utc.naive_utc()
 }

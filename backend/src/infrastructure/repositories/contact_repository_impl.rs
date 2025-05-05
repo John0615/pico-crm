@@ -36,14 +36,18 @@ impl ContactRepository for SeaOrmContactRepository {
         }
     }
 
-    fn contacts(&self) -> impl std::future::Future<Output = Result<Vec<Contact>, String>> + Send {
+    fn contacts(
+        &self,
+        page: u64,
+        page_size: u64,
+    ) -> impl std::future::Future<Output = Result<Vec<Contact>, String>> + Send {
         async move {
             let paginator = Entity::find()
                 .order_by_desc(Column::InsertedAt)
-                .paginate(&self.db, 10); // 每页10条
+                .paginate(&self.db, page_size); // 每页10条
             // 获取当前页数据
             let contacts = paginator
-                .fetch_page(0) // 第一页（页码从0开始）
+                .fetch_page(page - 1) // 第一页（页码从0开始）
                 .await
                 .map_err(|_| "获取数据失败".to_string())?;
             // 获取总数
