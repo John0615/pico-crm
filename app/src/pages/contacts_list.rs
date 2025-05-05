@@ -1,21 +1,23 @@
+use crate::components::features::ContactModal;
+use crate::components::ui::pagination::Pagination;
+use crate::components::ui::table::Demo;
+use leptos::logging;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use server_fn::ServerFnError;
 use shared::contact::{Contact, ContactsResult};
-use leptos::logging;
-use crate::components::features::ContactModal;
-use crate::components::ui::pagination::Pagination;
-
 
 #[server]
 pub async fn fetch_contacts(page: u64, page_size: u64) -> Result<ContactsResult, ServerFnError> {
+    use backend::application::services::contact_service;
     use backend::infrastructure::db::Database;
-    use backend::presentation::handlers::contacts;
     let pool = expect_context::<Database>();
     println!("pool {:?}", pool);
 
     println!("Fetching contacts...");
-    let res = contacts::fetch_contacts(&pool.connection, page, page_size).await.map_err(|e| ServerFnError::new(e))?;
+    let res = contact_service::fetch_contacts(&pool.connection, page, page_size)
+        .await
+        .map_err(|e| ServerFnError::new(e))?;
     // println!("Fetching contacts result {:?}", res);
     Ok(res)
 }
@@ -23,7 +25,7 @@ pub async fn fetch_contacts(page: u64, page_size: u64) -> Result<ContactsResult,
 #[component]
 pub fn ContactsList() -> impl IntoView {
     let (sort_name_asc, set_sort_name_asc) = signal(true);
-    let show_modal =  RwSignal::new(false);
+    let show_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
 
@@ -35,19 +37,25 @@ pub fn ContactsList() -> impl IntoView {
         move || (sort_name_asc.get(), refresh_count.get(), query.get()),
         // every time `count` changes, this will run
         |(_, _, query)| async move {
-            let page = query.get("page").unwrap_or_default().parse::<u64>().unwrap_or(1);
-            let page_size = query.get("page_size").unwrap_or_default().parse::<u64>().unwrap_or(10);
+            let page = query
+                .get("page")
+                .unwrap_or_default()
+                .parse::<u64>()
+                .unwrap_or(1);
+            let page_size = query
+                .get("page_size")
+                .unwrap_or_default()
+                .parse::<u64>()
+                .unwrap_or(10);
             // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
-            fetch_contacts(page, page_size)
-                .await
-                .unwrap_or_else(|e| {
-                    logging::error!("Error loading contacts: {e}");
-                    ContactsResult{
-                        contacts: Vec::new(),
-                        total: 0,
-                    }
-                })
-        }
+            fetch_contacts(page, page_size).await.unwrap_or_else(|e| {
+                logging::error!("Error loading contacts: {e}");
+                ContactsResult {
+                    contacts: Vec::new(),
+                    total: 0,
+                }
+            })
+        },
     );
 
     let on_contact_modal_finish = move || {
@@ -56,6 +64,7 @@ pub fn ContactsList() -> impl IntoView {
 
     view! {
         <div class="">
+            <Demo />
             <div class="flex flex-col md:flex-row gap-4 mb-4">
                 <label class="input">
                 <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">

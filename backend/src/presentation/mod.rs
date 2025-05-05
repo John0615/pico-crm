@@ -1,1 +1,1 @@
-pub mod handlers;
+pub mod controllers;
