@@ -9,7 +9,7 @@ use shared::contact::{Contact, ContactsResult};
 
 #[server]
 pub async fn fetch_contacts(page: u64, page_size: u64) -> Result<ContactsResult, ServerFnError> {
-    use backend::application::services::new_contact_service::ContactAppService;
+    use backend::application::services::contact_service::ContactAppService;
     use backend::domain::services::contact_service::ContactService;
     use backend::infrastructure::db::Database;
     use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
