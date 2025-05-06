@@ -25,11 +25,11 @@ impl ContactRepository for SeaOrmContactRepository {
         contact: Contact,
     ) -> impl Future<Output = Result<Contact, String>> + Send {
         async move {
-            let entity = ContactMapper::to_active_entity(contact.clone()); // 转换为 Entity
+            let entity = ContactMapper::to_active_entity(contact); // 转换为 Entity
             let new_entity = entity
                 .insert(&self.db)
                 .await
-                .map_err(|e| format!("Database error: {}", e))?;
+                .map_err(|e| format!("create contact database error: {}", e))?;
 
             let new_contact = ContactMapper::to_domain(new_entity);
             Ok(new_contact)

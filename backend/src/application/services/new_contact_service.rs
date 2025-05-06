@@ -20,4 +20,10 @@ impl<R: ContactRepository> ContactAppService<R> {
         let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact.into()).collect();
         Ok(ContactsResult { contacts, total })
     }
+
+    pub async fn create_contact(&self, contact: Contact) -> Result<(), String> {
+        let contact = contact.into();
+        let _new_contact = self.contact_service.create_contact(contact).await?;
+        Ok(())
+    }
 }

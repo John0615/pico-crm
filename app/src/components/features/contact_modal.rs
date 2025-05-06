@@ -9,12 +9,20 @@ use shared::contact::Contact;
 
 #[server]
 pub async fn add_contact(contact: Contact) -> Result<(), ServerFnError> {
-    use backend::application::services::contact_service;
+    use backend::application::services::new_contact_service::ContactAppService;
+    use backend::domain::services::contact_service::ContactService;
     use backend::infrastructure::db::Database;
+    use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+
     let pool = expect_context::<Database>();
 
+    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
+    let contact_service = ContactService::new(contact_repository);
+    let app_service = ContactAppService::new(contact_service);
+
     println!("Adding contact: {:?}", contact);
-    let result = contact_service::create_contact(&pool.connection, contact)
+    let result = app_service
+        .create_contact(contact)
         .await
         .map_err(|e| ServerFnError::new(e))?;
     println!("Adding contact results: {:?}", result);

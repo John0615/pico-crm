@@ -3,7 +3,7 @@ use crate::{
     entity::contacts::ActiveModel as ActiveContactEntity,
     entity::contacts::Model as ContactEntity,
 };
-use chrono::prelude::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
+use chrono::prelude::{DateTime, NaiveDateTime, TimeZone, Utc};
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::Uuid;
 
@@ -68,8 +68,16 @@ impl ContactMapper {
 
     pub fn to_active_entity(contact: Contact) -> ActiveContactEntity {
         let uuid = Uuid::new_v4();
-        let now: DateTime<Local> = Local::now();
-        let naive_now: NaiveDateTime = now.naive_local();
+        let value_level = match contact.value {
+            CustomerValue::Active => 1,
+            CustomerValue::Potential => 2,
+            CustomerValue::Inactive => 3,
+        };
+        let status = match contact.status {
+            CustomerStatus::Signed => 1,
+            CustomerStatus::Pending => 2,
+            CustomerStatus::Churned => 3,
+        };
         ActiveContactEntity {
             contact_uuid: Set(uuid),
             user_name: Set(contact.name),
@@ -77,12 +85,12 @@ impl ContactMapper {
             phone_number: Set(contact.phone),
             inserted_at: Set(utc_to_naive(contact.inserted_at)),
             updated_at: Set(utc_to_naive(contact.updated_at)),
-            company: Set(String::new()),
-            position: Set(String::new()),
-            last_contact: Set(naive_now),
-            value_level: Set(1),
+            company: Set(contact.company),
+            position: Set(contact.position),
+            last_contact: Set(utc_to_naive(contact.last_contact)),
+            value_level: Set(value_level),
             creator_uuid: Set(uuid),
-            status: Set(1),
+            status: Set(status),
         }
     }
 }

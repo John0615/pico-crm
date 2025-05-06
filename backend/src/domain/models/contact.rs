@@ -31,6 +31,18 @@ pub enum CustomerValue {
 }
 
 impl Contact {
+    pub fn verify(&self) -> Result<(), String> {
+        if self.name.is_empty() {
+            Err("Name cannot be empty".to_string())
+        } else if self.email.is_empty() {
+            Err("Email cannot be empty".to_string())
+        } else if self.phone.is_empty() {
+            Err("Phone cannot be empty".to_string())
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn uuid(&self) -> String {
         self.uuid.clone()
     }
