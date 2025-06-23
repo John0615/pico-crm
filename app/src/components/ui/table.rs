@@ -11,6 +11,7 @@ pub struct Column {
     sort: bool,
     #[prop(default = SortValue::Asc)]
     default_sort: SortValue,
+    prop: String,
     #[prop(optional, into)]
     pub class: Option<String>,
     pub children: ChildrenFn,
@@ -76,12 +77,14 @@ pub fn DaisyTable<T: Clone + Send + Sync + 'static>(
     #[prop(optional)] _class: Option<String>,
     data: Vec<T>,
     columns: Vec<Column>,
+    #[prop(optional)] on_sort: Option<Callback<(String, SortValue)>>,
 ) -> impl IntoView {
     let data = StoredValue::new(data.clone());
     let columns = StoredValue::new(columns.clone());
-    let sort_change = move |col_index, sort_value| {
-        logging::error!("Error loading contacts: {:?}", col_index);
-        // if let Some(row) = data.get(0) {};
+    let sort_change = move |prop, sort_value| {
+        if let Some(cb) = on_sort {
+            cb.run((prop, sort_value));
+        }
     };
     view! {
         <table class="table table-pin-rows table-pin-cols whitespace-nowrap">
@@ -91,7 +94,7 @@ pub fn DaisyTable<T: Clone + Send + Sync + 'static>(
                         // 关键修改2：使用 with_value 获取数据
                         each=move || columns.with_value(|c| c.clone().into_iter().enumerate())
                         key=|(index, _col)| *index
-                        children=move |(index, col)| {
+                        children=move |(_index, col)| {
                             let cell_content = view! {
 
                                 {col.label.clone()}
@@ -99,7 +102,7 @@ pub fn DaisyTable<T: Clone + Send + Sync + 'static>(
                                     <ColumnSorter
                                         initial_sort=col.default_sort
                                         on_change=move|sort_value: SortValue| {
-                                            sort_change(index, sort_value);
+                                            sort_change(col.prop.clone(), sort_value);
                                         }
                                     />
                                 })}
@@ -220,6 +223,7 @@ pub fn Demo() -> impl IntoView {
                 slot:columns
                 freeze=true
                 sort=true
+                prop="user_name".to_string()
                 label="姓名".to_string()
                 class="font-bold"
             >
@@ -235,6 +239,7 @@ pub fn Demo() -> impl IntoView {
             <Column
                 slot:columns
                 label="公司".to_string()
+                prop="company".to_string()
                 class="font-bold"
             >
                 {
@@ -250,6 +255,7 @@ pub fn Demo() -> impl IntoView {
                 slot:columns
                 freeze=true
                 label="操作".to_string()
+                prop="".to_string()
                 class="font-bold"
             >
                 {
