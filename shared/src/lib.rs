@@ -5,5 +5,5 @@ pub mod contact;
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ListResult<T> {
     pub total: u64,
-    pub contacts: Vec<T>,
+    pub items: Vec<T>,
 }

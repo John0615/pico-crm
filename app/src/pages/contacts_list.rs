@@ -65,7 +65,7 @@ pub fn ContactsList() -> impl IntoView {
             fetch_contacts(page, page_size).await.unwrap_or_else(|e| {
                 logging::error!("Error loading contacts: {e}");
                 ListResult {
-                    contacts: Vec::new(),
+                    items: Vec::new(),
                     total: 0,
                 }
             })
@@ -179,7 +179,7 @@ pub fn ContactsList() -> impl IntoView {
                         }
                     >
                         <Show
-                            when=move || !data.get().map(|d| d.contacts.is_empty()).unwrap_or_default()
+                            when=move || !data.get().map(|d| d.items.is_empty()).unwrap_or_default()
                             fallback=move || view! {
                                 <tr class="hover:bg-transparent h-[calc(100vh-300px)]">
                                     <td colspan="9" class="py-12 text-center align-middle">
@@ -191,7 +191,7 @@ pub fn ContactsList() -> impl IntoView {
                             }
                         >
                         <For
-                            each=move || data.get().map(|d| d.contacts).unwrap_or_default()
+                            each=move || data.get().map(|d| d.items).unwrap_or_default()
                             key=|contact| contact.contact_uuid.clone()
                             children=move |contact: Contact| {
                                 let status = contact.status.clone();

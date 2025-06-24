@@ -18,7 +18,10 @@ impl<R: ContactRepository> ContactAppService<R> {
     ) -> Result<ListResult<Contact>, String> {
         let (contacts, total) = self.contact_service.fetch_contacts(page, page_size).await?;
         let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact.into()).collect();
-        Ok(ListResult { contacts, total })
+        Ok(ListResult {
+            items: contacts,
+            total,
+        })
     }
 
     pub async fn create_contact(&self, contact: Contact) -> Result<(), String> {
