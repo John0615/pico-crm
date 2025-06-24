@@ -5,10 +5,13 @@ use leptos::logging;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use server_fn::ServerFnError;
-use shared::contact::{Contact, ContactsResult};
+use shared::{contact::Contact, ListResult};
 
 #[server]
-pub async fn fetch_contacts(page: u64, page_size: u64) -> Result<ContactsResult, ServerFnError> {
+pub async fn fetch_contacts(
+    page: u64,
+    page_size: u64,
+) -> Result<ListResult<Contact>, ServerFnError> {
     use backend::application::services::contact_service::ContactAppService;
     use backend::domain::services::contact_service::ContactService;
     use backend::infrastructure::db::Database;
@@ -61,7 +64,7 @@ pub fn ContactsList() -> impl IntoView {
             // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
             fetch_contacts(page, page_size).await.unwrap_or_else(|e| {
                 logging::error!("Error loading contacts: {e}");
-                ContactsResult {
+                ListResult {
                     contacts: Vec::new(),
                     total: 0,
                 }
@@ -145,12 +148,8 @@ pub fn ContactsList() -> impl IntoView {
                         <th class="cursor-pointer" on:click=move |_| sort_name()>
                             姓名
                             <span class="ml-1 inline-block">
-                                {move || if sort_name_asc.get() {
-                                    "↑"
-                                } else {
-                                    "↓"
-                                }
-                                }
+                                <span class:text-blue-500=move || sort_name_asc.get()>"↑"</span>
+                                <span class:text-blue-500=move || !sort_name_asc.get()>"↓"</span>
                             </span>
                         </th>
                         <td>公司</td>
