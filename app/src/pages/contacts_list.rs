@@ -1,6 +1,6 @@
 use crate::components::features::ContactModal;
 use crate::components::ui::pagination::Pagination;
-use crate::components::ui::table::Demo;
+// use crate::components::ui::table::Demo;
 use leptos::logging;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
@@ -62,13 +62,14 @@ pub fn ContactsList() -> impl IntoView {
                 .parse::<u64>()
                 .unwrap_or(10);
             // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
-            fetch_contacts(page, page_size).await.unwrap_or_else(|e| {
+            let result = fetch_contacts(page, page_size).await.unwrap_or_else(|e| {
                 logging::error!("Error loading contacts: {e}");
                 ListResult {
                     items: Vec::new(),
                     total: 0,
                 }
-            })
+            });
+            (result.items, result.total)
         },
     );
 
@@ -78,7 +79,6 @@ pub fn ContactsList() -> impl IntoView {
 
     view! {
         <div class="">
-            <Demo />
             <div class="flex flex-col md:flex-row gap-4 mb-4">
                 <label class="input">
                 <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -179,7 +179,7 @@ pub fn ContactsList() -> impl IntoView {
                         }
                     >
                         <Show
-                            when=move || !data.get().map(|d| d.items.is_empty()).unwrap_or_default()
+                            when=move || !data.get().map(|d| d.0.is_empty()).unwrap_or_default()
                             fallback=move || view! {
                                 <tr class="hover:bg-transparent h-[calc(100vh-300px)]">
                                     <td colspan="9" class="py-12 text-center align-middle">
@@ -191,7 +191,7 @@ pub fn ContactsList() -> impl IntoView {
                             }
                         >
                         <For
-                            each=move || data.get().map(|d| d.items).unwrap_or_default()
+                            each=move || data.get().map(|d| d.0).unwrap_or_default()
                             key=|contact| contact.contact_uuid.clone()
                             children=move |contact: Contact| {
                                 let status = contact.status.clone();
@@ -264,7 +264,7 @@ pub fn ContactsList() -> impl IntoView {
 
             <Transition>
                  {move || data.get().map(|data| view! {
-                    <Pagination total_items=data.total />
+                    <Pagination total_items=data.1 />
                  })}
             </Transition>
         </div>
