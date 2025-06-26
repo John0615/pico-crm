@@ -135,7 +135,7 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
                             view! {
                                 <button
                                     class="join-item btn btn-sm"
-                                    class:btn-active=(move || page == current_page.get())
+                                    disabled=move || page == current_page.get()
                                     on:click=move |_| on_page_change(page)
                                 >
                                     {page}
