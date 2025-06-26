@@ -95,7 +95,6 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
             <thead>
                 <tr class="bg-base-200">
                     <For
-                        // 关键修改2：使用 with_value 获取数据
                         each=move || columns.with_value(|c| c.clone().into_iter().enumerate())
                         key=|(index, _col)| *index
                         children=move |(_index, col)| {
