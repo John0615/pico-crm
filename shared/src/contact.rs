@@ -1,27 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-// 定义排序字段
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
-pub struct SortField {
-    pub user_name: bool,
-    pub status: bool,
-    pub last_contact: bool,
-}
-
-// 定义排序过滤条件
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SearchConditions {
-    pub search_content: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ContactsParams {
-    pub page: u32,
-    pub page_size: u32,
-    pub sort_fields: SortField,
-    pub search_conditions: SearchConditions,
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Contact {
     pub contact_uuid: String,
@@ -35,4 +13,26 @@ pub struct Contact {
     pub status: i32,
     pub inserted_at: String,
     pub updated_at: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct SortOption {
+    pub field: String,
+    pub order: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ContactFilters {
+    pub user_name: Option<String>,
+    pub status: Option<String>,
+    pub email: Option<String>,
+    pub phone_number: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ContactQuery {
+    pub page: u64,
+    pub page_size: u64,
+    pub sort: Option<Vec<SortOption>>,
+    pub filters: Option<ContactFilters>,
 }

@@ -1,6 +1,9 @@
 use crate::domain::repositories::contact::ContactRepository;
 use crate::domain::services::contact_service::ContactService;
-use shared::{ListResult, contact::Contact};
+use shared::{
+    ListResult,
+    contact::{Contact, ContactQuery},
+};
 
 pub struct ContactAppService<R: ContactRepository> {
     contact_service: ContactService<R>,
@@ -13,10 +16,12 @@ impl<R: ContactRepository> ContactAppService<R> {
 
     pub async fn fetch_contacts(
         &self,
-        page: u64,
-        page_size: u64,
+        params: ContactQuery,
     ) -> Result<ListResult<Contact>, String> {
-        let (contacts, total) = self.contact_service.fetch_contacts(page, page_size).await?;
+        let (contacts, total) = self
+            .contact_service
+            .fetch_contacts(params.page, params.page_size)
+            .await?;
         let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact.into()).collect();
         Ok(ListResult {
             items: contacts,

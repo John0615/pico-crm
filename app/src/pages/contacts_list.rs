@@ -5,13 +5,13 @@ use leptos::logging;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use server_fn::ServerFnError;
-use shared::{contact::Contact, ListResult};
+use shared::{
+    contact::{Contact, ContactQuery},
+    ListResult,
+};
 
 #[server]
-pub async fn fetch_contacts(
-    page: u64,
-    page_size: u64,
-) -> Result<ListResult<Contact>, ServerFnError> {
+pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>, ServerFnError> {
     use backend::application::services::contact_service::ContactAppService;
     use backend::domain::services::contact_service::ContactService;
     use backend::infrastructure::db::Database;
@@ -28,7 +28,7 @@ pub async fn fetch_contacts(
     println!("Fetching contacts...");
 
     let res = app_service
-        .fetch_contacts(page, page_size)
+        .fetch_contacts(params)
         .await
         .map_err(|e| ServerFnError::new(e))?;
 
@@ -44,18 +44,13 @@ impl Identifiable for Contact {
 
 #[component]
 pub fn ContactsList() -> impl IntoView {
-    let (sort_name_asc, set_sort_name_asc) = signal(true);
+    let (sort_name_asc, _set_sort_name_asc) = signal(true);
     let show_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
 
-    let sort_name = move || {
-        set_sort_name_asc.update(|a| *a = !*a);
-    };
-
     let data = Resource::new(
         move || (sort_name_asc.get(), refresh_count.get(), query.get()),
-        // every time `count` changes, this will run
         |(_, _, query)| async move {
             let page = query
                 .get("page")
@@ -68,7 +63,13 @@ pub fn ContactsList() -> impl IntoView {
                 .parse::<u64>()
                 .unwrap_or(10);
             // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
-            let result = fetch_contacts(page, page_size).await.unwrap_or_else(|e| {
+            let params = ContactQuery {
+                page,
+                page_size,
+                sort: None,
+                filters: None,
+            };
+            let result = fetch_contacts(params).await.unwrap_or_else(|e| {
                 logging::error!("Error loading contacts: {e}");
                 ListResult {
                     items: Vec::new(),
@@ -82,6 +83,10 @@ pub fn ContactsList() -> impl IntoView {
     let on_contact_modal_finish = move || {
         refresh_count.set(refresh_count.get_untracked() + 1);
     };
+
+    let on_sort = Callback::new(|(field, sort_value)| {
+        logging::error!("on sort: {:?} {:?}", field, sort_value);
+    });
 
     view! {
         <div class="">
@@ -148,7 +153,7 @@ pub fn ContactsList() -> impl IntoView {
             </div>
             <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
             <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
-                <DaisyTable data=data>
+                <DaisyTable data=data on_sort=on_sort>
                     <Column
                         slot:columns
                         freeze=true
