@@ -1,6 +1,6 @@
 use crate::components::features::ContactModal;
 use crate::components::ui::pagination::Pagination;
-// use crate::components::ui::table::Demo;
+use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use leptos::logging;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
@@ -34,6 +34,12 @@ pub async fn fetch_contacts(
 
     println!("Fetching contacts result {:?}", res);
     Ok(res)
+}
+
+impl Identifiable for Contact {
+    fn id(&self) -> String {
+        self.contact_uuid.clone()
+    }
 }
 
 #[component]
@@ -142,124 +148,186 @@ pub fn ContactsList() -> impl IntoView {
             </div>
             <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
             <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
-                <table class="table table-pin-rows table-pin-cols whitespace-nowrap">
-                    <thead>
-                    <tr class="bg-base-200">
-                        <th class="cursor-pointer" on:click=move |_| sort_name()>
-                            姓名
-                            <span class="ml-1 inline-block">
-                                <span class:text-blue-500=move || sort_name_asc.get()>"↑"</span>
-                                <span class:text-blue-500=move || !sort_name_asc.get()>"↓"</span>
-                            </span>
-                        </th>
-                        <td>公司</td>
-                        <td>职位</td>
-                        <td>电话</td>
-                        <td>邮箱</td>
-                        <td class="cursor-pointer hover:bg-base-300">
-                            状态
-                            <span class="ml-1 inline-block">"↑↓"</span>
-                        </td>
-                        <td class="cursor-pointer hover:bg-base-300">
-                            最后联系
-                            <span class="ml-1 inline-block">"↑↓"</span>
-                        </td>
-                        <td>价值等级</td>
-                        <th>操作</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <Transition
-                        fallback=move || view! {
-                            <tr class="h-[calc(100vh-300px)]">
-                                <td colspan="9" class="h-32 text-center align-middle">
-                                    <span class="loading loading-bars loading-xl"></span>
-                                </td>
-                            </tr>
-                        }
+                <DaisyTable data=data>
+                    <Column
+                        slot:columns
+                        freeze=true
+                        sort=true
+                        prop="user_name".to_string()
+                        label="姓名".to_string()
+                        class="font-bold"
                     >
-                        <Show
-                            when=move || !data.get().map(|d| d.0.is_empty()).unwrap_or_default()
-                            fallback=move || view! {
-                                <tr class="hover:bg-transparent h-[calc(100vh-300px)]">
-                                    <td colspan="9" class="py-12 text-center align-middle">
-                                        <div class="inline-flex flex-col items-center">
-                                            <span class="text-gray-500 font-medium">暂无数据</span>
-                                        </div>
-                                    </td>
-                                </tr>
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <span class="font-medium">
+                                    {user.map(|u| u.user_name).unwrap_or("".to_string())}
+                                </span>
                             }
-                        >
-                        <For
-                            each=move || data.get().map(|d| d.0).unwrap_or_default()
-                            key=|contact| contact.contact_uuid.clone()
-                            children=move |contact: Contact| {
-                                let status = contact.status.clone();
-                                let value_level = contact.value_level.clone();
-                                view! {
-                                    <tr class="hover:bg-base-100">
-                                        <th class="font-medium">{contact.user_name.clone()}</th>
-                                        <td>{contact.company}</td>
-                                        <td>{contact.position}</td>
-                                        <td>{contact.phone_number}</td>
-                                        <td>{contact.email}</td>
-                                        <td>
-                                            <span class=format!("badge {}",
-                                                match status {
-                                                    1 => "badge-success",
-                                                    2 => "badge-warning",
-                                                    3 => "badge-error",
-                                                    _ => "badge-info"
-                                                }
-                                            )>
-                                                {
-                                                    match status.clone() {
-                                                        1 => "已签约",
-                                                        2 => "待跟进",
-                                                        3 => "已流失",
-                                                        _ => "未知",
-                                                    }
-                                                }
-                                            </span>
-                                        </td>
-                                        <td>{contact.last_contact}</td>
-                                        <td>
-                                            <span class=format!("badge {}",
-                                                match value_level {
-                                                    1 => "badge-success",
-                                                    2 => "badge-warning",
-                                                    3 => "badge-error",
-                                                    _ => "badge-info"
-                                                }
-                                            )>
-                                                {
-                                                    match value_level.clone() {
-                                                        1 => "活跃客户",
-                                                        2 => "潜在客户",
-                                                        3 => "不活跃客户",
-                                                        _ => "未知",
-                                                    }
-                                                }
-                                            </span>
-                                        </td>
-                                        <th>
-                                            <div class="flex justify-end gap-1">
-                                                <a href=format!("/contacts/{}", contact.contact_uuid) class="btn btn-ghost btn-xs">查看</a>
-                                                <button class="btn btn-soft btn-warning btn-xs">修改</button>
-                                                <button class="btn btn-soft btn-error btn-xs">删除</button>
-                                            </div>
-                                        </th>
-                                    </tr>
-                                }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="公司".to_string()
+                        prop="company".to_string()
+                        class=""
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <span>
+                                    {user.map(|u| u.company).unwrap_or("".to_string())}
+                                </span>
                             }
-                        />
-                        </Show>
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="职位".to_string()
+                        prop="position".to_string()
+                        class=""
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <span>
+                                    {user.map(|u| u.position).unwrap_or("".to_string())}
+                                </span>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="电话".to_string()
+                        prop="phone_number".to_string()
+                        class=""
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <span>
+                                    {user.map(|u| u.phone_number).unwrap_or("".to_string())}
+                                </span>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="邮箱".to_string()
+                        prop="email".to_string()
+                        class=""
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <span>
+                                    {user.map(|u| u.email).unwrap_or("".to_string())}
+                                </span>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="状态".to_string()
+                        prop="status".to_string()
+                        class=""
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <span class=format!("badge {}",
+                                    user.map(|u| {
+                                        match u.status {
+                                            1 => "badge-success",
+                                            2 => "badge-warning",
+                                            3 => "badge-error",
+                                            _ => "badge-info"
+                                        }
+                                    }).unwrap_or("")
 
-                    </Transition>
+                                )>
+                                    {
+                                        user.clone().map(|u| {
+                                            match u.status {
+                                                1 => "已签约",
+                                                2 => "待跟进",
+                                                3 => "已流失",
+                                                _ => "未知",
+                                            }
+                                        }).unwrap_or("")
+                                    }
+                                </span>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="最后联系".to_string()
+                        prop="last_contact".to_string()
+                        class=""
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <span>
+                                    {user.map(|u| u.last_contact).unwrap_or("".to_string())}
+                                </span>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="状态".to_string()
+                        prop="status".to_string()
+                        class=""
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <span class=format!("badge {}",
+                                    user.map(|u| {
+                                        match u.value_level {
+                                            1 => "badge-success",
+                                            2 => "badge-warning",
+                                            3 => "badge-error",
+                                            _ => "badge-info"
+                                        }
+                                    }).unwrap_or("")
 
-
-                    </tbody>
-                </table>
+                                )>
+                                    {
+                                        user.clone().map(|u| {
+                                            match u.value_level {
+                                                1 => "活跃客户",
+                                                2 => "潜在客户",
+                                                3 => "不活跃客户",
+                                                _ => "未知",
+                                            }
+                                        }).unwrap_or("")
+                                    }
+                                </span>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        freeze=true
+                        label="操作".to_string()
+                        prop="".to_string()
+                        class="font-bold"
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <div class="flex justify-end gap-1">
+                                    <a href=format!("/contacts/{}", user.map(|u| u.contact_uuid).unwrap_or("".to_string())) class="btn btn-ghost btn-xs">查看</a>
+                                    <button class="btn btn-soft btn-warning btn-xs">修改</button>
+                                    <button class="btn btn-soft btn-error btn-xs">删除</button>
+                                </div>
+                            }
+                        }
+                    </Column>
+                </DaisyTable>
             </div>
 
             <Transition>

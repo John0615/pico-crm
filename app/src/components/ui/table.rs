@@ -23,6 +23,10 @@ pub enum SortValue {
     Desc,
 }
 
+pub trait Identifiable {
+    fn id(&self) -> String;
+}
+
 impl SortValue {
     pub fn reverse(&self) -> Self {
         match self {
@@ -73,10 +77,9 @@ pub fn ColumnSorter(
 }
 
 #[component]
-pub fn DaisyTable<T: Clone + Send + Sync + 'static>(
+pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
     #[prop(optional)] _class: Option<String>,
-    // data: Vec<T>,
-    data: Resource<(Vec<T>, usize)>,
+    data: Resource<(Vec<T>, u64)>,
     columns: Vec<Column>,
     #[prop(optional)] on_sort: Option<Callback<(String, SortValue)>>,
 ) -> impl IntoView {
@@ -144,7 +147,7 @@ pub fn DaisyTable<T: Clone + Send + Sync + 'static>(
                     >
                         <For
                             each=move || data.get().map(|d| d.0.clone().into_iter().enumerate()).unwrap_or_default()
-                            key=|(index, _)| *index
+                            key=|(_index, item)| item.id()
                             children=move |(_index, row)| {
                                 view! {
                                     <Provider value=row>
@@ -181,116 +184,3 @@ pub fn DaisyTable<T: Clone + Send + Sync + 'static>(
         </table>
     }
 }
-
-// #[derive(Clone)]
-// struct User {
-//     contact_uuid: String,
-//     user_name: String,
-//     company: String,
-//     position: String,
-//     phone_number: String,
-//     email: String,
-//     last_contact: String,
-//     value_level: i32,
-//     status: i32,
-//     inserted_at: String,
-//     updated_at: String,
-// }
-
-// #[component]
-// pub fn Demo() -> impl IntoView {
-//     let users: Vec<User> = vec![
-//         User {
-//             contact_uuid: "550e8400-e29b-41d4-a716-446655440000".to_string(),
-//             user_name: "张三".to_string(),
-//             company: "阿里巴巴".to_string(),
-//             position: "高级工程师".to_string(),
-//             phone_number: "13800138000".to_string(),
-//             email: "zhangsan@alibaba.com".to_string(),
-//             last_contact: "2023-10-15T09:30:00Z".to_string(),
-//             value_level: 3,
-//             status: 1,
-//             inserted_at: "2023-09-01T08:00:00Z".to_string(),
-//             updated_at: "2023-10-15T10:00:00Z".to_string(),
-//         },
-//         User {
-//             contact_uuid: "6ba7b810-9dad-11d1-80b4-00c04fd430c8".to_string(),
-//             user_name: "李四".to_string(),
-//             company: "腾讯科技".to_string(),
-//             position: "产品经理".to_string(),
-//             phone_number: "13900139000".to_string(),
-//             email: "lisi@tencent.com".to_string(),
-//             last_contact: "2023-11-20T14:15:00Z".to_string(),
-//             value_level: 2,
-//             status: 0,
-//             inserted_at: "2023-08-15T10:30:00Z".to_string(),
-//             updated_at: "2023-11-20T15:30:00Z".to_string(),
-//         },
-//         User {
-//             contact_uuid: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed".to_string(),
-//             user_name: "王五".to_string(),
-//             company: "字节跳动".to_string(),
-//             position: "数据分析师".to_string(),
-//             phone_number: "13700137000".to_string(),
-//             email: "wangwu@bytedance.com".to_string(),
-//             last_contact: "2023-12-05T16:45:00Z".to_string(),
-//             value_level: 4,
-//             status: 1,
-//             inserted_at: "2023-10-10T13:20:00Z".to_string(),
-//             updated_at: "2023-12-05T17:00:00Z".to_string(),
-//         },
-//     ];
-
-//     view! {
-//         <DaisyTable data=users>
-//             <Column
-//                 slot:columns
-//                 freeze=true
-//                 sort=true
-//                 prop="user_name".to_string()
-//                 label="姓名".to_string()
-//                 class="font-bold"
-//             >
-//                 {
-//                     let user: Option<User> = use_context::<User>();
-//                     view! {
-//                         <span>
-//                             {user.map(|u| u.user_name).unwrap_or("Guest".to_string())}
-//                         </span>
-//                     }
-//                 }
-//             </Column>
-//             <Column
-//                 slot:columns
-//                 label="公司".to_string()
-//                 prop="company".to_string()
-//                 class="font-bold"
-//             >
-//                 {
-//                     let user: Option<User> = use_context::<User>();
-//                     view! {
-//                         <span>
-//                             {user.map(|u| u.company).unwrap_or("Guest".to_string())}
-//                         </span>
-//                     }
-//                 }
-//             </Column>
-//             <Column
-//                 slot:columns
-//                 freeze=true
-//                 label="操作".to_string()
-//                 prop="".to_string()
-//                 class="font-bold"
-//             >
-//                 {
-//                     let user: Option<User> = use_context::<User>();
-//                     view! {
-//                         <span>
-//                             查看
-//                         </span>
-//                     }
-//                 }
-//             </Column>
-//         </DaisyTable>
-//     }
-// }
