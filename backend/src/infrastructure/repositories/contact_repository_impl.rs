@@ -1,10 +1,15 @@
 use sea_orm::entity::prelude::*;
 
 use crate::{
-    domain::{models::contact::Contact, repositories::contact::ContactRepository},
+    domain::{
+        models::{contact::Contact, pagination::Pagination},
+        repositories::contact::ContactRepository,
+        specifications::contact_spec::ContactSpecification,
+    },
     entity::contacts::{Column, Entity},
     infrastructure::mappers::contact_mapper::ContactMapper,
 };
+
 use async_trait::async_trait;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryOrder};
 
@@ -38,16 +43,16 @@ impl ContactRepository for SeaOrmContactRepository {
 
     fn contacts(
         &self,
-        page: u64,
-        page_size: u64,
+        _spec: ContactSpecification,
+        pagination: Pagination,
     ) -> impl std::future::Future<Output = Result<(Vec<Contact>, u64), String>> + Send {
         async move {
             let paginator = Entity::find()
                 .order_by_desc(Column::InsertedAt)
-                .paginate(&self.db, page_size); // 每页10条
+                .paginate(&self.db, pagination.size); // 每页10条
             // 获取当前页数据
             let contacts = paginator
-                .fetch_page(page - 1) // 第一页（页码从0开始）
+                .fetch_page(pagination.page - 1) // 第一页（页码从0开始）
                 .await
                 .map_err(|_| "获取数据失败".to_string())?;
             // 获取总数

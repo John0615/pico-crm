@@ -1,4 +1,8 @@
-use crate::domain::{models::contact::Contact, repositories::contact::ContactRepository};
+use crate::domain::specifications::contact_spec::ContactSpecification;
+use crate::domain::{
+    models::{contact::Contact, pagination::Pagination},
+    repositories::contact::ContactRepository,
+};
 
 pub struct ContactService<R: ContactRepository> {
     repository: R,
@@ -15,9 +19,9 @@ impl<R: ContactRepository> ContactService<R> {
 
     pub async fn fetch_contacts(
         &self,
-        page: u64,
-        page_size: u64,
+        spec: ContactSpecification,
+        pagination: Pagination,
     ) -> Result<(Vec<Contact>, u64), String> {
-        self.repository.contacts(page, page_size).await
+        self.repository.contacts(spec, pagination).await
     }
 }

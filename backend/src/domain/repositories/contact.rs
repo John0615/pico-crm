@@ -1,4 +1,5 @@
-use crate::domain::models::contact::Contact;
+use crate::domain::models::{contact::Contact, pagination::Pagination};
+use crate::domain::specifications::contact_spec::ContactSpecification;
 
 pub trait ContactRepository: Send + Sync {
     fn create_contact(
@@ -8,8 +9,8 @@ pub trait ContactRepository: Send + Sync {
 
     fn contacts(
         &self,
-        page: u64,
-        page_size: u64,
+        spec: ContactSpecification,
+        pagination: Pagination,
     ) -> impl std::future::Future<Output = Result<(Vec<Contact>, u64), String>> + Send;
 
     // fn get_contact(

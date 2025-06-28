@@ -3,8 +3,8 @@ use crate::domain::errors::pagination::PaginationError;
 /// 分页协议（业务概念）
 #[derive(Debug, Clone)]
 pub struct Pagination {
-    page: u64,
-    size: u64,
+    pub page: u64,
+    pub size: u64,
 }
 
 impl Pagination {

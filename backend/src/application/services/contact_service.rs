@@ -35,7 +35,7 @@ impl<R: ContactRepository> ContactAppService<R> {
         println!("spec: {:?}", spec);
         let (contacts, total) = self
             .contact_service
-            .fetch_contacts(params.page, params.page_size)
+            .fetch_contacts(spec, pagination)
             .await?;
         let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact.into()).collect();
         Ok(ListResult {
