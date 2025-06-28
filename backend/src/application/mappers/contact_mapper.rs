@@ -1,6 +1,10 @@
 use crate::domain::models::contact::{Contact as DomainContact, CustomerStatus, CustomerValue};
+use crate::domain::specifications::contact_spec::{SortDirection, SortOption as DomainSortOption};
 use chrono::{DateTime, Utc};
-use shared::contact::Contact;
+use shared::contact::{
+    Contact, SortField as SharedSortField, SortOption as SharedSortOption,
+    SortOrder as SharedSortOrder,
+};
 
 impl From<Contact> for DomainContact {
     fn from(contact: Contact) -> Self {
@@ -56,6 +60,22 @@ impl From<DomainContact> for Contact {
             last_contact: parse_utc_time_to_string(contact.last_contact),
             inserted_at: parse_utc_time_to_string(contact.inserted_at),
             updated_at: parse_utc_time_to_string(contact.updated_at),
+        }
+    }
+}
+
+impl From<SharedSortOption> for DomainSortOption {
+    fn from(opt: SharedSortOption) -> Self {
+        // 解析排序方向
+        let direction = match opt.order {
+            SharedSortOrder::Asc => SortDirection::Asc,
+            SharedSortOrder::Desc => SortDirection::Desc,
+        };
+
+        // 解析排序字段
+        match opt.field {
+            SharedSortField::Name => Self::ByName(direction),
+            SharedSortField::LastContact => Self::ByLastContact(direction),
         }
     }
 }

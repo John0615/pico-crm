@@ -1,5 +1,7 @@
+use crate::domain::models::pagination::Pagination;
 use crate::domain::repositories::contact::ContactRepository;
 use crate::domain::services::contact_service::ContactService;
+use crate::domain::specifications::contact_spec::{ContactSpecification, SortOption};
 use shared::{
     ListResult,
     contact::{Contact, ContactQuery},
@@ -18,6 +20,19 @@ impl<R: ContactRepository> ContactAppService<R> {
         &self,
         params: ContactQuery,
     ) -> Result<ListResult<Contact>, String> {
+        let sort_options: Vec<SortOption> = params
+            .sort
+            .unwrap_or_default()
+            .into_iter()
+            .map(|item| item.into())
+            .collect();
+        // 构建领域规约
+        let pagination =
+            Pagination::new(params.page, params.page_size).map_err(|e| e.to_string())?;
+
+        let spec =
+            ContactSpecification::new(None, Some(sort_options)).map_err(|e| e.to_string())?;
+        println!("spec: {:?}", spec);
         let (contacts, total) = self
             .contact_service
             .fetch_contacts(params.page, params.page_size)

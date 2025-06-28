@@ -15,10 +15,26 @@ pub struct Contact {
     pub updated_at: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+// 允许的排序字段枚举
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SortField {
+    Name,
+    LastContact,
+}
+
+// 排序方向枚举
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum SortOrder {
+    Asc,
+    Desc,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SortOption {
-    pub field: String,
-    pub order: String,
+    pub field: SortField,
+    pub order: SortOrder,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
