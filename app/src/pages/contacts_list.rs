@@ -6,7 +6,7 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use server_fn::ServerFnError;
 use shared::{
-    contact::{Contact, ContactQuery, SortField, SortOption, SortOrder},
+    contact::{Contact, ContactFilters, ContactQuery, SortField, SortOption, SortOrder},
     ListResult,
 };
 
@@ -45,13 +45,14 @@ impl Identifiable for Contact {
 #[component]
 pub fn ContactsList() -> impl IntoView {
     let (sort_ops, set_sort_ops) = signal::<Vec<(String, SortValue)>>(vec![]);
+    let (name, set_name) = signal(String::new());
     let show_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
 
     let data = Resource::new(
-        move || (sort_ops.get(), refresh_count.get(), query.get()),
-        move |(_, _, query)| async move {
+        move || (sort_ops.get(), name.get(), refresh_count.get(), query.get()),
+        |(sort_ops, name, _, query)| async move {
             let page = query
                 .get("page")
                 .unwrap_or_default()
@@ -64,7 +65,6 @@ pub fn ContactsList() -> impl IntoView {
                 .unwrap_or(10);
 
             let sort_options: Vec<SortOption> = sort_ops
-                .get_untracked()
                 .iter()
                 .filter_map(|(field, sort_value)| {
                     let field_enum = match field.as_str() {
@@ -87,11 +87,19 @@ pub fn ContactsList() -> impl IntoView {
 
             // logging::error!("Generated sort options: {:?}", sort_options);
             // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
+            let filters = ContactFilters {
+                user_name: (!name.is_empty()).then_some(name),
+                status: None,
+                email: None,
+                phone_number: None,
+            };
+            // logging::error!("Fetching contacts with filters: {:?} ", filters);
+
             let params = ContactQuery {
                 page,
                 page_size,
                 sort: Some(sort_options),
-                filters: None,
+                filters: Some(filters),
             };
             let result = fetch_contacts(params).await.unwrap_or_else(|e| {
                 logging::error!("Error loading contacts: {e}");
@@ -121,38 +129,44 @@ pub fn ContactsList() -> impl IntoView {
         });
     });
 
+    let search = move |ev| {
+        let value = event_target_value(&ev);
+        set_name.set(value);
+        // logging::error!("Fetching contacts with name: {:?}", value);
+    };
+
     view! {
         <div class="">
             <div class="flex flex-col md:flex-row gap-4 mb-4">
                 <label class="input">
-                <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <g
-                    stroke-linejoin="round"
-                    stroke-linecap="round"
-                    stroke-width="2.5"
-                    fill="none"
-                    stroke="currentColor"
-                    >
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.3-4.3"></path>
-                    </g>
-                </svg>
-                <input type="search" required placeholder="搜索客户..." />
+                    <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <g
+                            stroke-linejoin="round"
+                            stroke-linecap="round"
+                            stroke-width="2.5"
+                            fill="none"
+                            stroke="currentColor"
+                        >
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.3-4.3"></path>
+                        </g>
+                    </svg>
+                    <input type="search" on:input=search required placeholder="搜索客户..." />
                 </label>
                 <div class="flex gap-2 items-center">
-                <select class="select select-bordered">
-                    <option disabled selected>状态筛选</option>
-                    <option>全部</option>
-                    <option>已签约</option>
-                    <option>待跟进</option>
-                    <option>已流失</option>
-                </select>
-                <button class="btn btn-ghost">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                    </svg>
-                    更多筛选
-                </button>
+                    <select class="select select-bordered">
+                        <option disabled selected>状态筛选</option>
+                        <option>全部</option>
+                        <option>已签约</option>
+                        <option>待跟进</option>
+                        <option>已流失</option>
+                    </select>
+                    <button class="btn btn-ghost">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                        </svg>
+                        更多筛选
+                    </button>
                     <button class="btn btn-sm btn-ghost">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -190,7 +204,6 @@ pub fn ContactsList() -> impl IntoView {
                     <Column
                         slot:columns
                         freeze=true
-                        sort=true
                         prop="user_name".to_string()
                         label="姓名".to_string()
                         class="font-bold"
@@ -301,6 +314,7 @@ pub fn ContactsList() -> impl IntoView {
                     <Column
                         slot:columns
                         label="最后联系".to_string()
+                        sort=true
                         prop="last_contact".to_string()
                         class=""
                     >

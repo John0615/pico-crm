@@ -1,9 +1,11 @@
 use crate::domain::models::contact::{Contact as DomainContact, CustomerStatus, CustomerValue};
-use crate::domain::specifications::contact_spec::{SortDirection, SortOption as DomainSortOption};
+use crate::domain::specifications::contact_spec::{
+    ContactFilters, SortDirection, SortOption as DomainSortOption,
+};
 use chrono::{DateTime, Utc};
 use shared::contact::{
-    Contact, SortField as SharedSortField, SortOption as SharedSortOption,
-    SortOrder as SharedSortOrder,
+    Contact, ContactFilters as SharedContactFilters, SortField as SharedSortField,
+    SortOption as SharedSortOption, SortOrder as SharedSortOrder,
 };
 
 impl From<Contact> for DomainContact {
@@ -76,6 +78,17 @@ impl From<SharedSortOption> for DomainSortOption {
         match opt.field {
             SharedSortField::Name => Self::ByName(direction),
             SharedSortField::LastContact => Self::ByLastContact(direction),
+        }
+    }
+}
+
+impl From<SharedContactFilters> for ContactFilters {
+    fn from(filters: SharedContactFilters) -> Self {
+        Self {
+            name: filters.user_name,
+            status: filters.status,
+            email: filters.email,
+            phone: filters.phone_number,
         }
     }
 }
