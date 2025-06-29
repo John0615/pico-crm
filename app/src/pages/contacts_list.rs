@@ -1,12 +1,12 @@
 use crate::components::features::ContactModal;
 use crate::components::ui::pagination::Pagination;
-use crate::components::ui::table::{Column, DaisyTable, Identifiable};
+use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
 use leptos::logging;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use server_fn::ServerFnError;
 use shared::{
-    contact::{Contact, ContactQuery},
+    contact::{Contact, ContactQuery, SortField, SortOption, SortOrder},
     ListResult,
 };
 
@@ -44,14 +44,14 @@ impl Identifiable for Contact {
 
 #[component]
 pub fn ContactsList() -> impl IntoView {
-    let (sort_name_asc, _set_sort_name_asc) = signal(true);
+    let (sort_ops, set_sort_ops) = signal::<Vec<(String, SortValue)>>(vec![]);
     let show_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
 
     let data = Resource::new(
-        move || (sort_name_asc.get(), refresh_count.get(), query.get()),
-        |(_, _, query)| async move {
+        move || (sort_ops.get(), refresh_count.get(), query.get()),
+        move |(_, _, query)| async move {
             let page = query
                 .get("page")
                 .unwrap_or_default()
@@ -62,11 +62,35 @@ pub fn ContactsList() -> impl IntoView {
                 .unwrap_or_default()
                 .parse::<u64>()
                 .unwrap_or(10);
+
+            let sort_options: Vec<SortOption> = sort_ops
+                .get_untracked()
+                .iter()
+                .filter_map(|(field, sort_value)| {
+                    let field_enum = match field.as_str() {
+                        "user_name" => Some(SortField::Name),
+                        "last_contact" => Some(SortField::LastContact),
+                        _ => None, // 忽略无效字段
+                    }?;
+
+                    let order = match sort_value {
+                        SortValue::Asc => SortOrder::Asc,
+                        SortValue::Desc => SortOrder::Desc,
+                    };
+
+                    Some(SortOption {
+                        field: field_enum,
+                        order,
+                    })
+                })
+                .collect();
+
+            // logging::error!("Generated sort options: {:?}", sort_options);
             // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
             let params = ContactQuery {
                 page,
                 page_size,
-                sort: None,
+                sort: Some(sort_options),
                 filters: None,
             };
             let result = fetch_contacts(params).await.unwrap_or_else(|e| {
@@ -84,8 +108,17 @@ pub fn ContactsList() -> impl IntoView {
         refresh_count.set(refresh_count.get_untracked() + 1);
     };
 
-    let on_sort = Callback::new(|(field, sort_value)| {
-        logging::error!("on sort: {:?} {:?}", field, sort_value);
+    let on_sort = Callback::new(move |(field, sort_value): (String, SortValue)| {
+        set_sort_ops.update(|current| {
+            let mut new_ops = current
+                .iter()
+                .filter(|(f, _)| f != &field)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            new_ops.push((field, sort_value));
+            *current = new_ops;
+        });
     });
 
     view! {
