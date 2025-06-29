@@ -4,7 +4,7 @@ use crate::{
     domain::{
         models::{contact::Contact, pagination::Pagination},
         repositories::contact::ContactRepository,
-        specifications::contact_spec::ContactSpecification,
+        specifications::contact_spec::{ContactSpecification, SortDirection, SortOption},
     },
     entity::contacts::{Column, Entity},
     infrastructure::mappers::contact_mapper::ContactMapper,
@@ -43,27 +43,64 @@ impl ContactRepository for SeaOrmContactRepository {
 
     fn contacts(
         &self,
-        _spec: ContactSpecification,
+        spec: ContactSpecification,
         pagination: Pagination,
     ) -> impl std::future::Future<Output = Result<(Vec<Contact>, u64), String>> + Send {
         async move {
-            let paginator = Entity::find()
-                .order_by_desc(Column::InsertedAt)
-                .paginate(&self.db, pagination.size); // 每页10条
-            // 获取当前页数据
+            let mut query = Entity::find();
+
+            if let Some(name) = spec.filters.name {
+                query = query.filter(Column::UserName.contains(name));
+            }
+            if let Some(status) = spec.filters.status {
+                query = query.filter(Column::Email.contains(status));
+            }
+            if let Some(email) = spec.filters.email {
+                query = query.filter(Column::PhoneNumber.contains(email));
+            }
+            if let Some(phone) = spec.filters.phone {
+                query = query.filter(Column::Status.eq(phone));
+            }
+
+            if spec.sort.is_empty() {
+                // 默认排序
+                query = query.order_by_desc(Column::InsertedAt);
+            } else {
+                for sort in spec.sort {
+                    match sort {
+                        SortOption::ByName(direction) => {
+                            query = match direction {
+                                SortDirection::Asc => query.order_by_asc(Column::UserName),
+                                SortDirection::Desc => query.order_by_desc(Column::UserName),
+                            };
+                        }
+                        SortOption::ByLastContact(direction) => {
+                            query = match direction {
+                                SortDirection::Asc => query.order_by_asc(Column::LastContact),
+                                SortDirection::Desc => query.order_by_desc(Column::LastContact),
+                            };
+                        }
+                    }
+                }
+            }
+
+            let paginator = query.paginate(&self.db, pagination.size);
+
             let contacts = paginator
-                .fetch_page(pagination.page - 1) // 第一页（页码从0开始）
+                .fetch_page(pagination.page - 1)
                 .await
                 .map_err(|_| "获取数据失败".to_string())?;
-            // 获取总数
+
             let total = paginator
                 .num_items()
                 .await
                 .map_err(|_| "获取总数失败".to_string())?;
+
             let contacts: Vec<Contact> = contacts
                 .into_iter()
                 .map(|contact| ContactMapper::to_domain(contact))
                 .collect();
+
             Ok((contacts, total))
         }
     }
