@@ -2,7 +2,10 @@ use sea_orm::entity::prelude::*;
 
 use crate::{
     domain::{
-        models::{contact::Contact, pagination::Pagination},
+        models::{
+            contact::{Contact, CustomerStatus},
+            pagination::Pagination,
+        },
         repositories::contact::ContactRepository,
         specifications::contact_spec::{ContactSpecification, SortDirection, SortOption},
     },
@@ -48,18 +51,23 @@ impl ContactRepository for SeaOrmContactRepository {
     ) -> impl std::future::Future<Output = Result<(Vec<Contact>, u64), String>> + Send {
         async move {
             let mut query = Entity::find();
-
+            println!("spec.filters>>>{:?}", spec.filters);
             if let Some(name) = spec.filters.name {
                 query = query.filter(Column::UserName.contains(name));
             }
             if let Some(status) = spec.filters.status {
-                query = query.filter(Column::Email.contains(status));
+                let status_num = match status {
+                    CustomerStatus::Signed => 1,
+                    CustomerStatus::Pending => 2,
+                    CustomerStatus::Churned => 3,
+                };
+                query = query.filter(Column::Status.eq(status_num));
             }
             if let Some(email) = spec.filters.email {
-                query = query.filter(Column::PhoneNumber.contains(email));
+                query = query.filter(Column::Email.contains(email));
             }
             if let Some(phone) = spec.filters.phone {
-                query = query.filter(Column::Status.eq(phone));
+                query = query.filter(Column::PhoneNumber.eq(phone));
             }
 
             if spec.sort.is_empty() {

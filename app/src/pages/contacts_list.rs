@@ -46,13 +46,22 @@ impl Identifiable for Contact {
 pub fn ContactsList() -> impl IntoView {
     let (sort_ops, set_sort_ops) = signal::<Vec<(String, SortValue)>>(vec![]);
     let (name, set_name) = signal(String::new());
+    let (status, set_status) = signal(String::new());
     let show_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
 
     let data = Resource::new(
-        move || (sort_ops.get(), name.get(), refresh_count.get(), query.get()),
-        |(sort_ops, name, _, query)| async move {
+        move || {
+            (
+                sort_ops.get(),
+                name.get(),
+                status.get(),
+                refresh_count.get(),
+                query.get(),
+            )
+        },
+        |(sort_ops, name, status, _, query)| async move {
             let page = query
                 .get("page")
                 .unwrap_or_default()
@@ -89,7 +98,7 @@ pub fn ContactsList() -> impl IntoView {
             // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
             let filters = ContactFilters {
                 user_name: (!name.is_empty()).then_some(name),
-                status: None,
+                status: (!status.is_empty()).then_some(status),
                 email: None,
                 phone_number: None,
             };
@@ -135,6 +144,11 @@ pub fn ContactsList() -> impl IntoView {
         // logging::error!("Fetching contacts with name: {:?}", value);
     };
 
+    let filter_by_status = move |ev| {
+        let value = event_target_value(&ev);
+        set_status.set(value);
+    };
+
     view! {
         <div class="">
             <div class="flex flex-col md:flex-row gap-4 mb-4">
@@ -154,12 +168,12 @@ pub fn ContactsList() -> impl IntoView {
                     <input type="search" on:input=search required placeholder="搜索客户..." />
                 </label>
                 <div class="flex gap-2 items-center">
-                    <select class="select select-bordered">
+                    <select on:change=filter_by_status class="select select-bordered">
                         <option disabled selected>状态筛选</option>
-                        <option>全部</option>
-                        <option>已签约</option>
-                        <option>待跟进</option>
-                        <option>已流失</option>
+                        <option value="">全部</option>
+                        <option value="1">已签约</option>
+                        <option value="2">待跟进</option>
+                        <option value="3">已流失</option>
                     </select>
                     <button class="btn btn-ghost">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

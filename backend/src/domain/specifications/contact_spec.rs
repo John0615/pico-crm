@@ -1,4 +1,5 @@
 use crate::domain::errors::validation::ValidationError;
+use crate::domain::models::contact::CustomerStatus;
 
 /// 联系人查询规约
 #[derive(Debug)]
@@ -25,18 +26,7 @@ impl ContactSpecification {
     }
 
     fn validate_filters(filters: &ContactFilters) -> Result<(), ValidationError> {
-        // 1. 状态校验
-        if let Some(status) = &filters.status {
-            let valid_statuses = Self::valid_statuses();
-            if !valid_statuses.contains(&status.as_str()) {
-                return Err(ValidationError::business_rule(
-                    "contact_status",
-                    &format!("允许的状态: {:?}", valid_statuses),
-                ));
-            }
-        }
-
-        // 2. 邮箱格式校验
+        // 邮箱格式校验
         if let Some(email) = &filters.email {
             if !Self::is_valid_email(email) {
                 return Err(ValidationError::invalid_format(
@@ -46,7 +36,7 @@ impl ContactSpecification {
             }
         }
 
-        // 3. 电话格式校验
+        // 电话格式校验
         if let Some(phone) = &filters.phone {
             if !Self::is_valid_phone(phone) {
                 return Err(ValidationError::invalid_format(
@@ -78,10 +68,6 @@ impl ContactSpecification {
         Ok(())
     }
 
-    fn valid_statuses() -> Vec<&'static str> {
-        vec!["active", "inactive", "pending"]
-    }
-
     fn is_valid_email(email: &str) -> bool {
         // 简化的校验逻辑
         email.contains('@') && email.len() <= 254
@@ -97,7 +83,7 @@ impl ContactSpecification {
 #[derive(Default, Debug)]
 pub struct ContactFilters {
     pub name: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<CustomerStatus>,
     pub email: Option<String>,
     pub phone: Option<String>,
 }

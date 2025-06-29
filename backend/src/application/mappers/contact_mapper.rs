@@ -84,9 +84,15 @@ impl From<SharedSortOption> for DomainSortOption {
 
 impl From<SharedContactFilters> for ContactFilters {
     fn from(filters: SharedContactFilters) -> Self {
+        let status = filters.status.map(|t| match t.as_str() {
+            "1" => CustomerStatus::Signed,
+            "2" => CustomerStatus::Pending,
+            "3" => CustomerStatus::Churned,
+            _ => CustomerStatus::Churned,
+        });
         Self {
             name: filters.user_name,
-            status: filters.status,
+            status: status,
             email: filters.email,
             phone: filters.phone_number,
         }
