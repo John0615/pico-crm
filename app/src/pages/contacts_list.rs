@@ -6,7 +6,9 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use server_fn::ServerFnError;
 use shared::{
-    contact::{Contact, ContactFilters, ContactQuery, SortField, SortOption, SortOrder},
+    contact::{
+        Contact, ContactExport, ContactFilters, ContactQuery, SortField, SortOption, SortOrder,
+    },
     ListResult,
 };
 
@@ -36,6 +38,52 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
     Ok(res)
 }
 
+#[server]
+pub async fn export_contacts(params: ContactExport) -> Result<Vec<u8>, ServerFnError> {
+    use axum::{
+        body::Bytes,
+        http::{header, StatusCode},
+        response::Response,
+    };
+
+    use backend::application::services::contact_service::ContactAppService;
+    use backend::domain::services::contact_service::ContactService;
+    use backend::infrastructure::db::Database;
+    use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+
+    let pool = expect_context::<Database>();
+
+    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
+    let contact_service = ContactService::new(contact_repository);
+    let app_service = ContactAppService::new(contact_service);
+
+    println!("pool {:?}", pool);
+
+    println!("Fetching contacts...");
+
+    let excel_data = app_service
+        .fetch_contacts_excel_data(params)
+        .await
+        .map_err(|e| ServerFnError::new(e))?;
+
+    println!("Fetching contacts excel_data {:?}", excel_data);
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            header::CONTENT_TYPE,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"contacts.xlsx\""),
+        )
+        .body(Bytes::from(excel_data.clone()))
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    Ok(response.into_body().to_vec())
+}
+
 impl Identifiable for Contact {
     fn id(&self) -> String {
         self.contact_uuid.clone()
@@ -50,6 +98,7 @@ pub fn ContactsList() -> impl IntoView {
     let show_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
+    let export_contacts_action = ServerAction::<ExportContacts>::new();
 
     let data = Resource::new(
         move || {
@@ -149,6 +198,46 @@ pub fn ContactsList() -> impl IntoView {
         set_status.set(value);
     };
 
+    let export_excel = move |_ev| {
+        let sort_options: Vec<SortOption> = sort_ops
+            .get_untracked()
+            .iter()
+            .filter_map(|(field, sort_value)| {
+                let field_enum = match field.as_str() {
+                    "user_name" => Some(SortField::Name),
+                    "last_contact" => Some(SortField::LastContact),
+                    _ => None,
+                }?;
+
+                let order = match sort_value {
+                    SortValue::Asc => SortOrder::Asc,
+                    SortValue::Desc => SortOrder::Desc,
+                };
+
+                Some(SortOption {
+                    field: field_enum,
+                    order,
+                })
+            })
+            .collect();
+
+        // logging::error!("Generated sort options: {:?}", sort_options);
+        let filters = ContactFilters {
+            user_name: (!name.get_untracked().is_empty()).then_some(name.get_untracked()),
+            status: (!status.get_untracked().is_empty()).then_some(status.get_untracked()),
+            email: None,
+            phone_number: None,
+        };
+
+        let params = ContactExport {
+            sort: Some(sort_options),
+            filters: Some(filters),
+        };
+
+        logging::error!("export contacts with params: {:?} ", params);
+        export_contacts_action.dispatch(ExportContacts { params });
+    };
+
     view! {
         <div class="">
             <div class="flex flex-col md:flex-row gap-4 mb-4">
@@ -181,7 +270,7 @@ pub fn ContactsList() -> impl IntoView {
                         </svg>
                         更多筛选
                     </button>
-                    <button class="btn btn-sm btn-ghost">
+                    <button on:click=export_excel class="btn btn-sm btn-ghost">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>

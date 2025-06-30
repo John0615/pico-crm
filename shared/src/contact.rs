@@ -52,3 +52,9 @@ pub struct ContactQuery {
     pub sort: Option<Vec<SortOption>>,
     pub filters: Option<ContactFilters>,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ContactExport {
+    pub sort: Option<Vec<SortOption>>,
+    pub filters: Option<ContactFilters>,
+}

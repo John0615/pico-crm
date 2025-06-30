@@ -113,6 +113,65 @@ impl ContactRepository for SeaOrmContactRepository {
         }
     }
 
+    fn all_contacts(
+        &self,
+        spec: ContactSpecification,
+    ) -> impl std::future::Future<Output = Result<Vec<Contact>, String>> + Send {
+        async move {
+            let mut query = Entity::find();
+            println!("spec.filters>>>{:?}", spec.filters);
+            if let Some(name) = spec.filters.name {
+                query = query.filter(Column::UserName.contains(name));
+            }
+            if let Some(status) = spec.filters.status {
+                let status_num = match status {
+                    CustomerStatus::Signed => 1,
+                    CustomerStatus::Pending => 2,
+                    CustomerStatus::Churned => 3,
+                };
+                query = query.filter(Column::Status.eq(status_num));
+            }
+            if let Some(email) = spec.filters.email {
+                query = query.filter(Column::Email.contains(email));
+            }
+            if let Some(phone) = spec.filters.phone {
+                query = query.filter(Column::PhoneNumber.eq(phone));
+            }
+
+            if spec.sort.is_empty() {
+                // 默认排序
+                query = query.order_by_desc(Column::InsertedAt);
+            } else {
+                for sort in spec.sort {
+                    match sort {
+                        SortOption::ByName(direction) => {
+                            query = match direction {
+                                SortDirection::Asc => query.order_by_asc(Column::UserName),
+                                SortDirection::Desc => query.order_by_desc(Column::UserName),
+                            };
+                        }
+                        SortOption::ByLastContact(direction) => {
+                            query = match direction {
+                                SortDirection::Asc => query.order_by_asc(Column::LastContact),
+                                SortDirection::Desc => query.order_by_desc(Column::LastContact),
+                            };
+                        }
+                    }
+                }
+            }
+
+            let contacts = query
+                .all(&self.db)
+                .await
+                .map_err(|e| format!("获取数据失败: {}", e))?;
+
+            let contacts: Vec<Contact> =
+                contacts.into_iter().map(ContactMapper::to_domain).collect();
+
+            Ok(contacts)
+        }
+    }
+
     // async fn update(&self, contact: Contact) -> Result<Contact, String> {
     //     let model = ContactEntity::from(contact);
     //     let model = model.update(&self.db).await.map_err(|e| e.to_string())?;

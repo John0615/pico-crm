@@ -13,6 +13,11 @@ pub trait ContactRepository: Send + Sync {
         pagination: Pagination,
     ) -> impl std::future::Future<Output = Result<(Vec<Contact>, u64), String>> + Send;
 
+    fn all_contacts(
+        &self,
+        spec: ContactSpecification,
+    ) -> impl std::future::Future<Output = Result<Vec<Contact>, String>> + Send;
+
     // fn get_contact(
     //     &self,
     //     uuid: String,

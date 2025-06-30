@@ -24,4 +24,11 @@ impl<R: ContactRepository> ContactService<R> {
     ) -> Result<(Vec<Contact>, u64), String> {
         self.repository.contacts(spec, pagination).await
     }
+
+    pub async fn fetch_all_contacts(
+        &self,
+        spec: ContactSpecification,
+    ) -> Result<Vec<Contact>, String> {
+        self.repository.all_contacts(spec).await
+    }
 }

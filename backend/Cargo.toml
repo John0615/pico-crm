@@ -12,3 +12,4 @@ shared = { path = "../shared" }
 dotenvy.workspace = true
 sea-orm.workspace = true
 chrono.workspace = true
+rust_xlsxwriter.workspace = true
