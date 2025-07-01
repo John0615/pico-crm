@@ -221,7 +221,7 @@ pub fn ContactsList() -> impl IntoView {
 
         spawn_local(async move {
             let result = export_contacts(params).await;
-            logging::error!("export result: {:?}", result);
+            // logging::error!("export result: {:?}", result);
 
             match result {
                 Ok(data) => {
@@ -428,7 +428,7 @@ pub fn ContactsList() -> impl IntoView {
                     </Column>
                     <Column
                         slot:columns
-                        label="状态".to_string()
+                        label="客户价值".to_string()
                         prop="status".to_string()
                         class=""
                     >
