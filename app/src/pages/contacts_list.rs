@@ -13,15 +13,19 @@ use shared::{
     ListResult,
 };
 
+#[cfg(feature = "ssr")]
+pub mod ssr {
+    pub use backend::application::services::contact_service::ContactAppService;
+    pub use backend::domain::services::contact_service::ContactService;
+    pub use backend::infrastructure::db::Database;
+    pub use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+}
+
 #[server]
 pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>, ServerFnError> {
-    use backend::application::services::contact_service::ContactAppService;
-    use backend::domain::services::contact_service::ContactService;
-    use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+    use self::ssr::*;
 
     let pool = expect_context::<Database>();
-
     let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
     let contact_service = ContactService::new(contact_repository);
     let app_service = ContactAppService::new(contact_service);
@@ -41,13 +45,9 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
 
 #[server]
 pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnError> {
-    use backend::application::services::contact_service::ContactAppService;
-    use backend::domain::services::contact_service::ContactService;
-    use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+    use self::ssr::*;
 
     let pool = expect_context::<Database>();
-
     let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
     let contact_service = ContactService::new(contact_repository);
     let app_service = ContactAppService::new(contact_service);
