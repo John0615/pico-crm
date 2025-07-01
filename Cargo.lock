@@ -164,6 +164,7 @@ dependencies = [
  "backend",
  "cfg-if",
  "http",
+ "js-sys",
  "leptos",
  "leptos_axum",
  "leptos_meta",
@@ -173,6 +174,8 @@ dependencies = [
  "serde_json",
  "shared",
  "thiserror 2.0.12",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
-    components::{ParentRoute, Route, Router, Routes, Outlet},
+    components::{Outlet, ParentRoute, Route, Router, Routes},
     path, StaticSegment,
 };
 
@@ -10,6 +10,7 @@ use pages::*;
 
 pub mod components;
 pub mod pages;
+pub mod utils;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {

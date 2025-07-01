@@ -1,6 +1,8 @@
 use crate::components::features::ContactModal;
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
+use crate::components::ui::toast::{show_toast, ToastType};
+use crate::utils::file_download::download_file;
 use leptos::logging;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -218,8 +220,17 @@ pub fn ContactsList() -> impl IntoView {
         // logging::error!("export contacts with params: {:?} ", &params);
 
         spawn_local(async move {
-            let a = export_contacts(params).await;
-            logging::error!("export result: {:?}", a);
+            let result = export_contacts(params).await;
+            logging::error!("export result: {:?}", result);
+
+            match result {
+                Ok(data) => {
+                    let _ = download_file(&data, "contacts.xlsx");
+                }
+                Err(_e) => {
+                    show_toast("操作失败".to_string(), ToastType::Success);
+                }
+            }
         });
     };
 
