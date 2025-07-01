@@ -2,6 +2,31 @@ use js_sys::{Array, Uint8Array};
 use wasm_bindgen::JsCast;
 use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
+/// 根据文件扩展名获取对应的 MIME 类型
+fn get_mime_type(filename: &str) -> &'static str {
+    filename
+        .rsplit('.')
+        .next()
+        .map(|ext| match ext.to_lowercase().as_str() {
+            "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "xls" => "application/vnd.ms-excel",
+            "csv" => "text/csv",
+            "pdf" => "application/pdf",
+            "jpg" | "jpeg" => "image/jpeg",
+            "png" => "image/png",
+            "gif" => "image/gif",
+            "txt" => "text/plain",
+            "json" => "application/json",
+            "zip" => "application/zip",
+            "doc" => "application/msword",
+            "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "ppt" => "application/vnd.ms-powerpoint",
+            "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            _ => "application/octet-stream", // 默认类型
+        })
+        .unwrap_or("application/octet-stream")
+}
+
 pub fn download_file(data: &[u8], filename: &str) -> Result<(), String> {
     // 1. 创建Uint8Array并填充数据
     let js_array = Uint8Array::new_with_length(data.len() as u32);
@@ -11,11 +36,11 @@ pub fn download_file(data: &[u8], filename: &str) -> Result<(), String> {
     let array = Array::new();
     array.push(&js_array);
 
-    // 3. 配置Blob属性
+    // 3. 配置Blob属性（根据文件后缀自动判断MIME类型）
     let blob_properties = BlobPropertyBag::new();
-    blob_properties.set_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    blob_properties.set_type(get_mime_type(filename));
 
-    // 4. 创建Blob（关键修正）
+    // 4. 创建Blob
     let blob = Blob::new_with_u8_array_sequence_and_options(&array, &blob_properties)
         .map_err(|e| format!("Blob creation failed: {:?}", e))?;
 

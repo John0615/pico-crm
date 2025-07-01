@@ -97,10 +97,10 @@ impl<R: ContactRepository> ContactAppService<R> {
             .set_column_width(5, 10)
             .map_err(|e| e.to_string())?; // 状态列
         worksheet
-            .set_column_width(6, 10)
+            .set_column_width(6, 20)
             .map_err(|e| e.to_string())?; // 最后联系
         worksheet
-            .set_column_width(7, 10)
+            .set_column_width(7, 15)
             .map_err(|e| e.to_string())?; // 客户价值
 
         // 写入表头
