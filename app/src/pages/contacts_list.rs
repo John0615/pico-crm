@@ -39,12 +39,6 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
 
 #[server]
 pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnError> {
-    use axum::{
-        body::Bytes,
-        http::{header, StatusCode},
-        response::Response,
-    };
-
     use backend::application::services::contact_service::ContactAppService;
     use backend::domain::services::contact_service::ContactService;
     use backend::infrastructure::db::Database;
@@ -65,22 +59,9 @@ pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnEr
         .await
         .map_err(|e| ServerFnError::new(e))?;
 
-    println!("Fetching contacts excel_data {:?}", excel_data);
+    // println!("Fetching contacts excel_data {:?}", excel_data);
 
-    let response = Response::builder()
-        .status(StatusCode::OK)
-        .header(
-            header::CONTENT_TYPE,
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"contacts.xlsx\""),
-        )
-        .body(Bytes::from(excel_data.clone()))
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-
-    Ok(response.into_body().to_vec())
+    Ok(excel_data)
 }
 
 impl Identifiable for Contact {
