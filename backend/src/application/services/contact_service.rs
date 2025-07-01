@@ -7,7 +7,7 @@ use crate::domain::specifications::contact_spec::{
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Workbook};
 use shared::{
     ListResult,
-    contact::{Contact, ContactExport, ContactQuery},
+    contact::{Contact, ContactQuery},
 };
 
 pub struct ContactAppService<R: ContactRepository> {
@@ -47,10 +47,7 @@ impl<R: ContactRepository> ContactAppService<R> {
         })
     }
 
-    pub async fn fetch_contacts_excel_data(
-        &self,
-        params: ContactExport,
-    ) -> Result<Vec<u8>, String> {
+    pub async fn fetch_contacts_excel_data(&self, params: ContactQuery) -> Result<Vec<u8>, String> {
         let sort_options: Vec<SortOption> = params
             .sort
             .unwrap_or_default()

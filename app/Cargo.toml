@@ -17,6 +17,7 @@ cfg-if.workspace = true
 thiserror.workspace = true
 regex.workspace = true
 axum = { workspace = true, optional = true }
+serde_json.workspace = true
 backend = { path = "../backend", optional = true }
 shared = { path = "../shared" }
 

@@ -3,12 +3,11 @@ use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
 use leptos::logging;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_router::hooks::use_query_map;
 use server_fn::ServerFnError;
 use shared::{
-    contact::{
-        Contact, ContactExport, ContactFilters, ContactQuery, SortField, SortOption, SortOrder,
-    },
+    contact::{Contact, ContactFilters, ContactQuery, SortField, SortOption, SortOrder},
     ListResult,
 };
 
@@ -39,7 +38,7 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
 }
 
 #[server]
-pub async fn export_contacts(params: ContactExport) -> Result<Vec<u8>, ServerFnError> {
+pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnError> {
     use axum::{
         body::Bytes,
         http::{header, StatusCode},
@@ -98,7 +97,6 @@ pub fn ContactsList() -> impl IntoView {
     let show_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
-    let export_contacts_action = ServerAction::<ExportContacts>::new();
 
     let data = Resource::new(
         move || {
@@ -229,13 +227,19 @@ pub fn ContactsList() -> impl IntoView {
             phone_number: None,
         };
 
-        let params = ContactExport {
+        let params = ContactQuery {
+            page: 1,
+            page_size: 10,
             sort: Some(sort_options),
             filters: Some(filters),
         };
 
-        logging::error!("export contacts with params: {:?} ", params);
-        export_contacts_action.dispatch(ExportContacts { params });
+        // logging::error!("export contacts with params: {:?} ", &params);
+
+        spawn_local(async move {
+            let a = export_contacts(params).await;
+            logging::error!("export result: {:?}", a);
+        });
     };
 
     view! {

@@ -171,6 +171,7 @@ dependencies = [
  "leptos_router",
  "reactive_stores 0.1.8",
  "regex",
+ "serde_json",
  "shared",
  "thiserror 2.0.12",
 ]
