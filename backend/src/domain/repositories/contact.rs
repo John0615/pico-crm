@@ -18,10 +18,10 @@ pub trait ContactRepository: Send + Sync {
         spec: ContactSpecification,
     ) -> impl std::future::Future<Output = Result<Vec<Contact>, String>> + Send;
 
-    // fn get_contact(
-    //     &self,
-    //     uuid: String,
-    // ) -> impl std::future::Future<Output = Result<Contact, String>> + Send + Sync;
+    fn get_contact(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<Option<Contact>, String>> + Send;
     // fn update_contact(
     //     &self,
     //     uuid: String,

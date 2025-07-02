@@ -172,6 +172,21 @@ impl ContactRepository for SeaOrmContactRepository {
         }
     }
 
+    fn get_contact(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<Option<Contact>, String>> + Send {
+        async move {
+            let contact = Entity::find()
+                .filter(Column::ContactUuid.eq(uuid))
+                .one(&self.db)
+                .await
+                .map_err(|e| format!("查询失败: {}", e))?
+                .map(|item| ContactMapper::to_domain(item));
+            Ok(contact)
+        }
+    }
+
     // async fn update(&self, contact: Contact) -> Result<Contact, String> {
     //     let model = ContactEntity::from(contact);
     //     let model = model.update(&self.db).await.map_err(|e| e.to_string())?;
@@ -186,15 +201,5 @@ impl ContactRepository for SeaOrmContactRepository {
     //     model
     //         .ok_or("Contact not found".to_string())
     //         .map(|model| model.delete(&self.db).await.map_err(|e| e.to_string()))
-    // }
-
-    // async fn list(&self, page: u32, per_page: u32) -> Result<Vec<Contact>, String> {
-    //     let models = ContactEntity::find()
-    //         .order_by_asc(ContactEntity::Id)
-    //         .paginate(&self.db, per_page)
-    //         .fetch_page(page)
-    //         .await
-    //         .map_err(|e| e.to_string())?;
-    //     Ok(models.into_iter().map(Contact::from).collect())
     // }
 }
