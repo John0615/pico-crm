@@ -177,6 +177,7 @@ impl ContactRepository for SeaOrmContactRepository {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<Contact>, String>> + Send {
         async move {
+            let uuid = Uuid::parse_str(&uuid).expect("解析uuid失败！");
             let contact = Entity::find()
                 .filter(Column::ContactUuid.eq(uuid))
                 .one(&self.db)

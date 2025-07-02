@@ -17,6 +17,10 @@ impl<R: ContactRepository> ContactService<R> {
         self.repository.create_contact(contact).await
     }
 
+    pub async fn fetch_contact(&self, uuid: String) -> Result<Option<Contact>, String> {
+        self.repository.get_contact(uuid).await
+    }
+
     pub async fn fetch_contacts(
         &self,
         spec: ContactSpecification,

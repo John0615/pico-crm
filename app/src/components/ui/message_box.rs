@@ -79,3 +79,24 @@ pub fn confirm(
         }
     });
 }
+
+// <dialog open id="delete-confirm-modal" class="modal">
+//   <div class="modal-box">
+//     <h3 class="font-bold text-lg flex items-center gap-2">
+//       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+//         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+//       </svg>
+//       "删除确认"
+//     </h3>
+//     <p class="py-4">"您确定要删除此项吗？删除后数据将无法恢复！"</p>
+//     <div class="modal-action">
+//       <form method="dialog" class="flex gap-2">
+//         <button class="btn btn-ghost">"取消"</button>
+//         <button id="confirm-delete-btn" class="btn btn-error">"确认删除"</button>
+//       </form>
+//     </div>
+//   </div>
+//   <form method="dialog" class="modal-backdrop">
+//     <button>close</button>
+//   </form>
+// </dialog>

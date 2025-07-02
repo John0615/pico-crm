@@ -5,14 +5,40 @@ use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::{show_toast, ToastType};
 use leptos::logging::log;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use shared::contact::Contact;
+
+#[cfg(feature = "ssr")]
+pub mod ssr {
+    pub use backend::application::services::contact_service::ContactAppService;
+    pub use backend::domain::services::contact_service::ContactService;
+    pub use backend::infrastructure::db::Database;
+    pub use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+}
+
+#[server]
+pub async fn get_contact(uuid: String) -> Result<Option<Contact>, ServerFnError> {
+    use self::ssr::*;
+
+    let pool = expect_context::<Database>();
+
+    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
+    let contact_service = ContactService::new(contact_repository);
+    let app_service = ContactAppService::new(contact_service);
+
+    println!("fetch contact uuid: {:?}", uuid);
+    let result = app_service
+        .fetch_contact(uuid)
+        .await
+        .map_err(|e| ServerFnError::new(e))?;
+    println!("fetch contact result: {:?}", result);
+
+    Ok(result)
+}
 
 #[server]
 pub async fn add_contact(contact: Contact) -> Result<(), ServerFnError> {
-    use backend::application::services::contact_service::ContactAppService;
-    use backend::domain::services::contact_service::ContactService;
-    use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+    use self::ssr::*;
 
     let pool = expect_context::<Database>();
 
@@ -46,6 +72,24 @@ where
             "修改客户"
         }
     };
+
+    Effect::new(move || {
+        let uuid = contact_uuid.get();
+        if !uuid.is_empty() {
+            spawn_local(async move {
+                let result = get_contact(uuid).await;
+                match result {
+                    Ok(c) => {
+                        log!("Submitting: {:?}", c);
+                    }
+                    Err(e) => {
+                        log!("Submitting: {:?}", e.to_string());
+                    }
+                };
+            });
+        }
+    });
+
     let initial_fields = vec![
         FormField {
             name: "name".to_string(),

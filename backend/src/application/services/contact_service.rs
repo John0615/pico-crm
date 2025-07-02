@@ -19,6 +19,16 @@ impl<R: ContactRepository> ContactAppService<R> {
         Self { contact_service }
     }
 
+    pub async fn fetch_contact(&self, uuid: String) -> Result<Option<Contact>, String> {
+        let result = self
+            .contact_service
+            .fetch_contact(uuid)
+            .await
+            .map_err(|e| e.to_string())?
+            .map(|contact| contact.into());
+        Ok(result)
+    }
+
     pub async fn fetch_contacts(
         &self,
         params: ContactQuery,
