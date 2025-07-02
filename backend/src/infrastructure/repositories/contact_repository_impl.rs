@@ -187,11 +187,24 @@ impl ContactRepository for SeaOrmContactRepository {
         }
     }
 
-    // async fn update(&self, contact: Contact) -> Result<Contact, String> {
-    //     let model = ContactEntity::from(contact);
-    //     let model = model.update(&self.db).await.map_err(|e| e.to_string())?;
-    //     Ok(Contact::from(model))
-    // }
+    fn update_contact(
+        &self,
+        contact: Contact,
+    ) -> impl std::future::Future<Output = Result<Contact, String>> + Send {
+        async move {
+            // 转换为 ActiveModel
+            let active_contact = ContactMapper::to_active_entity(contact);
+
+            // 执行更新
+            let updated = active_contact
+                .update(&self.db)
+                .await
+                .map_err(|e| format!("更新失败: {}", e))?;
+            let updated = ContactMapper::to_domain(updated);
+
+            Ok(updated)
+        }
+    }
 
     // async fn delete(&self, id: i32) -> Result<(), String> {
     //     let model = ContactEntity::find_by_id(id)

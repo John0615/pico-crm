@@ -22,11 +22,11 @@ pub trait ContactRepository: Send + Sync {
         &self,
         uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<Contact>, String>> + Send;
-    // fn update_contact(
-    //     &self,
-    //     uuid: String,
-    //     contact: Contact,
-    // ) -> impl std::future::Future<Output = Result<Contact, String>> + Send + Sync;
+
+    fn update_contact(
+        &self,
+        contact: Contact,
+    ) -> impl std::future::Future<Output = Result<Contact, String>> + Send;
     // fn delete_contact(&self, uuid: String)
     // -> impl std::future::Future<Output = Result<(), String>>;
 }

@@ -67,7 +67,11 @@ impl ContactMapper {
     }
 
     pub fn to_active_entity(contact: Contact) -> ActiveContactEntity {
-        let uuid = Uuid::new_v4();
+        let uuid = if contact.uuid.is_empty() {
+            Uuid::new_v4()
+        } else {
+            Uuid::parse_str(&contact.uuid).expect("解析uuid失败！")
+        };
         let value_level = match contact.value {
             CustomerValue::Active => 1,
             CustomerValue::Potential => 2,
