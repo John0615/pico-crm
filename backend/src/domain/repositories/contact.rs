@@ -27,6 +27,9 @@ pub trait ContactRepository: Send + Sync {
         &self,
         contact: Contact,
     ) -> impl std::future::Future<Output = Result<Contact, String>> + Send;
-    // fn delete_contact(&self, uuid: String)
-    // -> impl std::future::Future<Output = Result<(), String>>;
+
+    fn delete_contact(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<(), String>> + Send;
 }

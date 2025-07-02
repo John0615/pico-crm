@@ -206,13 +206,23 @@ impl ContactRepository for SeaOrmContactRepository {
         }
     }
 
-    // async fn delete(&self, id: i32) -> Result<(), String> {
-    //     let model = ContactEntity::find_by_id(id)
-    //         .one(&self.db)
-    //         .await
-    //         .map_err(|e| e.to_string())?;
-    //     model
-    //         .ok_or("Contact not found".to_string())
-    //         .map(|model| model.delete(&self.db).await.map_err(|e| e.to_string()))
-    // }
+    fn delete_contact(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<(), String>> + Send {
+        async move {
+            let uuid = Uuid::parse_str(&uuid).expect("解析uuid失败！");
+            Entity::delete_by_id(uuid)
+                .exec(&self.db)
+                .await
+                .map_err(|e| format!("删除失败: {}", e))
+                .and_then(|res| {
+                    if res.rows_affected > 0 {
+                        Ok(())
+                    } else {
+                        Err("未找到记录".to_string())
+                    }
+                })
+        }
+    }
 }
