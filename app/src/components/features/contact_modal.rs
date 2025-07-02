@@ -31,10 +31,21 @@ pub async fn add_contact(contact: Contact) -> Result<(), ServerFnError> {
 }
 
 #[component]
-pub fn ContactModal<F>(show: RwSignal<bool>, on_finish: F) -> impl IntoView
+pub fn ContactModal<F>(
+    show: RwSignal<bool>,
+    contact_uuid: ReadSignal<String>,
+    on_finish: F,
+) -> impl IntoView
 where
     F: Fn() + Copy + Send + 'static,
 {
+    let title = move || {
+        if contact_uuid.get().is_empty() {
+            "新建客户"
+        } else {
+            "修改客户"
+        }
+    };
     let initial_fields = vec![
         FormField {
             name: "name".to_string(),
@@ -162,7 +173,7 @@ where
 
     view! {
         <Modal show=show>
-            <FormContainer title="新建客户">
+            <FormContainer title=title>
                 <DaisyForm
                     initial_fields
                     on_submit=submit

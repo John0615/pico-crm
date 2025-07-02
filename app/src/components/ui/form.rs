@@ -1,10 +1,10 @@
-use leptos::prelude::*;
-use leptos::logging::log;
-use std::future::Future;
 use leptos::ev::SubmitEvent;
+use leptos::logging::log;
+use leptos::prelude::*;
 use leptos::task::spawn_local;
 use regex::Regex;
 use std::fmt;
+use std::future::Future;
 use std::sync::Arc;
 
 // 表单字段定义
@@ -29,7 +29,7 @@ pub enum FieldType {
     Number,
     TextArea,
     Select(Vec<(String, String)>),
-    Checkbox
+    Checkbox,
 }
 
 impl FieldType {
@@ -89,7 +89,6 @@ where
     F: Fn(Vec<FormField>) -> T + Copy + 'static,
     T: Future<Output = Result<(), Vec<String>>> + 'static,
 {
-
     let form_state = RwSignal::new(FormState {
         fields: RwSignal::new(initial_fields),
         is_submitting: RwSignal::new(false),
@@ -169,9 +168,7 @@ where
             form_state.with_untracked(|s| {
                 s.is_submitting.set(false);
                 match result {
-                    Ok(_) => {
-                        reset()
-                    }
+                    Ok(_) => reset(),
                     Err(errors) => {
                         for error in errors {
                             log!("Form error: {}", error);
@@ -181,7 +178,6 @@ where
             });
         });
     };
-
 
     view! {
         <form class="form-control w-full max-w-md mx-auto" on:submit=submit>
@@ -271,9 +267,19 @@ where
     }
 }
 
+// Option<impl IntoView + 'static> 在 Leptos 中表示 可选的、任何能够转换为视图的类型：
+
+// Option<T>：表示值可以是 Some(T) 或 None
+// impl IntoView：Leptos 的 trait，表示任何可以转换为视图的类型，包括：
+// 基本类型（&str, String, i32 等）
+// Leptos 视图（View）
+// 信号（Signal, Memo）
+// 闭包返回视图（Fn() -> impl IntoView）
+// 'static：生命周期标记，表示类型不包含非静态引用
+
 #[component]
 pub fn FormContainer(
-    #[prop(optional)] title: Option<&'static str>,
+    #[prop(optional)] title: Option<impl IntoView + 'static>,
     #[prop(optional)] description: Option<&'static str>,
     #[prop(optional)] class: &'static str,
     children: Children,
@@ -290,10 +296,7 @@ pub fn FormContainer(
 }
 
 #[component]
-pub fn FormActions(
-    #[prop(optional)] justify_end: bool,
-    children: Children,
-) -> impl IntoView {
+pub fn FormActions(#[prop(optional)] justify_end: bool, children: Children) -> impl IntoView {
     view! {
         <div class=format!(
             "flex {} gap-2 mt-6",
@@ -315,7 +318,6 @@ pub fn TextInput(
     #[prop(optional)] class: String,
     #[prop(optional)] error_message: RwSignal<Option<String>>,
 ) -> impl IntoView {
-
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
             <label class="label">
@@ -417,9 +419,8 @@ pub fn SelectInput<T>(
     #[prop(optional)] error_message: RwSignal<Option<String>>,
 ) -> impl IntoView
 where
-    T: Clone + PartialEq + Send +  Sync + 'static,  // 移除了 ToString 约束
+    T: Clone + PartialEq + Send + Sync + 'static, // 移除了 ToString 约束
 {
-
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
             <label class="label">

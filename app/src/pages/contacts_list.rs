@@ -77,6 +77,7 @@ pub fn ContactsList() -> impl IntoView {
     let (sort_ops, set_sort_ops) = signal::<Vec<(String, SortValue)>>(vec![]);
     let (name, set_name) = signal(String::new());
     let (status, set_status) = signal(String::new());
+    let (edit_contact_uuid, set_edit_contact_uuid) = signal(String::new());
     let show_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
@@ -277,7 +278,10 @@ pub fn ContactsList() -> impl IntoView {
             // 添加客户按钮
             <div class="fixed bottom-8 right-8 z-10">
                 <button
-                    on:click=move |_| show_modal.set(true)
+                    on:click=move |_|{
+                        set_edit_contact_uuid.set(String::new());
+                        show_modal.set(true);
+                    }
                     class="btn btn-circle btn-primary shadow-lg hover:shadow-xl transition-all"
                     style="width: 56px; height: 56px;"
                 >
@@ -297,7 +301,7 @@ pub fn ContactsList() -> impl IntoView {
                     </svg>
                 </button>
             </div>
-            <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
+            <ContactModal show=show_modal contact_uuid=edit_contact_uuid on_finish=on_contact_modal_finish  />
             <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data on_sort=on_sort>
                     <Column
@@ -471,8 +475,12 @@ pub fn ContactsList() -> impl IntoView {
                             let user: Option<Contact> = use_context::<Contact>();
                             view! {
                                 <div class="flex justify-end gap-1">
-                                    <a href=format!("/contacts/{}", user.map(|u| u.contact_uuid).unwrap_or("".to_string())) class="btn btn-ghost btn-xs">查看</a>
-                                    <button class="btn btn-soft btn-warning btn-xs">修改</button>
+                                    <a href=format!("/contacts/{}", user.clone().map(|u| u.contact_uuid).unwrap_or("".to_string())) class="btn btn-ghost btn-xs">查看</a>
+                                    <button on:click=move |_ev| {
+                                        let contact_uuid = user.clone().map(|u| u.contact_uuid).unwrap_or("".to_string());
+                                        set_edit_contact_uuid.set(contact_uuid);
+                                        show_modal.set(true);
+                                    } class="btn btn-soft btn-warning btn-xs">修改</button>
                                     <button class="btn btn-soft btn-error btn-xs">删除</button>
                                 </div>
                             }
