@@ -3,12 +3,13 @@ use leptos::logging::log;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::future::Future;
 use std::sync::Arc;
 
 // 表单字段定义
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FormField {
     pub name: String,
     pub label: String,
@@ -17,11 +18,12 @@ pub struct FormField {
     pub value: RwSignal<String>,
     pub placeholder: Option<String>,
     pub error_message: RwSignal<Option<String>>,
+    #[serde(skip)]
     pub validation: Option<ValidationRule>,
 }
 
 // 字段类型枚举
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum FieldType {
     Text,
     Email,
