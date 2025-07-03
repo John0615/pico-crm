@@ -3,6 +3,7 @@ use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
 use crate::components::ui::toast::{show_toast, ToastType};
 use crate::utils::file_download::download_file;
+use js_sys::Math::random;
 use leptos::logging;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -12,7 +13,6 @@ use shared::{
     contact::{Contact, ContactFilters, ContactQuery, SortField, SortOption, SortOrder},
     ListResult,
 };
-
 #[cfg(feature = "ssr")]
 pub mod ssr {
     pub use backend::application::services::contact_service::ContactAppService;
@@ -68,7 +68,9 @@ pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnEr
 
 impl Identifiable for Contact {
     fn id(&self) -> String {
-        self.contact_uuid.clone()
+        // self.contact_uuid.clone()
+        let rand_suffix = (random() * 10000.0) as u32;
+        format!("{}-{}", self.contact_uuid, rand_suffix)
     }
 }
 
