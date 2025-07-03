@@ -194,8 +194,9 @@ impl ContactRepository for SeaOrmContactRepository {
     ) -> impl std::future::Future<Output = Result<Contact, String>> + Send {
         async move {
             // 根据 uuid 查询原始数据
+            let uuid = Uuid::parse_str(&contact.uuid).expect("解析uuid失败！");
             let original_contact = Entity::find()
-                .filter(Column::ContactUuid.eq(&contact.uuid))
+                .filter(Column::ContactUuid.eq(uuid))
                 .one(&self.db)
                 .await
                 .map_err(|e| format!("查询原始数据失败: {}", e))?

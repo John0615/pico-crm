@@ -8,31 +8,11 @@ use leptos::prelude::*;
 use shared::contact::Contact;
 
 #[cfg(feature = "ssr")]
-pub mod ssr {
+mod ssr {
     pub use backend::application::services::contact_service::ContactAppService;
     pub use backend::domain::services::contact_service::ContactService;
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
-}
-
-#[server]
-pub async fn get_contact(uuid: String) -> Result<Option<Contact>, ServerFnError> {
-    use self::ssr::*;
-
-    let pool = expect_context::<Database>();
-
-    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let contact_service = ContactService::new(contact_repository);
-    let app_service = ContactAppService::new(contact_service);
-
-    println!("fetch contact uuid: {:?}", uuid);
-    let result = app_service
-        .fetch_contact(uuid)
-        .await
-        .map_err(|e| ServerFnError::new(e))?;
-    println!("fetch contact result: {:?}", result);
-
-    Ok(result)
 }
 
 #[server]
@@ -56,135 +36,105 @@ pub async fn add_contact(contact: Contact) -> Result<(), ServerFnError> {
 }
 
 #[component]
-pub fn ContactModal<F>(
-    show: RwSignal<bool>,
-    contact_uuid: ReadSignal<String>,
-    on_finish: F,
-) -> impl IntoView
+pub fn ContactModal<F>(show: RwSignal<bool>, on_finish: F) -> impl IntoView
 where
     F: Fn() + Copy + Send + 'static,
 {
-    let title = move || {
-        if contact_uuid.get().is_empty() {
-            "新建客户"
-        } else {
-            "修改客户"
-        }
-    };
-
-    let initial_fields = Resource::new(
-        move || (contact_uuid.get()),
-        |uuid| async move {
-            let init_contact = if uuid.is_empty() {
-                Contact {
-                    ..Default::default()
+    let initial_fields = vec![
+        FormField {
+            name: "name".to_string(),
+            label: "客户姓名".to_string(),
+            field_type: FieldType::Text,
+            required: true,
+            value: RwSignal::new(String::new()),
+            placeholder: Some("输入客户姓名".into()),
+            error_message: RwSignal::new(None),
+            validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
+                let len = val.len();
+                if len < 2 {
+                    Err("至少2个字符".into())
+                } else if len > 50 {
+                    Err("超出50个字符".into())
+                } else {
+                    Ok(())
                 }
-            } else {
-                match get_contact(uuid).await {
-                    Ok(Some(contact)) => contact,
-                    _ => Contact {
-                        ..Default::default()
-                    },
-                }
-            };
-
-            vec![
-                FormField {
-                    name: "name".to_string(),
-                    label: "客户姓名".to_string(),
-                    field_type: FieldType::Text,
-                    required: true,
-                    value: RwSignal::new(init_contact.user_name.clone()),
-                    placeholder: Some("输入客户姓名".into()),
-                    error_message: RwSignal::new(None),
-                    validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
-                        let len = val.len();
-                        if len < 2 {
-                            Err("至少2个字符".into())
-                        } else if len > 50 {
-                            Err("超出50个字符".into())
-                        } else {
-                            Ok(())
-                        }
-                    }))),
-                },
-                FormField {
-                    name: "company".to_string(),
-                    label: "公司名称".to_string(),
-                    field_type: FieldType::Text,
-                    required: true,
-                    value: RwSignal::new(init_contact.company.clone()),
-                    placeholder: Some("输入公司名称".into()),
-                    error_message: RwSignal::new(None),
-                    validation: Some(ValidationRule::MinLength(2)),
-                },
-                FormField {
-                    name: "position".to_string(),
-                    label: "职位".to_string(),
-                    field_type: FieldType::Text,
-                    required: true,
-                    value: RwSignal::new(init_contact.position.clone()),
-                    placeholder: Some("输入职位".into()),
-                    error_message: RwSignal::new(None),
-                    validation: None,
-                },
-                FormField {
-                    name: "phone".to_string(),
-                    label: "联系电话".to_string(),
-                    field_type: FieldType::Text,
-                    required: true,
-                    value: RwSignal::new(init_contact.phone_number.clone()),
-                    placeholder: Some("输入联系电话".into()),
-                    error_message: RwSignal::new(None),
-                    validation: Some(ValidationRule::Regex(
-                        r"^1[3-9]\d{9}$".into(), // 中国手机号正则
-                    )),
-                },
-                FormField {
-                    name: "email".to_string(),
-                    label: "电子邮箱".to_string(),
-                    field_type: FieldType::Email,
-                    required: true,
-                    value: RwSignal::new(init_contact.email.clone()),
-                    placeholder: Some("输入电子邮箱".to_string()),
-                    error_message: RwSignal::new(None),
-                    validation: Some(ValidationRule::Regex(
-                        r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into(), // 基础邮箱验证
-                    )),
-                },
-                FormField {
-                    name: "value_level".to_string(),
-                    label: "客户价值".to_string(),
-                    field_type: FieldType::Select(vec![
-                        ("".to_string(), "请选择客户价值".to_string()),
-                        ("1".to_string(), "活跃客户".to_string()),
-                        ("2".to_string(), "潜在客户".to_string()),
-                        ("3".to_string(), "不活跃客户".to_string()),
-                    ]),
-                    required: true,
-                    value: RwSignal::new(init_contact.value_level.to_string().clone()), // 默认选中3星
-                    placeholder: None,
-                    error_message: RwSignal::new(None),
-                    validation: None,
-                },
-                FormField {
-                    name: "status".to_string(),
-                    label: "客户状态".to_string(),
-                    field_type: FieldType::Select(vec![
-                        ("".to_string(), "请选择客户状态".to_string()),
-                        ("1".to_string(), "已签约".to_string()),
-                        ("2".to_string(), "待跟进".to_string()),
-                        ("3".to_string(), "已流失".to_string()),
-                    ]),
-                    required: true,
-                    value: RwSignal::new(init_contact.status.to_string().clone()),
-                    placeholder: None,
-                    error_message: RwSignal::new(None),
-                    validation: None,
-                },
-            ]
+            }))),
         },
-    );
+        FormField {
+            name: "company".to_string(),
+            label: "公司名称".to_string(),
+            field_type: FieldType::Text,
+            required: true,
+            value: RwSignal::new(String::new()),
+            placeholder: Some("输入公司名称".into()),
+            error_message: RwSignal::new(None),
+            validation: Some(ValidationRule::MinLength(2)),
+        },
+        FormField {
+            name: "position".to_string(),
+            label: "职位".to_string(),
+            field_type: FieldType::Text,
+            required: true,
+            value: RwSignal::new(String::new()),
+            placeholder: Some("输入职位".into()),
+            error_message: RwSignal::new(None),
+            validation: None,
+        },
+        FormField {
+            name: "phone".to_string(),
+            label: "联系电话".to_string(),
+            field_type: FieldType::Text,
+            required: true,
+            value: RwSignal::new(String::new()),
+            placeholder: Some("输入联系电话".into()),
+            error_message: RwSignal::new(None),
+            validation: Some(ValidationRule::Regex(
+                r"^1[3-9]\d{9}$".into(), // 中国手机号正则
+            )),
+        },
+        FormField {
+            name: "email".to_string(),
+            label: "电子邮箱".to_string(),
+            field_type: FieldType::Email,
+            required: true,
+            value: RwSignal::new(String::new()),
+            placeholder: Some("输入电子邮箱".to_string()),
+            error_message: RwSignal::new(None),
+            validation: Some(ValidationRule::Regex(
+                r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into(), // 基础邮箱验证
+            )),
+        },
+        FormField {
+            name: "value_level".to_string(),
+            label: "客户价值".to_string(),
+            field_type: FieldType::Select(vec![
+                ("".to_string(), "请选择客户价值".to_string()),
+                ("1".to_string(), "活跃客户".to_string()),
+                ("2".to_string(), "潜在客户".to_string()),
+                ("3".to_string(), "不活跃客户".to_string()),
+            ]),
+            required: true,
+            value: RwSignal::new(String::new()),
+            placeholder: None,
+            error_message: RwSignal::new(None),
+            validation: None,
+        },
+        FormField {
+            name: "status".to_string(),
+            label: "客户状态".to_string(),
+            field_type: FieldType::Select(vec![
+                ("".to_string(), "请选择客户状态".to_string()),
+                ("1".to_string(), "已签约".to_string()),
+                ("2".to_string(), "待跟进".to_string()),
+                ("3".to_string(), "已流失".to_string()),
+            ]),
+            required: true,
+            value: RwSignal::new(String::new()),
+            placeholder: None,
+            error_message: RwSignal::new(None),
+            validation: None,
+        },
+    ];
 
     let submit = move |fields: Vec<FormField>| async move {
         let contact = Contact {
@@ -218,30 +168,13 @@ where
 
     view! {
         <Modal show=show>
-            <FormContainer title=title>
-                <Transition
-                    fallback=move || view! {
-                        <tr class="h-[calc(100vh-300px)]">
-                            <td colspan="9" class="h-32 text-center align-middle">
-                                <span class="loading loading-bars loading-xl"></span>
-                            </td>
-                        </tr>
-                    }
-                >
-                    {move || {
-                            initial_fields.get().map(|fields| {
-                                view! {
-                                    <DaisyForm
-                                        initial_fields=fields.clone()
-                                        on_submit=submit
-                                        submit_text="提交".to_string()
-                                        reset_text="取消".to_string()
-                                    />
-                                }
-                            })
-                        }}
-
-                </Transition>
+            <FormContainer title="新建客户">
+                <DaisyForm
+                    initial_fields
+                    on_submit=submit
+                    submit_text="提交".to_string()
+                    reset_text="取消".to_string()
+                />
             </FormContainer>
         </Modal>
     }

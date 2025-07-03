@@ -1,4 +1,4 @@
-use crate::components::features::ContactModal;
+use crate::components::features::{ContactModal, UpdateContactModal};
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
 use crate::components::ui::toast::{show_toast, ToastType};
@@ -79,6 +79,7 @@ pub fn ContactsList() -> impl IntoView {
     let (status, set_status) = signal(String::new());
     let (edit_contact_uuid, set_edit_contact_uuid) = signal(String::new());
     let show_modal = RwSignal::new(false);
+    let show_update_modal = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
 
@@ -301,7 +302,8 @@ pub fn ContactsList() -> impl IntoView {
                     </svg>
                 </button>
             </div>
-            <ContactModal show=show_modal contact_uuid=edit_contact_uuid on_finish=on_contact_modal_finish  />
+            <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
+            <UpdateContactModal show=show_update_modal contact_uuid=edit_contact_uuid on_finish=on_contact_modal_finish />
             <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data on_sort=on_sort>
                     <Column
@@ -479,7 +481,7 @@ pub fn ContactsList() -> impl IntoView {
                                     <button on:click=move |_ev| {
                                         let contact_uuid = user.clone().map(|u| u.contact_uuid).unwrap_or("".to_string());
                                         set_edit_contact_uuid.set(contact_uuid);
-                                        show_modal.set(true);
+                                        show_update_modal.set(true);
                                     } class="btn btn-soft btn-warning btn-xs">修改</button>
                                     <button class="btn btn-soft btn-error btn-xs">删除</button>
                                 </div>
