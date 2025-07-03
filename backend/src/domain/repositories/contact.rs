@@ -1,4 +1,7 @@
-use crate::domain::models::{contact::Contact, pagination::Pagination};
+use crate::domain::models::{
+    contact::{Contact, UpdateContact},
+    pagination::Pagination,
+};
 use crate::domain::specifications::contact_spec::ContactSpecification;
 
 pub trait ContactRepository: Send + Sync {
@@ -25,7 +28,7 @@ pub trait ContactRepository: Send + Sync {
 
     fn update_contact(
         &self,
-        contact: Contact,
+        contact: UpdateContact,
     ) -> impl std::future::Future<Output = Result<Contact, String>> + Send;
 
     fn delete_contact(

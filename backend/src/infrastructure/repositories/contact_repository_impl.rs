@@ -3,7 +3,7 @@ use sea_orm::entity::prelude::*;
 use crate::{
     domain::{
         models::{
-            contact::{Contact, CustomerStatus},
+            contact::{Contact, CustomerStatus, UpdateContact},
             pagination::Pagination,
         },
         repositories::contact::ContactRepository,
@@ -190,11 +190,18 @@ impl ContactRepository for SeaOrmContactRepository {
 
     fn update_contact(
         &self,
-        contact: Contact,
+        contact: UpdateContact,
     ) -> impl std::future::Future<Output = Result<Contact, String>> + Send {
         async move {
+            // 根据 uuid 查询原始数据
+            let original_contact = Entity::find()
+                .filter(Column::ContactUuid.eq(&contact.uuid))
+                .one(&self.db)
+                .await
+                .map_err(|e| format!("查询原始数据失败: {}", e))?
+                .ok_or_else(|| format!("未找到 uuid 为 {} 的联系人", contact.uuid))?;
             // 转换为 ActiveModel
-            let active_contact = ContactMapper::to_active_entity(contact);
+            let active_contact = ContactMapper::to_update_active_entity(contact, &original_contact);
 
             // 执行更新
             let updated = active_contact

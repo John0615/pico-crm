@@ -1,5 +1,5 @@
 use crate::{
-    domain::models::contact::{Contact, CustomerStatus, CustomerValue},
+    domain::models::contact::{Contact, CustomerStatus, CustomerValue, UpdateContact},
     entity::contacts::ActiveModel as ActiveContactEntity,
     entity::contacts::Model as ContactEntity,
 };
@@ -94,6 +94,41 @@ impl ContactMapper {
             last_contact: Set(utc_to_naive(contact.last_contact)),
             value_level: Set(value_level),
             creator_uuid: Set(uuid),
+            status: Set(status),
+        }
+    }
+
+    pub fn to_update_active_entity(
+        update_data: UpdateContact,
+        original_entity: &ContactEntity,
+    ) -> ActiveContactEntity {
+        let uuid = Uuid::parse_str(&update_data.uuid).expect("Invalid UUID");
+        // 转换枚举字段（仅当更新数据中存在时才覆盖）
+        let value_level = match update_data.value {
+            CustomerValue::Active => 1,
+            CustomerValue::Potential => 2,
+            CustomerValue::Inactive => 3,
+        };
+
+        let status = match update_data.status {
+            CustomerStatus::Signed => 1,
+            CustomerStatus::Pending => 2,
+            CustomerStatus::Churned => 3,
+        };
+
+        // 构建更新后的实体（仅修改提供的字段）
+        ActiveContactEntity {
+            contact_uuid: Set(uuid),
+            user_name: Set(update_data.name),
+            email: Set(update_data.email),
+            phone_number: Set(update_data.phone),
+            inserted_at: Set(original_entity.inserted_at.clone()),
+            updated_at: Set(Utc::now().naive_utc()),
+            company: Set(update_data.company),
+            position: Set(update_data.position),
+            last_contact: Set(original_entity.last_contact.clone()),
+            value_level: Set(value_level),
+            creator_uuid: Set(original_entity.creator_uuid.clone()),
             status: Set(status),
         }
     }

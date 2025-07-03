@@ -15,6 +15,18 @@ pub struct Contact {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone)]
+pub struct UpdateContact {
+    pub uuid: String,
+    pub name: String,
+    pub company: String,
+    pub position: String,
+    pub phone: String,
+    pub email: String,
+    pub value: CustomerValue,
+    pub status: CustomerStatus,
+}
+
 // 领域层的状态类型（强类型，避免魔法字符串）
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CustomerStatus {

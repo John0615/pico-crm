@@ -1,4 +1,6 @@
-use crate::domain::models::contact::{Contact as DomainContact, CustomerStatus, CustomerValue};
+use crate::domain::models::contact::{
+    Contact as DomainContact, CustomerStatus, CustomerValue, UpdateContact as DomainUpdateContact,
+};
 use crate::domain::specifications::contact_spec::{
     ContactFilters, SortDirection, SortOption as DomainSortOption,
 };
@@ -6,6 +8,7 @@ use chrono::{DateTime, Utc};
 use shared::contact::{
     Contact, ContactFilters as SharedContactFilters, SortField as SharedSortField,
     SortOption as SharedSortOption, SortOrder as SharedSortOrder,
+    UpdateContact as SharedUpdateContact,
 };
 
 impl From<Contact> for DomainContact {
@@ -34,6 +37,33 @@ impl From<Contact> for DomainContact {
             last_contact: parse_string_to_utc_time(&contact.last_contact),
             inserted_at: parse_string_to_utc_time(&contact.inserted_at),
             updated_at: parse_string_to_utc_time(&contact.updated_at),
+        }
+    }
+}
+
+impl From<SharedUpdateContact> for DomainUpdateContact {
+    fn from(contact: SharedUpdateContact) -> Self {
+        let value = match contact.value_level {
+            1 => CustomerValue::Active,
+            2 => CustomerValue::Potential,
+            3 => CustomerValue::Inactive,
+            _ => CustomerValue::Inactive,
+        };
+        let status = match contact.status {
+            1 => CustomerStatus::Signed,
+            2 => CustomerStatus::Pending,
+            3 => CustomerStatus::Churned,
+            _ => CustomerStatus::Churned,
+        };
+        Self {
+            uuid: contact.contact_uuid,
+            name: contact.user_name,
+            company: contact.company,
+            position: contact.position,
+            phone: contact.phone_number,
+            email: contact.email,
+            value,
+            status,
         }
     }
 }

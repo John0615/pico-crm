@@ -7,7 +7,7 @@ use crate::domain::specifications::contact_spec::{
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Workbook};
 use shared::{
     ListResult,
-    contact::{Contact, ContactQuery},
+    contact::{Contact, ContactQuery, UpdateContact},
 };
 
 pub struct ContactAppService<R: ContactRepository> {
@@ -204,6 +204,12 @@ impl<R: ContactRepository> ContactAppService<R> {
     pub async fn create_contact(&self, contact: Contact) -> Result<(), String> {
         let contact = contact.into();
         let _new_contact = self.contact_service.create_contact(contact).await?;
+        Ok(())
+    }
+
+    pub async fn update_contact(&self, contact: UpdateContact) -> Result<(), String> {
+        let contact = contact.into();
+        let _new_contact = self.contact_service.update_contact(contact).await?;
         Ok(())
     }
 }

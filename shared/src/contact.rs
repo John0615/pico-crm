@@ -15,6 +15,18 @@ pub struct Contact {
     pub updated_at: String,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct UpdateContact {
+    pub contact_uuid: String,
+    pub user_name: String,
+    pub company: String,
+    pub position: String,
+    pub phone_number: String,
+    pub email: String,
+    pub value_level: i32,
+    pub status: i32,
+}
+
 // 允许的排序字段枚举
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
