@@ -15,9 +15,9 @@ pub struct FormField {
     pub label: String,
     pub field_type: FieldType,
     pub required: bool,
-    pub value: RwSignal<String>,
+    pub value: ArcRwSignal<String>,
     pub placeholder: Option<String>,
-    pub error_message: RwSignal<Option<String>>,
+    pub error_message: ArcRwSignal<Option<String>>,
     #[serde(skip)]
     pub validation: Option<ValidationRule>,
 }
@@ -73,13 +73,6 @@ impl CustomValidator {
     }
 }
 
-// 表单状态
-#[derive(Debug, Clone)]
-pub struct FormState {
-    pub fields: RwSignal<Vec<FormField>>,
-    pub is_submitting: RwSignal<bool>,
-}
-
 #[component]
 pub fn DaisyForm<F, T>(
     initial_fields: Vec<FormField>,
@@ -91,10 +84,9 @@ where
     F: Fn(Vec<FormField>) -> T + Copy + 'static,
     T: Future<Output = Result<(), Vec<String>>> + 'static,
 {
-    let form_state = RwSignal::new(FormState {
-        fields: RwSignal::new(initial_fields),
-        is_submitting: RwSignal::new(false),
-    });
+    let fields = StoredValue::new(initial_fields.clone());
+
+    let is_submitting = RwSignal::new(false);
 
     // 验证单个字段
     let validate_field = move |field: &FormField| -> Option<String> {
@@ -132,7 +124,7 @@ where
     // 验证整个表单
     let validate_form = move || {
         let mut is_valid = true;
-        for field in form_state.get().fields.get().iter() {
+        for field in fields.read_value().iter() {
             let error = validate_field(field);
             let error = error.clone();
             field.error_message.set(error.clone());
@@ -145,7 +137,7 @@ where
 
     // 重置表单
     let reset = move || {
-        for field in form_state.get_untracked().fields.get_untracked().iter() {
+        for field in fields.read_value().iter() {
             field.value.set(String::new());
             field.error_message.set(None);
         }
@@ -159,25 +151,19 @@ where
             return;
         }
 
-        form_state.get().is_submitting.set(true);
+        is_submitting.set(true);
 
         spawn_local(async move {
-            // 使用 get_untracked 获取初始值（不建立响应依赖）
-            let fields = form_state.with_untracked(|s| s.fields.with_untracked(|f| f.clone()));
-            let result = on_submit(fields).await;
-
-            // 更新状态时也使用 untracked 访问
-            form_state.with_untracked(|s| {
-                s.is_submitting.set(false);
-                match result {
-                    Ok(_) => reset(),
-                    Err(errors) => {
-                        for error in errors {
-                            log!("Form error: {}", error);
-                        }
+            let result = on_submit(fields.read_value().to_vec().clone()).await;
+            is_submitting.set(false);
+            match result {
+                Ok(_) => reset(),
+                Err(errors) => {
+                    for error in errors {
+                        log!("Form error: {}", error);
                     }
                 }
-            });
+            };
         });
     };
 
@@ -185,7 +171,7 @@ where
         <form class="form-control w-full max-w-md mx-auto" on:submit=submit>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <For
-                    each=move || form_state.get().fields.get()
+                    each=move || fields.read_value().to_vec()
                     key=|field| field.name.clone()
                     children=move |field| {
                         view! {
@@ -229,7 +215,7 @@ where
                                         <CheckboxInput
                                             name=field.name
                                             label=field.label
-                                            checked=RwSignal::new(false)
+                                            checked=ArcRwSignal::new(false)
                                             error_message=field.error_message
                                         />
                                     }.into_any(),
@@ -244,7 +230,7 @@ where
                     type="button"
                     class="btn btn-ghost"
                     on:click=move |_|reset()
-                    disabled=move || form_state.get().is_submitting.get()
+                    disabled=move || is_submitting.get()
                 >
                     {reset_text.unwrap_or("重置".into())}
                 </button>
@@ -252,9 +238,9 @@ where
                 <button
                     type="submit"
                     class="btn btn-primary"
-                    disabled=move || form_state.get().is_submitting.get()
+                    disabled=move || is_submitting.get()
                 >
-                    {move || if form_state.get().is_submitting.get() {
+                    {move || if is_submitting.get() {
                         view! {
                             <span class="loading loading-spinner"></span>
                         }.into_view().into_any()
@@ -314,11 +300,11 @@ pub fn TextInput(
     name: String,
     field_type: String,
     label: String,
-    value: RwSignal<String>,
+    value: ArcRwSignal<String>,
     #[prop(optional)] placeholder: String,
     #[prop(optional)] required: bool,
     #[prop(optional)] class: String,
-    #[prop(optional)] error_message: RwSignal<Option<String>>,
+    #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
 ) -> impl IntoView {
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -332,7 +318,7 @@ pub fn TextInput(
                 class="input input-bordered"
                 placeholder=placeholder
                 required=required
-                prop:value=move || value.get()
+                prop:value=value.get_untracked()
                 on:input=move |ev| {
                     let new_value = event_target_value(&ev);
                     value.set(new_value.clone());
@@ -351,9 +337,9 @@ pub fn TextInput(
 pub fn CheckboxInput(
     name: String,
     label: String,
-    checked: RwSignal<bool>,
+    checked: ArcRwSignal<bool>,
     #[prop(optional)] class: String,
-    #[prop(optional)] error_message: RwSignal<Option<String>>,
+    #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
 ) -> impl IntoView {
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -362,7 +348,7 @@ pub fn CheckboxInput(
                     type="checkbox"
                     name=name
                     class="checkbox checkbox-primary"
-                    checked=move || checked.get()
+                    checked=checked.get()
                     on:change=move |ev| checked.set(event_target_checked(&ev))
                 />
                 <span class="label-text">{label}</span>
@@ -380,12 +366,12 @@ pub fn CheckboxInput(
 pub fn TextAreaInput(
     name: String,
     label: String,
-    value: RwSignal<String>,
+    value: ArcRwSignal<String>,
     #[prop(optional)] placeholder: String,
     #[prop(optional)] required: bool,
     #[prop(optional)] rows: usize,
     #[prop(optional)] class: String,
-    #[prop(optional)] error_message: RwSignal<Option<String>>,
+    #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
 ) -> impl IntoView {
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -398,7 +384,7 @@ pub fn TextAreaInput(
                 class="textarea textarea-bordered"
                 placeholder=placeholder
                 rows=rows
-                prop:value=move || value.get()
+                prop:value=value.get()
                 on:input=move |ev| value.set(event_target_value(&ev))
             ></textarea>
             <p class="label">
@@ -414,15 +400,18 @@ pub fn TextAreaInput(
 pub fn SelectInput<T>(
     name: String,
     label: String,
-    value: RwSignal<T>,
+    value: ArcRwSignal<T>,
     options: Vec<(T, String)>,
     #[prop(optional)] required: bool,
     #[prop(optional)] class: String,
-    #[prop(optional)] error_message: RwSignal<Option<String>>,
+    #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
 ) -> impl IntoView
 where
     T: Clone + PartialEq + Send + Sync + 'static, // 移除了 ToString 约束
 {
+    let cloned_value1 = value.clone();
+    let cloned_value2 = value.clone();
+
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
             <label class="label">
@@ -438,7 +427,7 @@ where
                     move |ev| {
                         let new_value = event_target_value(&ev);
                         if let Some((val, _)) = options.clone().iter().find(|(_, display)| *display == new_value) {
-                            value.set(val.clone());
+                            cloned_value1.set(val.clone());
                         }
                     }
                 }
@@ -450,6 +439,7 @@ where
                     }
                     key=|(_, text)| text.clone()
                     children=move |(val, text)| {
+                        let value = cloned_value2.clone();
                         let is_selected = move || value.get() == val;
                         view! {
                             <option

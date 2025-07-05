@@ -13,6 +13,7 @@ use shared::{
     contact::{Contact, ContactFilters, ContactQuery, SortField, SortOption, SortOrder},
     ListResult,
 };
+
 #[cfg(feature = "ssr")]
 pub mod ssr {
     pub use backend::application::services::contact_service::ContactAppService;
@@ -157,6 +158,7 @@ pub fn ContactsList() -> impl IntoView {
 
     let on_contact_modal_finish = move || {
         refresh_count.set(refresh_count.get_untracked() + 1);
+        set_edit_contact_uuid.set(String::new());
     };
 
     let on_sort = Callback::new(move |(field, sort_value): (String, SortValue)| {
@@ -282,7 +284,6 @@ pub fn ContactsList() -> impl IntoView {
             <div class="fixed bottom-8 right-8 z-10">
                 <button
                     on:click=move |_|{
-                        set_edit_contact_uuid.set(String::new());
                         show_modal.set(true);
                     }
                     class="btn btn-circle btn-primary shadow-lg hover:shadow-xl transition-all"

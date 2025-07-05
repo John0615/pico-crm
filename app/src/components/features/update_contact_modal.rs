@@ -86,9 +86,9 @@ where
                     label: "客户姓名".to_string(),
                     field_type: FieldType::Text,
                     required: true,
-                    value: RwSignal::new(init_contact.user_name.clone()),
+                    value: ArcRwSignal::new(init_contact.user_name.clone()),
                     placeholder: Some("输入客户姓名".into()),
-                    error_message: RwSignal::new(None),
+                    error_message: ArcRwSignal::new(None),
                     validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
                         let len = val.len();
                         if len < 2 {
@@ -105,9 +105,9 @@ where
                     label: "公司名称".to_string(),
                     field_type: FieldType::Text,
                     required: true,
-                    value: RwSignal::new(init_contact.company.clone()),
+                    value: ArcRwSignal::new(init_contact.company.clone()),
                     placeholder: Some("输入公司名称".into()),
-                    error_message: RwSignal::new(None),
+                    error_message: ArcRwSignal::new(None),
                     validation: Some(ValidationRule::MinLength(2)),
                 },
                 FormField {
@@ -115,9 +115,9 @@ where
                     label: "职位".to_string(),
                     field_type: FieldType::Text,
                     required: true,
-                    value: RwSignal::new(init_contact.position.clone()),
+                    value: ArcRwSignal::new(init_contact.position.clone()),
                     placeholder: Some("输入职位".into()),
-                    error_message: RwSignal::new(None),
+                    error_message: ArcRwSignal::new(None),
                     validation: None,
                 },
                 FormField {
@@ -125,9 +125,9 @@ where
                     label: "联系电话".to_string(),
                     field_type: FieldType::Text,
                     required: true,
-                    value: RwSignal::new(init_contact.phone_number.clone()),
+                    value: ArcRwSignal::new(init_contact.phone_number.clone()),
                     placeholder: Some("输入联系电话".into()),
-                    error_message: RwSignal::new(None),
+                    error_message: ArcRwSignal::new(None),
                     validation: Some(ValidationRule::Regex(
                         r"^1[3-9]\d{9}$".into(), // 中国手机号正则
                     )),
@@ -137,9 +137,9 @@ where
                     label: "电子邮箱".to_string(),
                     field_type: FieldType::Email,
                     required: true,
-                    value: RwSignal::new(init_contact.email.clone()),
+                    value: ArcRwSignal::new(init_contact.email.clone()),
                     placeholder: Some("输入电子邮箱".to_string()),
-                    error_message: RwSignal::new(None),
+                    error_message: ArcRwSignal::new(None),
                     validation: Some(ValidationRule::Regex(
                         r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into(), // 基础邮箱验证
                     )),
@@ -154,9 +154,9 @@ where
                         ("3".to_string(), "不活跃客户".to_string()),
                     ]),
                     required: true,
-                    value: RwSignal::new(init_contact.value_level.to_string().clone()), // 默认选中3星
+                    value: ArcRwSignal::new(init_contact.value_level.to_string().clone()), // 默认选中3星
                     placeholder: None,
-                    error_message: RwSignal::new(None),
+                    error_message: ArcRwSignal::new(None),
                     validation: None,
                 },
                 FormField {
@@ -169,9 +169,9 @@ where
                         ("3".to_string(), "已流失".to_string()),
                     ]),
                     required: true,
-                    value: RwSignal::new(init_contact.status.to_string().clone()),
+                    value: ArcRwSignal::new(init_contact.status.to_string().clone()),
                     placeholder: None,
-                    error_message: RwSignal::new(None),
+                    error_message: ArcRwSignal::new(None),
                     validation: None,
                 },
             ]
