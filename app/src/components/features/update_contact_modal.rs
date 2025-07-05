@@ -224,7 +224,7 @@ where
                             initial_fields.get().map(|fields| {
                                 view! {
                                     <DaisyForm
-                                        initial_fields=fields.clone()
+                                        initial_fields=fields
                                         on_submit=submit
                                         submit_text="提交".to_string()
                                         reset_text="取消".to_string()

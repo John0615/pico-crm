@@ -84,7 +84,7 @@ where
     F: Fn(Vec<FormField>) -> T + Copy + 'static,
     T: Future<Output = Result<(), Vec<String>>> + 'static,
 {
-    let fields = StoredValue::new(initial_fields.clone());
+    let fields = StoredValue::new(initial_fields);
 
     let is_submitting = RwSignal::new(false);
 
