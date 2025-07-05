@@ -58,7 +58,7 @@ pub fn Toast() -> impl IntoView {
 }
 
 // 显示Toast的接口
-pub fn show_toast(message: String, toast_type: ToastType) {
+fn show_toast(message: String, toast_type: ToastType) {
     let state =
         use_context::<RwSignal<ToastState>>().expect("there to be a `toast_state` signal provided");
 
@@ -70,4 +70,20 @@ pub fn show_toast(message: String, toast_type: ToastType) {
         visible: true,
         ..Default::default()
     });
+}
+
+pub fn success(message: String) {
+    show_toast(message, ToastType::Success);
+}
+
+pub fn error(message: String) {
+    show_toast(message, ToastType::Error);
+}
+
+pub fn warning(message: String) {
+    show_toast(message, ToastType::Warning);
+}
+
+pub fn info(message: String) {
+    show_toast(message, ToastType::Info);
 }

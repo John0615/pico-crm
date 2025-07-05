@@ -2,7 +2,7 @@ use crate::components::ui::form::{
     CustomValidator, DaisyForm, FieldType, FormContainer, FormField, ValidationRule,
 };
 use crate::components::ui::modal::Modal;
-use crate::components::ui::toast::{show_toast, ToastType};
+use crate::components::ui::toast::success;
 use leptos::logging::log;
 use leptos::prelude::*;
 use shared::contact::{Contact, UpdateContact};
@@ -195,13 +195,13 @@ where
             Ok(_) => {
                 log!("修改成功");
                 show.set(false);
-                show_toast("操作成功".to_string(), ToastType::Success);
+                success("操作成功".to_string());
                 on_finish();
                 Ok(())
             }
             Err(e) => {
                 log!("API错误: {:?}", e);
-                show_toast("操作失败".to_string(), ToastType::Success);
+                success("操作失败".to_string());
                 // 根据错误类型转换
                 Err(vec![e.to_string()])
             }

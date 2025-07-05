@@ -1,7 +1,7 @@
 use crate::components::features::{ContactModal, UpdateContactModal};
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
-use crate::components::ui::toast::{show_toast, ToastType};
+use crate::components::ui::toast::error;
 use crate::utils::file_download::download_file;
 use js_sys::Math::random;
 use leptos::logging;
@@ -234,7 +234,7 @@ pub fn ContactsList() -> impl IntoView {
                     let _ = download_file(&data, "contacts.xlsx");
                 }
                 Err(_e) => {
-                    show_toast("操作失败".to_string(), ToastType::Success);
+                    error("操作失败".to_string());
                 }
             }
         });
