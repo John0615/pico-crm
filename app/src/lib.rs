@@ -6,6 +6,7 @@ use leptos_router::{
 };
 
 use components::layouts::*;
+use components::ui::toast::Toast;
 use pages::*;
 
 pub mod components;
@@ -39,7 +40,7 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="leptos" href="/pkg/start-axum-workspace.css"/>
         // sets the document title
         <Title text="PicoCRM"/>
-
+        <Toast/>
         // content for this welcome page
         <Router>
             <main>
