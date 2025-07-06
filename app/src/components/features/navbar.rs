@@ -1,7 +1,18 @@
-use leptos::prelude::*;
+use leptos::{prelude::*, task::spawn_local};
+
+#[server]
+pub async fn logout() -> Result<(), ServerFnError> {
+    leptos_axum::redirect("/login");
+    Ok(())
+}
 
 #[component]
 pub fn Navbar() -> impl IntoView {
+    let logout = move |_| {
+        spawn_local(async move {
+            let _result = logout().await;
+        });
+    };
     view! {
         <div class="navbar bg-base-100 sticky top-0 z-50 border-b border-base-200 shadow-sm">
             <div class="flex-none lg:hidden">
@@ -69,8 +80,8 @@ pub fn Navbar() -> impl IntoView {
                                 设置
                             </a>
                         </li>
-                        <li>
-                            <a class="hover:bg-error hover:text-error-content">
+                        <li on:click=logout>
+                            <a href="#" class="hover:bg-error hover:text-error-content">
                                 <i class="fas fa-sign-out-alt"></i>
                                 退出
                             </a>
