@@ -137,8 +137,8 @@ fn parse_utc_time_to_string(time: DateTime<Utc>) -> String {
 }
 
 fn parse_string_to_utc_time(time_str: &str) -> DateTime<Utc> {
-    match DateTime::parse_from_str(time_str, "%Y-%m-%d %H:%M:%S") {
-        Ok(dt) => dt.with_timezone(&Utc),
-        Err(_) => Utc::now(),
-    }
+    let beijing_offset = FixedOffset::east_opt(8 * 3600).unwrap();
+    DateTime::parse_from_str(time_str, "%Y-%m-%d %H:%M:%S")
+        .map(|dt| dt.with_timezone(&beijing_offset).with_timezone(&Utc))
+        .unwrap_or_else(|_| Utc::now())
 }
