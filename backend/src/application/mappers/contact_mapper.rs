@@ -4,7 +4,7 @@ use crate::domain::models::contact::{
 use crate::domain::specifications::contact_spec::{
     ContactFilters, SortDirection, SortOption as DomainSortOption,
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use shared::contact::{
     Contact, ContactFilters as SharedContactFilters, SortField as SharedSortField,
     SortOption as SharedSortOption, SortOrder as SharedSortOrder,
@@ -130,7 +130,10 @@ impl From<SharedContactFilters> for ContactFilters {
 }
 
 fn parse_utc_time_to_string(time: DateTime<Utc>) -> String {
-    time.format("%Y-%m-%d %H:%M:%S").to_string()
+    let beijing_offset = FixedOffset::east_opt(8 * 3600).unwrap();
+    let beijing_time = time.with_timezone(&beijing_offset);
+
+    beijing_time.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 fn parse_string_to_utc_time(time_str: &str) -> DateTime<Utc> {
