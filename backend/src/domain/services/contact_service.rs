@@ -24,6 +24,10 @@ impl<R: ContactRepository> ContactService<R> {
         self.repository.update_contact(contact).await
     }
 
+    pub async fn delete_contact(&self, uuid: String) -> Result<(), String> {
+        self.repository.delete_contact(uuid).await
+    }
+
     pub async fn fetch_contact(&self, uuid: String) -> Result<Option<Contact>, String> {
         self.repository.get_contact(uuid).await
     }

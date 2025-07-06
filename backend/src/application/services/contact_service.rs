@@ -212,4 +212,9 @@ impl<R: ContactRepository> ContactAppService<R> {
         let _new_contact = self.contact_service.update_contact(contact).await?;
         Ok(())
     }
+
+    pub async fn delete_contact(&self, uuid: String) -> Result<(), String> {
+        let _deleted_contact = self.contact_service.delete_contact(uuid).await?;
+        Ok(())
+    }
 }

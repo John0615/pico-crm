@@ -6,7 +6,7 @@ use leptos_router::{
 };
 
 use components::layouts::*;
-use components::ui::toast::Toast;
+use components::ui::{message_box::MessageBox, toast::Toast};
 use pages::*;
 
 pub mod components;
@@ -41,6 +41,7 @@ pub fn App() -> impl IntoView {
         // sets the document title
         <Title text="PicoCRM"/>
         <Toast/>
+        <MessageBox/>
         // content for this welcome page
         <Router>
             <main>

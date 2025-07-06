@@ -1,7 +1,10 @@
 use crate::components::features::{ContactModal, UpdateContactModal};
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
-use crate::components::ui::toast::error;
+use crate::components::ui::{
+    message_box::delete_confirm,
+    toast::{error, success},
+};
 use crate::utils::file_download::download_file;
 use js_sys::Math::random;
 use leptos::logging;
@@ -41,6 +44,28 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
         .map_err(|e| ServerFnError::new(e))?;
 
     println!("Fetching contacts result {:?}", res);
+    Ok(res)
+}
+
+#[server]
+pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
+    use self::ssr::*;
+
+    let pool = expect_context::<Database>();
+    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
+    let contact_service = ContactService::new(contact_repository);
+    let app_service = ContactAppService::new(contact_service);
+
+    println!("pool {:?}", pool);
+
+    println!("Deleting contact...");
+
+    let res = app_service
+        .delete_contact(uuid)
+        .await
+        .map_err(|e| ServerFnError::new(e))?;
+
+    println!("Deleting contact result {:?}", res);
     Ok(res)
 }
 
@@ -183,6 +208,27 @@ pub fn ContactsList() -> impl IntoView {
     let filter_by_status = move |ev| {
         let value = event_target_value(&ev);
         set_status.set(value);
+    };
+
+    let delete_row = move |contact_uuid: String| {
+        delete_confirm("删除确认", "确定要删除吗？", move |result| {
+            if result {
+                logging::error!("delete row contact_uuid: {:?}", contact_uuid);
+                let uuid = contact_uuid.clone();
+                spawn_local(async move {
+                    let result = delete_contact(uuid).await;
+                    match result {
+                        Ok(_) => {
+                            success("操作成功".to_string());
+                            refresh_count.set(refresh_count.get_untracked() + 1);
+                        }
+                        Err(err) => {
+                            logging::error!("Failed to delete contact: {:?}", err);
+                        }
+                    }
+                });
+            }
+        });
     };
 
     let export_excel = move |_ev| {
@@ -478,15 +524,18 @@ pub fn ContactsList() -> impl IntoView {
                     >
                         {
                             let user: Option<Contact> = use_context::<Contact>();
+                            let contact_uuid = user.map(|u| u.contact_uuid).unwrap_or_default();
+                            let contact_uuid_delete = contact_uuid.clone();
                             view! {
                                 <div class="flex justify-end gap-1">
-                                    <a href=format!("/contacts/{}", user.clone().map(|u| u.contact_uuid).unwrap_or("".to_string())) class="btn btn-ghost btn-xs">查看</a>
+                                    <a href=format!("/contacts/{}", contact_uuid) class="btn btn-ghost btn-xs">查看</a>
                                     <button on:click=move |_ev| {
-                                        let contact_uuid = user.clone().map(|u| u.contact_uuid).unwrap_or("".to_string());
-                                        set_edit_contact_uuid.set(contact_uuid);
+                                        set_edit_contact_uuid.set(contact_uuid.clone());
                                         show_update_modal.set(true);
                                     } class="btn btn-soft btn-warning btn-xs">修改</button>
-                                    <button class="btn btn-soft btn-error btn-xs">删除</button>
+                                    <button on:click=move |_ev| {
+                                        delete_row(contact_uuid_delete.clone());
+                                    } class="btn btn-soft btn-error btn-xs">删除</button>
                                 </div>
                             }
                         }
