@@ -306,6 +306,7 @@ pub fn TextInput(
     #[prop(optional)] class: String,
     #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
 ) -> impl IntoView {
+    let value_clone = value.clone();
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
             <label class="label">
@@ -318,7 +319,7 @@ pub fn TextInput(
                 class="input input-bordered"
                 placeholder=placeholder
                 required=required
-                prop:value=value.get_untracked()
+                prop:value=move || value_clone.get()
                 on:input=move |ev| {
                     let new_value = event_target_value(&ev);
                     value.set(new_value.clone());
