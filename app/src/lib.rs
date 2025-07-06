@@ -38,6 +38,8 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Stylesheet id="leptos" href="/pkg/start-axum-workspace.css"/>
+        <Stylesheet href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
         // sets the document title
         <Title text="PicoCRM"/>
         <Toast/>
@@ -46,6 +48,7 @@ pub fn App() -> impl IntoView {
         <Router>
             <main>
                 <Routes fallback=|| view! { <NotFoundPage /> }>
+                    <Route path=path!("/login") view=Login/>
                     <ParentRoute path=StaticSegment("") view=SidebarLayout>
                         <Route path=StaticSegment("") view=Dashboard/>
                         <ParentRoute path=path!("/contacts") view=|| view! {
