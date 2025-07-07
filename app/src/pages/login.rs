@@ -94,14 +94,14 @@ pub fn Login() -> impl IntoView {
                 <div class="card-body p-8">
                     <form class="space-y-4">
                         <div class="form-control">
-                            <label class="input-label font-medium text-gray-700">"电子邮箱"</label>
+                            <label class="input-label font-medium text-gray-700">"用户名"</label>
                             <div class="input-container">
                                 <span class="input-icon">
-                                    <i class="fas fa-envelope text-lg"></i>
+                                    <i class="fas fa-user text-lg"></i>
                                 </span>
                                 <input
-                                    type="email"
-                                    placeholder="your@email.com"
+                                    type="text"
+                                    placeholder="请输入用户名"
                                     class="input input-bordered w-full rounded-input bg-white/70 h-12 input-with-icon hover:bg-white/90 transition-colors"
                                     required
                                 />
@@ -116,7 +116,7 @@ pub fn Login() -> impl IntoView {
                                 </span>
                                 <input
                                     type=move || if password_visible.get() { "text" } else { "password" }
-                                    placeholder="••••••••"
+                                    placeholder="请输入密码"
                                     class="input input-bordered w-full rounded-input bg-white/70 h-12 input-with-icon pr-10 hover:bg-white/90 transition-colors"
                                     required
                                 />
