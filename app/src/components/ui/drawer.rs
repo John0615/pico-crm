@@ -11,7 +11,7 @@ pub fn DaisyDrawer(
     // 控制开关状态的信号
     is_open: RwSignal<bool>,
     // 抽屉内容
-    children: Children,
+    children: ChildrenFn,
 ) -> impl IntoView {
     let position_class = match position {
         "left" => "drawer-start",
@@ -35,7 +35,6 @@ pub fn DaisyDrawer(
             // 抽屉侧边栏
             <div class="drawer-side z-50">
                 <label
-                    for=id
                     aria-label="close sidebar"
                     class="drawer-overlay"
                     on:click=move |_| is_open.set(false)
@@ -44,7 +43,9 @@ pub fn DaisyDrawer(
                     class="menu bg-base-200 text-base-content min-h-full p-4"
                     style=format!("width: {}px", width)
                 >
+                    <Show when=move || is_open.get() fallback=|| ()>
                     {children()}
+                    </Show>
                 </ul>
             </div>
         </div>

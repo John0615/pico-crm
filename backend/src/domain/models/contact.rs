@@ -13,7 +13,26 @@ pub struct Contact {
     pub status: CustomerStatus,
     pub inserted_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    // pub communications: Vec<Communication>,
+    // pub deals: Vec<Deal>,
 }
+
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct Communication {
+//     id: CommunicationId,
+//     content: String,
+//     created_at: DateTime<Utc>,
+//     #[serde(skip)]
+//     sentiment_score: Option<f32>,
+// }
+
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct Deal {
+//     id: DealId,
+//     amount: f64,
+//     stage: DealStage,
+//     closed_at: Option<DateTime<Utc>>,
+// }
 
 #[derive(Debug, Clone)]
 pub struct UpdateContact {

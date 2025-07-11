@@ -2,6 +2,7 @@ use crate::components::features::{ContactModal, UpdateContactModal};
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
 use crate::components::ui::{
+    drawer::DaisyDrawer,
     message_box::delete_confirm,
     toast::{error, success},
 };
@@ -108,6 +109,7 @@ pub fn ContactsList() -> impl IntoView {
     let (edit_contact_uuid, set_edit_contact_uuid) = signal(String::new());
     let show_modal = RwSignal::new(false);
     let show_update_modal = RwSignal::new(false);
+    let open_drawer = RwSignal::new(false);
     let refresh_count = RwSignal::new(0);
     let query = use_query_map();
 
@@ -353,6 +355,9 @@ pub fn ContactsList() -> impl IntoView {
             </div>
             <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
             <UpdateContactModal show=show_update_modal contact_uuid=edit_contact_uuid on_finish=on_contact_modal_finish />
+            <DaisyDrawer id="contact-drawer" width=800 position="right" is_open=open_drawer >
+                <div>123</div>
+            </DaisyDrawer>
             <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data on_sort=on_sort>
                     <Column
@@ -528,7 +533,9 @@ pub fn ContactsList() -> impl IntoView {
                             let contact_uuid_delete = contact_uuid.clone();
                             view! {
                                 <div class="flex justify-end gap-1">
-                                    <a href=format!("/contacts/{}", contact_uuid) class="btn btn-ghost btn-xs">查看</a>
+                                    <button on:click=move |_ev| {
+                                        open_drawer.set(true);
+                                    } class="btn btn-ghost btn-xs">查看</button>
                                     <button on:click=move |_ev| {
                                         set_edit_contact_uuid.set(contact_uuid.clone());
                                         show_update_modal.set(true);
