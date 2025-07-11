@@ -1,8 +1,7 @@
-use crate::components::features::{ContactModal, UpdateContactModal};
+use crate::components::features::{ContactDetail, ContactModal, UpdateContactModal};
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable, SortValue};
 use crate::components::ui::{
-    drawer::DaisyDrawer,
     message_box::delete_confirm,
     toast::{error, success},
 };
@@ -355,9 +354,7 @@ pub fn ContactsList() -> impl IntoView {
             </div>
             <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
             <UpdateContactModal show=show_update_modal contact_uuid=edit_contact_uuid on_finish=on_contact_modal_finish />
-            <DaisyDrawer id="contact-drawer" width=800 position="right" is_open=open_drawer >
-                <div>123</div>
-            </DaisyDrawer>
+            <ContactDetail open_drawer=open_drawer />
             <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data on_sort=on_sort>
                     <Column
