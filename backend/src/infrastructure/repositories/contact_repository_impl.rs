@@ -9,7 +9,7 @@ use crate::{
         repositories::contact::ContactRepository,
         specifications::contact_spec::{ContactSpecification, SortDirection, SortOption},
     },
-    entity::contacts::{Column, Entity},
+    infrastructure::entity::contacts::{Column, Entity},
     infrastructure::mappers::contact_mapper::ContactMapper,
 };
 

@@ -1,7 +1,7 @@
 use crate::{
     domain::models::contact::{Contact, CustomerStatus, CustomerValue, UpdateContact},
-    entity::contacts::ActiveModel as ActiveContactEntity,
-    entity::contacts::Model as ContactEntity,
+    infrastructure::entity::contacts::ActiveModel as ActiveContactEntity,
+    infrastructure::entity::contacts::Model as ContactEntity,
 };
 use chrono::prelude::{DateTime, NaiveDateTime, TimeZone, Utc};
 use sea_orm::ActiveValue::Set;
