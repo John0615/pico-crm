@@ -10,7 +10,6 @@ use shared::contact::{Contact, UpdateContact};
 #[cfg(feature = "ssr")]
 mod ssr {
     pub use backend::application::services::contact_service::ContactAppService;
-    pub use backend::domain::services::contact_service::ContactService;
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
 }
@@ -22,8 +21,7 @@ pub async fn get_contact(uuid: String) -> Result<Option<Contact>, ServerFnError>
     let pool = expect_context::<Database>();
 
     let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let contact_service = ContactService::new(contact_repository);
-    let app_service = ContactAppService::new(contact_service);
+    let app_service = ContactAppService::new(contact_repository);
 
     println!("fetch contact uuid: {:?}", uuid);
     let result = app_service
@@ -42,8 +40,7 @@ pub async fn edit_contact(contact: UpdateContact) -> Result<(), ServerFnError> {
     let pool = expect_context::<Database>();
 
     let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let contact_service = ContactService::new(contact_repository);
-    let app_service = ContactAppService::new(contact_service);
+    let app_service = ContactAppService::new(contact_repository);
 
     println!("editing contact: {:?}", contact);
     let result = app_service

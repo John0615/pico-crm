@@ -1,6 +1,5 @@
 use crate::domain::models::pagination::Pagination;
 use crate::domain::repositories::contact::ContactRepository;
-use crate::domain::services::contact_service::ContactService;
 use crate::domain::specifications::contact_spec::{
     ContactFilters, ContactSpecification, SortOption,
 };
@@ -11,18 +10,18 @@ use shared::{
 };
 
 pub struct ContactAppService<R: ContactRepository> {
-    contact_service: ContactService<R>,
+    contact_repo: R,
 }
 
 impl<R: ContactRepository> ContactAppService<R> {
-    pub fn new(contact_service: ContactService<R>) -> Self {
-        Self { contact_service }
+    pub fn new(contact_repo: R) -> Self {
+        Self { contact_repo }
     }
 
     pub async fn fetch_contact(&self, uuid: String) -> Result<Option<Contact>, String> {
         let result = self
-            .contact_service
-            .fetch_contact(uuid)
+            .contact_repo
+            .get_contact(uuid)
             .await
             .map_err(|e| e.to_string())?
             .map(|contact| contact.into());
@@ -46,10 +45,7 @@ impl<R: ContactRepository> ContactAppService<R> {
         let spec = ContactSpecification::new(Some(filters), Some(sort_options))
             .map_err(|e| e.to_string())?;
         println!("spec: {:?}", spec);
-        let (contacts, total) = self
-            .contact_service
-            .fetch_contacts(spec, pagination)
-            .await?;
+        let (contacts, total) = self.contact_repo.contacts(spec, pagination).await?;
         let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact.into()).collect();
         Ok(ListResult {
             items: contacts,
@@ -69,7 +65,7 @@ impl<R: ContactRepository> ContactAppService<R> {
         let spec = ContactSpecification::new(Some(filters), Some(sort_options))
             .map_err(|e| e.to_string())?;
         println!("spec: {:?}", spec);
-        let contacts = self.contact_service.fetch_all_contacts(spec).await?;
+        let contacts = self.contact_repo.all_contacts(spec).await?;
         let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact.into()).collect();
 
         // 创建 Excel 工作簿
@@ -203,18 +199,18 @@ impl<R: ContactRepository> ContactAppService<R> {
 
     pub async fn create_contact(&self, contact: Contact) -> Result<(), String> {
         let contact = contact.into();
-        let _new_contact = self.contact_service.create_contact(contact).await?;
+        let _new_contact = self.contact_repo.create_contact(contact).await?;
         Ok(())
     }
 
     pub async fn update_contact(&self, contact: UpdateContact) -> Result<(), String> {
         let contact = contact.into();
-        let _new_contact = self.contact_service.update_contact(contact).await?;
+        let _new_contact = self.contact_repo.update_contact(contact).await?;
         Ok(())
     }
 
     pub async fn delete_contact(&self, uuid: String) -> Result<(), String> {
-        let _deleted_contact = self.contact_service.delete_contact(uuid).await?;
+        let _deleted_contact = self.contact_repo.delete_contact(uuid).await?;
         Ok(())
     }
 }

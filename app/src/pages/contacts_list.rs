@@ -20,7 +20,6 @@ use shared::{
 #[cfg(feature = "ssr")]
 pub mod ssr {
     pub use backend::application::services::contact_service::ContactAppService;
-    pub use backend::domain::services::contact_service::ContactService;
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
 }
@@ -31,8 +30,7 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
 
     let pool = expect_context::<Database>();
     let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let contact_service = ContactService::new(contact_repository);
-    let app_service = ContactAppService::new(contact_service);
+    let app_service = ContactAppService::new(contact_repository);
 
     println!("pool {:?}", pool);
 
@@ -53,8 +51,7 @@ pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
 
     let pool = expect_context::<Database>();
     let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let contact_service = ContactService::new(contact_repository);
-    let app_service = ContactAppService::new(contact_service);
+    let app_service = ContactAppService::new(contact_repository);
 
     println!("pool {:?}", pool);
 
@@ -75,8 +72,7 @@ pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnEr
 
     let pool = expect_context::<Database>();
     let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let contact_service = ContactService::new(contact_repository);
-    let app_service = ContactAppService::new(contact_service);
+    let app_service = ContactAppService::new(contact_repository);
 
     println!("pool {:?}", pool);
 
