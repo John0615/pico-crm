@@ -1,2 +1,3 @@
+pub mod commands;
 pub mod mappers;
-pub mod services;
+pub mod queries;

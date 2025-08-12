@@ -9,9 +9,15 @@ use shared::contact::{Contact, UpdateContact};
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    pub use backend::application::services::contact_service::ContactAppService;
+    pub use backend::application::{
+        commands::contact_service::ContactAppService,
+        queries::contact_service::ContactAppService as ContactQueryService,
+    };
     pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
+    pub use backend::infrastructure::{
+        queries::contact_query_impl::SeaOrmContactQuery,
+        repositories::contact_repository_impl::SeaOrmContactRepository,
+    };
 }
 
 #[server]
@@ -20,8 +26,8 @@ pub async fn get_contact(uuid: String) -> Result<Option<Contact>, ServerFnError>
 
     let pool = expect_context::<Database>();
 
-    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let app_service = ContactAppService::new(contact_repository);
+    let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
+    let app_service = ContactQueryService::new(contact_query);
 
     println!("fetch contact uuid: {:?}", uuid);
     let result = app_service

@@ -1,30 +1,30 @@
 use crate::domain::models::pagination::Pagination;
-use crate::domain::repositories::contact::ContactRepository;
+use crate::domain::queries::contact::ContactQuery as CQuery;
 use crate::domain::specifications::contact_spec::{
     ContactFilters, ContactSpecification, SortOption,
 };
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Workbook};
 use shared::{
     ListResult,
-    contact::{Contact, ContactQuery, UpdateContact},
+    contact::{Contact, ContactQuery},
 };
 
-pub struct ContactAppService<R: ContactRepository> {
-    contact_repo: R,
+pub struct ContactAppService<R: CQuery> {
+    contact_query: R,
 }
 
-impl<R: ContactRepository> ContactAppService<R> {
-    pub fn new(contact_repo: R) -> Self {
-        Self { contact_repo }
+impl<R: CQuery<Result = Contact>> ContactAppService<R> {
+    pub fn new(contact_query: R) -> Self {
+        Self { contact_query }
     }
 
     pub async fn fetch_contact(&self, uuid: String) -> Result<Option<Contact>, String> {
         let result = self
-            .contact_repo
+            .contact_query
             .get_contact(uuid)
             .await
             .map_err(|e| e.to_string())?
-            .map(|contact| contact.into());
+            .map(|contact| contact);
         Ok(result)
     }
 
@@ -45,8 +45,8 @@ impl<R: ContactRepository> ContactAppService<R> {
         let spec = ContactSpecification::new(Some(filters), Some(sort_options))
             .map_err(|e| e.to_string())?;
         println!("spec: {:?}", spec);
-        let (contacts, total) = self.contact_repo.contacts(spec, pagination).await?;
-        let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact.into()).collect();
+        let (contacts, total) = self.contact_query.contacts(spec, pagination).await?;
+        let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact).collect();
         Ok(ListResult {
             items: contacts,
             total,
@@ -65,8 +65,8 @@ impl<R: ContactRepository> ContactAppService<R> {
         let spec = ContactSpecification::new(Some(filters), Some(sort_options))
             .map_err(|e| e.to_string())?;
         println!("spec: {:?}", spec);
-        let contacts = self.contact_repo.all_contacts(spec).await?;
-        let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact.into()).collect();
+        let contacts = self.contact_query.all_contacts(spec).await?;
+        let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact).collect();
 
         // 创建 Excel 工作簿
         let mut workbook = Workbook::new();
@@ -195,22 +195,5 @@ impl<R: ContactRepository> ContactAppService<R> {
             .map_err(|e| format!("保存Excel失败: {}", e))?;
 
         Ok(buf)
-    }
-
-    pub async fn create_contact(&self, contact: Contact) -> Result<(), String> {
-        let contact = contact.into();
-        let _new_contact = self.contact_repo.create_contact(contact).await?;
-        Ok(())
-    }
-
-    pub async fn update_contact(&self, contact: UpdateContact) -> Result<(), String> {
-        let contact = contact.into();
-        let _new_contact = self.contact_repo.update_contact(contact).await?;
-        Ok(())
-    }
-
-    pub async fn delete_contact(&self, uuid: String) -> Result<(), String> {
-        let _deleted_contact = self.contact_repo.delete_contact(uuid).await?;
-        Ok(())
     }
 }

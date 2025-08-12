@@ -1,15 +1,33 @@
+use crate::infrastructure::utils::{naive_to_utc, parse_date_time_to_string, utc_to_naive};
 use crate::{
     domain::models::contact::{Contact, CustomerStatus, CustomerValue, UpdateContact},
     infrastructure::entity::contacts::ActiveModel as ActiveContactEntity,
     infrastructure::entity::contacts::Model as ContactEntity,
 };
-use chrono::prelude::{DateTime, NaiveDateTime, TimeZone, Utc};
+use chrono::prelude::Utc;
 use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::Uuid;
+use shared::contact::Contact as SharedContact;
 
 pub struct ContactMapper;
 
 impl ContactMapper {
+    pub fn to_view(entity: ContactEntity) -> SharedContact {
+        SharedContact {
+            contact_uuid: entity.contact_uuid.to_string(),
+            user_name: entity.user_name,
+            company: entity.company,
+            position: entity.position,
+            phone_number: entity.phone_number,
+            email: entity.email,
+            value_level: entity.value_level,
+            status: entity.status,
+            last_contact: parse_date_time_to_string(entity.last_contact),
+            inserted_at: parse_date_time_to_string(entity.inserted_at),
+            updated_at: parse_date_time_to_string(entity.updated_at),
+        }
+    }
+
     pub fn to_domain(entity: ContactEntity) -> Contact {
         let value = match entity.value_level {
             1 => CustomerValue::Active,
@@ -132,12 +150,4 @@ impl ContactMapper {
             status: Set(status),
         }
     }
-}
-
-fn naive_to_utc(naive: NaiveDateTime) -> DateTime<Utc> {
-    Utc.from_utc_datetime(&naive)
-}
-
-fn utc_to_naive(utc: DateTime<Utc>) -> NaiveDateTime {
-    utc.naive_utc()
 }

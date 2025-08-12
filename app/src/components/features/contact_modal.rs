@@ -9,7 +9,7 @@ use shared::contact::Contact;
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    pub use backend::application::services::contact_service::ContactAppService;
+    pub use backend::application::commands::contact_service::ContactAppService;
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
 }
