@@ -68,7 +68,7 @@ where
     F: Fn() + Copy + Send + 'static,
 {
     let initial_fields = Resource::new(
-        move || (contact_uuid.get()),
+        move || contact_uuid.get(),
         |uuid| async move {
             let init_contact = if uuid.is_empty() {
                 Contact {

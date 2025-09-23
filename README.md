@@ -82,11 +82,17 @@ graph TB
 # 克隆项目
 git clone https://github.com/yourname/pico-crm.git
 
-# 启动开发服务器
-cargo leptos watch
+# 安装js依赖
+npm i
+
+# 启动postgres容器
+podman run --name my-postgres-temp -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=pico_crm_dev -p 5432:5432 -d postgres:latest
 
 # 生成数据库迁移脚本(示例)
 sea-orm-cli migrate generate create_table_users
 
 # 生成实体
 sea-orm-cli generate entity -u postgres://postgres:postgres@localhost:5432/pico_crm_dev -o backend/src/entity
+
+# 启动开发服务器
+cargo leptos watch
