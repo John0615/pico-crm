@@ -9,13 +9,13 @@ lto = true
 opt-level = 'z'
 
 [workspace.dependencies]
-leptos = { version = "0.8.2" }
-leptos_meta = { version = "0.8.2" }
-leptos_router = { version = "0.8.2" }
-leptos_axum = { version = "0.8.2" }
+leptos = { version = "0.8.10" }
+leptos_meta = { version = "0.8.5" }
+leptos_router = { version = "0.8.8" }
+leptos_axum = { version = "0.8.6" }
 reactive_stores = "0.2.2"
 
-axum = "0.8.1"
+axum = "0.8.6"
 cfg-if = "1"
 console_error_panic_hook = "0.1.7"
 console_log = "1"
