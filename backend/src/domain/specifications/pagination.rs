@@ -1,6 +1,6 @@
 use crate::domain::errors::pagination::PaginationError;
 
-/// 分页协议（业务概念）
+/// 分页规约
 #[derive(Debug, Clone)]
 pub struct Pagination {
     pub page: u64,
@@ -8,7 +8,7 @@ pub struct Pagination {
 }
 
 impl Pagination {
-    /// 创建分页（应用层调用）
+    /// 创建分页
     pub fn new(page: u64, size: u64) -> Result<Self, PaginationError> {
         const MAX_PAGE_SIZE: u64 = 100;
 

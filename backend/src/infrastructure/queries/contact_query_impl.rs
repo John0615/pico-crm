@@ -1,8 +1,8 @@
 use crate::{
     domain::{
-        models::{contact::CustomerStatus, pagination::Pagination},
+        models::{contact::CustomerStatus},
         queries::contact::ContactQuery,
-        specifications::contact_spec::{ContactSpecification, SortDirection, SortOption},
+        specifications::{contact_spec::{ContactSpecification, SortDirection, SortOption}, pagination::Pagination},
     },
     infrastructure::entity::contacts::{Column, Entity},
     infrastructure::mappers::contact_mapper::ContactMapper,

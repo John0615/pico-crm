@@ -1,5 +1,4 @@
-use crate::domain::models::pagination::Pagination;
-use crate::domain::specifications::contact_spec::ContactSpecification;
+use crate::domain::specifications::{contact_spec::ContactSpecification, pagination::Pagination};
 use std::fmt::Debug;
 
 pub trait ContactQuery: Send + Sync {

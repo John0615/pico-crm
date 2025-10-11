@@ -1,8 +1,7 @@
-use crate::domain::models::pagination::Pagination;
 use crate::domain::queries::contact::ContactQuery as CQuery;
-use crate::domain::specifications::contact_spec::{
+use crate::domain::specifications::{contact_spec::{
     ContactFilters, ContactSpecification, SortOption,
-};
+}, pagination::Pagination};
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Workbook};
 use shared::{
     ListResult,
