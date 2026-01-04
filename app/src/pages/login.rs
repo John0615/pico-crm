@@ -1,7 +1,55 @@
+use crate::components::ui::toast::{error, success};
 use leptos::prelude::*;
+
+#[server]
+pub async fn login_action(user_name: String, password: String) -> Result<(), ServerFnError> {
+    use leptos::logging::log;
+
+    log!("Login: {:?} {:?}", user_name, password);
+    if user_name.is_empty() {
+        return Err(ServerFnError::ServerError("用户名不能为空".to_string()));
+    }
+
+    if password.len() < 6 {
+        return Err(ServerFnError::ServerError("密码长度至少6位".to_string()));
+    }
+
+    // 模拟其他验证逻辑
+    if user_name != "admin" || password != "123456" {
+        return Err(ServerFnError::ServerError("用户名或密码错误".to_string()));
+    }
+    Ok(())
+}
 
 #[component]
 pub fn Login() -> impl IntoView {
+    let do_login = ServerAction::<LoginAction>::new();
+    let result = do_login.value();
+
+    Effect::new(move |_| {
+        let current_value = result.get(); // 得到 Option<Result<(), ServerFnError>>
+
+        if let Some(action_result) = current_value {
+            // 现在 action_result 是 Result<(), ServerFnError>
+            if action_result.is_ok() {
+                // 登录成功后跳转到主页
+                success("登录成功".to_string());
+                // navigate_to("/home");
+            }
+
+            if action_result.is_err() {
+                // 登录失败后显示错误信息
+                let error_message = action_result.err().unwrap().to_string();
+                let clean_error = if error_message.starts_with("error running server function: ") {
+                    error_message.replace("error running server function: ", "")
+                } else {
+                    error_message
+                };
+                error(clean_error);
+            }
+        }
+    });
+
     // 密码可见性状态
     let (password_visible, set_password_visible) = signal(false);
     let toggle_password = move |_| {
@@ -91,8 +139,8 @@ pub fn Login() -> impl IntoView {
                     <p class="opacity-90 mt-1 text-sm">"开启您的专属体验"</p>
                 </div>
 
-                <div class="card-body p-8">
-                    <form class="space-y-4">
+                <div class="card-body p-8 space-y-4">
+                    <ActionForm action=do_login>
                         <div class="form-control">
                             <label class="input-label font-medium text-gray-700">"用户名"</label>
                             <div class="input-container">
@@ -101,6 +149,7 @@ pub fn Login() -> impl IntoView {
                                 </span>
                                 <input
                                     type="text"
+                                    name="user_name"
                                     placeholder="请输入用户名"
                                     class="input input-bordered w-full rounded-input bg-white/70 h-12 input-with-icon hover:bg-white/90 transition-colors"
                                     required
@@ -116,6 +165,7 @@ pub fn Login() -> impl IntoView {
                                 </span>
                                 <input
                                     type=move || if password_visible.get() { "text" } else { "password" }
+                                    name="password"
                                     placeholder="请输入密码"
                                     class="input input-bordered w-full rounded-input bg-white/70 h-12 input-with-icon pr-10 hover:bg-white/90 transition-colors"
                                     required
@@ -146,7 +196,7 @@ pub fn Login() -> impl IntoView {
                         >
                             "立即登录" <i class="fas fa-arrow-right-long ml-2 text-lg"></i>
                         </button>
-                    </form>
+                    </ActionForm>
 
                     <div class="text-center mt-6 pt-5 border-t border-gray-100/50">
                         <p class="text-gray-500 text-sm">"新用户？"
