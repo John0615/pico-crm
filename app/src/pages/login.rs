@@ -1,8 +1,16 @@
 use crate::components::ui::toast::{error, success};
 use leptos::prelude::*;
 
+#[cfg(feature = "ssr")]
+pub mod login_ssr {
+    pub use backend::application::queries::user_service::UserAppService as UserQueryService;
+    pub use backend::infrastructure::db::Database;
+    pub use backend::infrastructure::queries::user_query_impl::SeaOrmUserQuery;
+}
+
 #[server]
 pub async fn login_action(user_name: String, password: String) -> Result<(), ServerFnError> {
+    use self::login_ssr::*;
     use leptos::logging::log;
 
     log!("Login: {:?} {:?}", user_name, password);
@@ -18,6 +26,22 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
     if user_name != "admin" || password != "123456" {
         return Err(ServerFnError::ServerError("用户名或密码错误".to_string()));
     }
+
+    let pool = expect_context::<Database>();
+    let user_query = SeaOrmUserQuery::new(pool.connection.clone());
+    let app_service = UserQueryService::new(user_query);
+
+    println!("pool {:?}", pool);
+
+    println!("Fetching user...");
+
+    let res = app_service
+        .fetch_user(user_name, password)
+        .await
+        .map_err(|e| ServerFnError::new(e))?;
+
+    println!("User fetched: {:?}", res);
+
     Ok(())
 }
 
@@ -128,10 +152,6 @@ pub fn Login() -> impl IntoView {
                 }
                 "#}
             </style>
-
-            <div class="bubble w-80 h-80 -left-20 -top-20"></div>
-            <div class="bubble w-64 h-64 right-0 bottom-1/3"></div>
-            <div class="bubble w-96 h-96 -right-20 top-1/4"></div>
 
             <div class="card w-full max-w-md bg-white/90 backdrop-blur-sm border border-white/20 rounded-soft overflow-hidden floating-card">
                 <div class="bg-gradient-to-r from-purple-600 to-pink-500 text-white p-6 text-center rounded-t-soft">

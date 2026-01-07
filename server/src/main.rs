@@ -1,17 +1,14 @@
+use app::*;
 use axum::Router;
+use backend::infrastructure::db::Database;
+use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, LeptosRoutes};
-use app::*;
-use leptos::logging::log;
-use std::env;
 use migration::{Migrator, MigratorTrait};
-use backend::infrastructure::db::Database;
-
-
+use std::env;
 
 #[tokio::main]
 async fn main() {
-
     // 加载.env文件
     let env = env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
     println!("当前环境: {}", env);
@@ -50,7 +47,7 @@ async fn main() {
             {
                 let leptos_options = leptos_options.clone();
                 move || shell(leptos_options.clone())
-            }
+            },
         )
         .fallback(leptos_axum::file_and_error_handler(shell))
         .with_state(leptos_options);
