@@ -15,3 +15,6 @@ chrono.workspace = true
 rust_xlsxwriter.workspace = true
 rand.workspace = true
 argon2.workspace = true
+jsonwebtoken.workspace = true
+async-trait.workspace = true
+serde.workspace = true
