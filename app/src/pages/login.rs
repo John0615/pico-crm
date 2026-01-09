@@ -14,7 +14,7 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
     use cookie::{time::Duration, Cookie, SameSite};
     use http::header::SET_COOKIE;
     use leptos::logging::log;
-    use leptos_axum::{redirect, ResponseOptions};
+    use leptos_axum::ResponseOptions;
 
     log!("Login: {:?} {:?}", user_name, password);
     if user_name.is_empty() {
@@ -68,7 +68,6 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
             })?;
 
     response.insert_header(SET_COOKIE, header_value);
-    redirect("/");
 
     Ok(())
 }
@@ -77,6 +76,7 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
 pub fn Login() -> impl IntoView {
     let do_login = ServerAction::<LoginAction>::new();
     let result = do_login.value();
+    let navigate = leptos_router::hooks::use_navigate();
 
     Effect::new(move |_| {
         let current_value = result.get(); // 得到 Option<Result<(), ServerFnError>>
@@ -86,7 +86,7 @@ pub fn Login() -> impl IntoView {
             if action_result.is_ok() {
                 // 登录成功后跳转到主页
                 success("登录成功".to_string());
-                // navigate_to("/home");
+                navigate("/", Default::default());
             }
 
             if action_result.is_err() {
