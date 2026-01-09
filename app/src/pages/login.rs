@@ -3,15 +3,18 @@ use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 pub mod login_ssr {
-    pub use backend::application::queries::user_service::UserAppService as UserQueryService;
+    pub use backend::application::commands::auth::AuthAppService;
+    pub use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
     pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::queries::user_query_impl::SeaOrmUserQuery;
 }
 
 #[server]
 pub async fn login_action(user_name: String, password: String) -> Result<(), ServerFnError> {
     use self::login_ssr::*;
+    use cookie::{time::Duration, Cookie, SameSite};
+    use http::header::SET_COOKIE;
     use leptos::logging::log;
+    use leptos_axum::{redirect, ResponseOptions};
 
     log!("Login: {:?} {:?}", user_name, password);
     if user_name.is_empty() {
@@ -28,19 +31,44 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
     }
 
     let pool = expect_context::<Database>();
-    let user_query = SeaOrmUserQuery::new(pool.connection.clone());
-    let app_service = UserQueryService::new(user_query);
+    let auth = JwtAuthProvider::new(pool.connection.clone());
+    let auth_app_service = AuthAppService::new(auth);
 
     println!("pool {:?}", pool);
 
     println!("Fetching user...");
 
-    let res = app_service
-        .fetch_user(user_name, password)
+    let token = auth_app_service
+        .authenticate(&user_name, &password)
         .await
         .map_err(|e| ServerFnError::new(e))?;
 
-    println!("User fetched: {:?}", res);
+    println!("User Token: {:?}", token);
+
+    let response = expect_context::<ResponseOptions>();
+
+    // 使用cookie库构建cookie
+    let session_cookie = Cookie::build(("session_token", token))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .max_age(Duration::hours(2))
+        .build();
+
+    // 设置cookie到响应头
+    let cookie_str = session_cookie.to_string();
+    let header_value: http::HeaderValue =
+        cookie_str
+            .parse()
+            .map_err(|e: http::header::InvalidHeaderValue| {
+                ServerFnError::<http::header::InvalidHeaderValue>::ServerError(format!(
+                    "Failed to parse cookie: {}",
+                    e
+                ))
+            })?;
+
+    response.insert_header(SET_COOKIE, header_value);
+    redirect("/");
 
     Ok(())
 }

@@ -20,6 +20,7 @@ serde.workspace = true
 serde_json.workspace = true
 wasm-bindgen.workspace = true
 js-sys = "0.3"
+cookie.workspace = true
 web-sys = { version = "0.3", features = [
     "Blob",
     "Url",
