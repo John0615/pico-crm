@@ -8,7 +8,11 @@ pub mod login_ssr {
     pub use backend::infrastructure::db::Database;
 }
 
-#[server]
+#[server(
+    name = LoginAction,
+    prefix = "/api",
+    endpoint = "/login",
+)]
 pub async fn login_action(user_name: String, password: String) -> Result<(), ServerFnError> {
     use self::login_ssr::*;
     use cookie::{time::Duration, Cookie, SameSite};
@@ -48,7 +52,7 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
     let response = expect_context::<ResponseOptions>();
 
     // 使用cookie库构建cookie
-    let session_cookie = Cookie::build(("session_token", token))
+    let session_cookie = Cookie::build(("user_session", token))
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)

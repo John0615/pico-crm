@@ -30,7 +30,11 @@ pub mod ssr {
     };
 }
 
-#[server]
+#[server(
+    name = FetchContacts,
+    prefix = "/api",
+    endpoint = "/fetch_contacts",
+)]
 pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>, ServerFnError> {
     use self::ssr::*;
 

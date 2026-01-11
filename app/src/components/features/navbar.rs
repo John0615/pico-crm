@@ -1,6 +1,10 @@
 use leptos::{prelude::*, task::spawn_local};
 
-#[server]
+#[server(
+    name = Logout,
+    prefix = "/api",
+    endpoint = "/logout",
+)]
 pub async fn logout() -> Result<(), ServerFnError> {
     leptos_axum::redirect("/login");
     Ok(())

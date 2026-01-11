@@ -1,11 +1,14 @@
+use crate::middlewares::auth_middleware::global_api_auth_middleware;
 use app::*;
-use axum::Router;
+use axum::{middleware::from_fn_with_state, Router};
 use backend::infrastructure::db::Database;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, LeptosRoutes};
 use migration::{Migrator, MigratorTrait};
 use std::env;
+
+pub mod middlewares;
 
 #[tokio::main]
 async fn main() {
@@ -25,6 +28,7 @@ async fn main() {
     let leptos_options = conf.leptos_options;
     // Generate the list of routes in your Leptos App
     let routes = generate_route_list(App);
+    let db_clone = db.clone();
 
     let app = Router::new()
         // 这是修改前模板生成的默认路由
@@ -49,6 +53,7 @@ async fn main() {
                 move || shell(leptos_options.clone())
             },
         )
+        .layer(from_fn_with_state(db_clone, global_api_auth_middleware))
         .fallback(leptos_axum::file_and_error_handler(shell))
         .with_state(leptos_options);
 
