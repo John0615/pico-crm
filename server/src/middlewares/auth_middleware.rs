@@ -5,11 +5,11 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Redirect},
 };
-use cookie::{Cookie, CookieJar};
 use backend::application::commands::auth::AuthAppService;
 use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
 use backend::infrastructure::db::Database;
-
+use cookie::{Cookie, CookieJar};
+use leptos::prelude::*;
 
 fn get_cookie_jar_from_req<B>(req: &Request<B>) -> CookieJar {
     let mut jar = CookieJar::new();
@@ -65,7 +65,7 @@ pub async fn global_route_auth_middleware(
 
 pub async fn global_api_auth_middleware(
     State(db): State<Database>,
-    mut req: Request<Body>,
+    req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
     let white_list = ["/contacts", "/login", "/api/logout", "/api/login"];
@@ -81,27 +81,27 @@ pub async fn global_api_auth_middleware(
             // println!("token: {:?}", token);
             let auth = JwtAuthProvider::new(db.connection.clone());
             let auth_app_service = AuthAppService::new(auth);
-            let user_result = auth_app_service.get_user_by_token(token).await.map_err(|err| {
-                println!("error: {:?}", err);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+            let user_result = auth_app_service
+                .get_user_by_token(token)
+                .await
+                .map_err(|err| {
+                    println!("error: {:?}", err);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
             // println!("user: {:?}", user_result);
             if let Some(user) = user_result {
-                req.extensions_mut().insert(user);
+                provide_context(user.clone());
             }
             Ok(next.run(req).await)
-        },
-        Err(_) => {
-            handle_auth_failure(&path).await
         }
+        Err(_) => handle_auth_failure(&path).await,
     }
 }
 
 async fn handle_auth_failure(path: &str) -> Result<Response<Body>, StatusCode> {
     if path.starts_with("/api") {
-        let json_body = Body::from(
-            r#"{"code":401,"msg":"未登录，请先登录后再操作","success":false}"#
-        );
+        let json_body =
+            Body::from(r#"{"code":401,"msg":"未登录，请先登录后再操作","success":false}"#);
         let mut res = Response::new(json_body);
         *res.status_mut() = StatusCode::UNAUTHORIZED;
         res.headers_mut().insert(
