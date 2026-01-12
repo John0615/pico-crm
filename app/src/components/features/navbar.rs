@@ -1,4 +1,6 @@
+use leptos::logging;
 use leptos::{prelude::*, task::spawn_local};
+use shared::user::User;
 
 #[server(
     name = Logout,
@@ -10,6 +12,21 @@ pub async fn logout() -> Result<(), ServerFnError> {
     Ok(())
 }
 
+#[server(
+    name = GetUserInfo,
+    prefix = "/api",
+    endpoint = "/get_user_info",
+)]
+pub async fn get_user_info() -> Result<User, ServerFnError> {
+    use axum::extract::Extension;
+    use leptos::logging::log;
+    use leptos_axum::extract;
+
+    let Extension(user): Extension<User> = extract().await?;
+    log!("usereeeeeeeee: {:?}", user);
+    Ok(user)
+}
+
 #[component]
 pub fn Navbar() -> impl IntoView {
     let logout = move |_| {
@@ -17,6 +34,16 @@ pub fn Navbar() -> impl IntoView {
             let _result = logout().await;
         });
     };
+    let data = Resource::new(
+        move || (),
+        |_| async move {
+            let result = get_user_info().await.unwrap_or_else(|e| {
+                logging::error!("Error loading user: {e}");
+                User::default()
+            });
+            result
+        },
+    );
     view! {
         <div class="navbar bg-base-100 sticky top-0 z-50 border-b border-base-200 shadow-sm">
             <div class="flex-none lg:hidden">
@@ -26,6 +53,10 @@ pub fn Navbar() -> impl IntoView {
                     </svg>
                 </label>
             </div>
+            <Transition>
+            uuid: {move || data.get().unwrap_or_default().uuid}
+            </Transition>
+
 
             // <div class="breadcrumbs text-sm pl-2">
             //   <ul>

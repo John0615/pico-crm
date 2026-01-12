@@ -9,7 +9,6 @@ use backend::application::commands::auth::AuthAppService;
 use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
 use backend::infrastructure::db::Database;
 use cookie::{Cookie, CookieJar};
-use leptos::prelude::*;
 
 fn get_cookie_jar_from_req<B>(req: &Request<B>) -> CookieJar {
     let mut jar = CookieJar::new();
@@ -65,7 +64,7 @@ pub async fn global_route_auth_middleware(
 
 pub async fn global_api_auth_middleware(
     State(db): State<Database>,
-    req: Request<Body>,
+    mut req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
     let white_list = ["/contacts", "/login", "/api/logout", "/api/login"];
@@ -90,7 +89,7 @@ pub async fn global_api_auth_middleware(
                 })?;
             // println!("user: {:?}", user_result);
             if let Some(user) = user_result {
-                provide_context(user.clone());
+                req.extensions_mut().insert(user.clone());
             }
             Ok(next.run(req).await)
         }
