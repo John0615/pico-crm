@@ -1,5 +1,5 @@
 use crate::utils::api::call_api;
-// use leptos::logging;
+use leptos::logging;
 use leptos::{prelude::*, task::spawn_local};
 use shared::user::User;
 
@@ -35,16 +35,16 @@ pub fn Navbar() -> impl IntoView {
             let _result = call_api(logout()).await;
         });
     };
-    // let data = Resource::new(
-    //     move || (),
-    //     |_| async move {
-    //         let result = call_api(get_user_info()).await.unwrap_or_else(|e| {
-    //             logging::error!("Error loading user: {e}");
-    //             User::default()
-    //         });
-    //         result
-    //     },
-    // );
+    let data = Resource::new(
+        move || (),
+        |_| async move {
+            let result = call_api(get_user_info()).await.unwrap_or_else(|e| {
+                logging::error!("Error loading user: {e}");
+                User::default()
+            });
+            result
+        },
+    );
     view! {
         <div class="navbar bg-base-100 sticky top-0 z-50 border-b border-base-200 shadow-sm">
             <div class="flex-none lg:hidden">
@@ -54,10 +54,6 @@ pub fn Navbar() -> impl IntoView {
                     </svg>
                 </label>
             </div>
-            // <Transition>
-            // uuid: {move || data.get().unwrap_or_default().uuid}
-            // </Transition>
-
 
             // <div class="breadcrumbs text-sm pl-2">
             //   <ul>
@@ -98,7 +94,9 @@ pub fn Navbar() -> impl IntoView {
                     <label tabindex="0" class="btn btn-ghost btn-circle avatar hover:bg-base-200">
                         <div class="avatar">
                           <div class="w-8 rounded-full">
-                            <img src="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp" />
+                            <Suspense>
+                              <img src=move || data.get().unwrap_or_default().avatar_url />
+                            </Suspense>
                           </div>
                         </div>
                     </label>
