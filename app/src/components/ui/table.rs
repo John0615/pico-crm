@@ -122,16 +122,18 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
                     />
                 </tr>
             </thead>
-            <tbody>
-                <Transition
-                    fallback=move || view! {
+            <Transition
+                fallback=move || view! {
+                    <tbody>
                         <tr class="h-[calc(100vh-300px)]">
                             <td colspan="9" class="h-32 text-center align-middle">
                                 <span class="loading loading-bars loading-xl"></span>
                             </td>
                         </tr>
-                    }
-                >
+                    </tbody>
+                }
+            >
+                <tbody>
                     <Show
                         when=move || !data.get().map(|d| d.0.is_empty()).unwrap_or_default()
                         fallback=move || view! {
@@ -178,8 +180,8 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
                             }
                         />
                     </Show>
-                </Transition>
-            </tbody>
+                </tbody>
+            </Transition>
         </table>
     }
 }
