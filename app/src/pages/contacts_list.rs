@@ -5,6 +5,7 @@ use crate::components::ui::{
     message_box::delete_confirm,
     toast::{error, success},
 };
+use crate::utils::api::call_api;
 use crate::utils::file_download::download_file;
 use js_sys::Math::random;
 use leptos::logging;
@@ -38,6 +39,9 @@ pub mod ssr {
 pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>, ServerFnError> {
     use self::ssr::*;
 
+    // 认证检查已由中间件统一处理，这里可以安全地获取用户信息
+    let _user = use_context::<shared::user::User>();
+
     let pool = expect_context::<Database>();
     let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
     let app_service = ContactQueryService::new(contact_query);
@@ -59,6 +63,9 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
 pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
     use self::ssr::*;
 
+    // 认证检查已由中间件统一处理
+    let _user = use_context::<shared::user::User>();
+
     let pool = expect_context::<Database>();
     let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
     let app_service = ContactAppService::new(contact_repository);
@@ -79,6 +86,9 @@ pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
 #[server]
 pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnError> {
     use self::ssr::*;
+
+    // 认证检查已由中间件统一处理
+    let _user = use_context::<shared::user::User>();
 
     let pool = expect_context::<Database>();
     let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
@@ -177,7 +187,7 @@ pub fn ContactsList() -> impl IntoView {
                 sort: Some(sort_options),
                 filters: Some(filters),
             };
-            let result = fetch_contacts(params).await.unwrap_or_else(|e| {
+            let result = call_api(fetch_contacts(params)).await.unwrap_or_else(|e| {
                 logging::error!("Error loading contacts: {e}");
                 ListResult {
                     items: Vec::new(),
@@ -223,7 +233,7 @@ pub fn ContactsList() -> impl IntoView {
                 logging::error!("delete row contact_uuid: {:?}", contact_uuid);
                 let uuid = contact_uuid.clone();
                 spawn_local(async move {
-                    let result = delete_contact(uuid).await;
+                    let result = call_api(delete_contact(uuid)).await;
                     match result {
                         Ok(_) => {
                             success("操作成功".to_string());
@@ -279,7 +289,7 @@ pub fn ContactsList() -> impl IntoView {
         // logging::error!("export contacts with params: {:?} ", &params);
 
         spawn_local(async move {
-            let result = export_contacts(params).await;
+            let result = call_api(export_contacts(params)).await;
             // logging::error!("export result: {:?}", result);
 
             match result {

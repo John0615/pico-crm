@@ -1,4 +1,5 @@
-use leptos::logging;
+use crate::utils::api::call_api;
+// use leptos::logging;
 use leptos::{prelude::*, task::spawn_local};
 use shared::user::User;
 
@@ -31,19 +32,19 @@ pub async fn get_user_info() -> Result<User, ServerFnError> {
 pub fn Navbar() -> impl IntoView {
     let logout = move |_| {
         spawn_local(async move {
-            let _result = logout().await;
+            let _result = call_api(logout()).await;
         });
     };
-    let data = Resource::new(
-        move || (),
-        |_| async move {
-            let result = get_user_info().await.unwrap_or_else(|e| {
-                logging::error!("Error loading user: {e}");
-                User::default()
-            });
-            result
-        },
-    );
+    // let data = Resource::new(
+    //     move || (),
+    //     |_| async move {
+    //         let result = call_api(get_user_info()).await.unwrap_or_else(|e| {
+    //             logging::error!("Error loading user: {e}");
+    //             User::default()
+    //         });
+    //         result
+    //     },
+    // );
     view! {
         <div class="navbar bg-base-100 sticky top-0 z-50 border-b border-base-200 shadow-sm">
             <div class="flex-none lg:hidden">
@@ -53,9 +54,9 @@ pub fn Navbar() -> impl IntoView {
                     </svg>
                 </label>
             </div>
-            <Transition>
-            uuid: {move || data.get().unwrap_or_default().uuid}
-            </Transition>
+            // <Transition>
+            // uuid: {move || data.get().unwrap_or_default().uuid}
+            // </Transition>
 
 
             // <div class="breadcrumbs text-sm pl-2">

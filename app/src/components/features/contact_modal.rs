@@ -3,6 +3,7 @@ use crate::components::ui::form::{
 };
 use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
+use crate::utils::api::call_api;
 use leptos::logging::log;
 use leptos::prelude::*;
 use shared::contact::Contact;
@@ -147,7 +148,7 @@ where
         };
         log!("Submitting: {:?}", contact);
         // 调用API并处理结果
-        match add_contact(contact).await {
+        match call_api(add_contact(contact)).await {
             Ok(_) => {
                 log!("添加成功");
                 show.set(false);
@@ -157,7 +158,6 @@ where
             }
             Err(e) => {
                 log!("API错误: {:?}", e);
-                success("操作失败".to_string());
                 // 根据错误类型转换
                 Err(vec![e.to_string()])
             }

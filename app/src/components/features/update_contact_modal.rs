@@ -3,6 +3,7 @@ use crate::components::ui::form::{
 };
 use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
+use crate::utils::api::call_api;
 use leptos::logging::log;
 use leptos::prelude::*;
 use shared::contact::{Contact, UpdateContact};
@@ -75,7 +76,7 @@ where
                     ..Default::default()
                 }
             } else {
-                match get_contact(uuid).await {
+                match call_api(get_contact(uuid)).await {
                     Ok(Some(contact)) => contact,
                     _ => Contact {
                         ..Default::default()
@@ -194,7 +195,7 @@ where
         };
         log!("Submitting: {:?}", contact);
         // 调用API并处理结果
-        match edit_contact(contact).await {
+        match call_api(edit_contact(contact)).await {
             Ok(_) => {
                 log!("修改成功");
                 show.set(false);
@@ -204,7 +205,6 @@ where
             }
             Err(e) => {
                 log!("API错误: {:?}", e);
-                success("操作失败".to_string());
                 // 根据错误类型转换
                 Err(vec![e.to_string()])
             }
