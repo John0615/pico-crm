@@ -67,7 +67,7 @@ pub async fn global_api_auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
-    let white_list = ["/contacts", "/login", "/api/logout", "/api/login"];
+    let white_list = ["/login", "/api/logout", "/api/login"];
     let path = req.uri().path().to_string();
 
     if white_list.contains(&path.as_str()) {

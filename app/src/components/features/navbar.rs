@@ -1,6 +1,6 @@
 use crate::utils::api::call_api;
 use leptos::logging;
-use leptos::{prelude::*, task::spawn_local};
+use leptos::prelude::*;
 use shared::user::User;
 
 #[server(
@@ -9,7 +9,34 @@ use shared::user::User;
     endpoint = "/logout",
 )]
 pub async fn logout() -> Result<(), ServerFnError> {
-    leptos_axum::redirect("/login");
+    use cookie::{time::Duration, Cookie, SameSite};
+    use http::header::SET_COOKIE;
+    use leptos_axum::ResponseOptions;
+
+    let response = expect_context::<ResponseOptions>();
+
+    let clear_session_cookie = Cookie::build(("user_session", ""))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .max_age(Duration::ZERO)
+        .expires(cookie::time::OffsetDateTime::UNIX_EPOCH)
+        .build();
+
+    // 设置cookie到响应头
+    let cookie_str = clear_session_cookie.to_string();
+    let header_value: http::HeaderValue =
+        cookie_str
+            .parse()
+            .map_err(|e: http::header::InvalidHeaderValue| {
+                ServerFnError::<http::header::InvalidHeaderValue>::ServerError(format!(
+                    "Failed to parse cookie: {}",
+                    e
+                ))
+            })?;
+
+    response.insert_header(SET_COOKIE, header_value);
+
     Ok(())
 }
 
@@ -30,11 +57,20 @@ pub async fn get_user_info() -> Result<User, ServerFnError> {
 
 #[component]
 pub fn Navbar() -> impl IntoView {
-    let logout = move |_| {
-        spawn_local(async move {
-            let _result = call_api(logout()).await;
-        });
-    };
+    let navigate = leptos_router::hooks::use_navigate();
+
+    let do_logout = ServerAction::<Logout>::new();
+    let result = do_logout.value();
+
+    Effect::new(move || {
+        let current_value = result.get(); // 得到 Option<Result<(), ServerFnError>>
+        if let Some(action_result) = current_value {
+            if action_result.is_ok() {
+                navigate("/login", Default::default());
+            }
+        }
+    });
+
     let data = Resource::new(
         move || (),
         |_| async move {
@@ -114,7 +150,9 @@ pub fn Navbar() -> impl IntoView {
                                 设置
                             </a>
                         </li>
-                        <li on:click=logout>
+                        <li on:click=move |_| {
+                            do_logout.dispatch(Logout{});
+                        }>
                             <a href="#" class="hover:bg-error hover:text-error-content">
                                 <i class="fas fa-sign-out-alt"></i>
                                 退出
