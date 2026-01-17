@@ -7,6 +7,7 @@ use leptos_router::{
 
 use components::layouts::*;
 use components::ui::{message_box::MessageBox, toast::Toast};
+use pages::admin::{AdminUsers, SystemSettings};
 use pages::*;
 
 pub mod components;
@@ -55,7 +56,13 @@ pub fn App() -> impl IntoView {
                             <Outlet/>
                         }>
                             <Route path=path!("") view=ContactsList/>
-                            <Route path=path!("/:id") view=ContactDetail/>
+                        </ParentRoute>
+                        <ParentRoute path=path!("/admin") view=|| view! {
+                            <Outlet/>
+                        }>
+                            <Route path=path!("") view=SystemSettings/>
+                            <Route path=path!("/users") view=AdminUsers/>
+                            <Route path=path!("/settings") view=SystemSettings/>
                         </ParentRoute>
                     </ParentRoute>
                 </Routes>
