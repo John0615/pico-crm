@@ -4,6 +4,7 @@
 /*@import "tailwindcss/utilities.css" layer(utilities);*/
 
 @layer utilities {
+    .input:focus-within,
     .input:focus,
     .select:focus-within,
     .select > select:focus,
