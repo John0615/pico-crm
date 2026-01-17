@@ -1,3 +1,26 @@
-/* src/styles/input.css */
 @import "tailwindcss";
 @plugin "daisyui";
+
+/*@import "tailwindcss/utilities.css" layer(utilities);*/
+
+@layer utilities {
+    .input:focus,
+    .select:focus-within,
+    .select > select:focus,
+    .textarea:focus,
+    .btn:focus,
+    .btn-primary:focus,
+    .btn-secondary:focus,
+    .btn-success:focus,
+    [type="button"]:focus,
+    [type="reset"]:focus,
+    [type="submit"]:focus {
+        outline: none !important;
+        --tw-ring-width: 0px !important;
+        --tw-ring-offset-width: 0px !important;
+        box-shadow: none !important;
+        border-color: inherit !important; /* 继承原边框颜色，绝对不变形 */
+        --tw-ring-color: transparent !important;
+        --tw-ring-offset-color: transparent !important;
+    }
+}
