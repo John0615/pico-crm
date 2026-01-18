@@ -57,13 +57,17 @@ impl UserQuery for SeaOrmUserQuery {
         if let Some(role) = &query.role {
             if !role.is_empty() {
                 match role.as_str() {
-                    "管理员" => {
+                    "admin" => {
                         condition = condition.add(Column::IsAdmin.eq(Some(true)));
                         println!("添加管理员角色筛选");
                     },
-                    "普通用户" => {
+                    "user" => {
                         condition = condition.add(Column::IsAdmin.eq(Some(false)));
                         println!("添加普通用户角色筛选");
+                    },
+                    "guest" => {
+                        condition = condition.add(Column::IsAdmin.eq(None::<bool>));
+                        println!("添加访客角色筛选");
                     },
                     _ => {} // 其他角色暂时忽略
                 }

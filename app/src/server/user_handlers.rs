@@ -28,20 +28,12 @@ pub async fn fetch_users(params: UserListQuery) -> Result<PagedResult<User>, Ser
     let query_repository = SeaOrmUserQuery::new(db);
     let query_service = UserAppService::new(query_repository);
 
-    // 转换查询参数中的状态值
-    let mut query_params = params;
-    if let Some(status) = query_params.status.as_mut() {
-        *status = match status.as_str() {
-            "活跃" => "active".to_string(),
-            "禁用" => "inactive".to_string(),
-            "待激活" => "pending".to_string(),
-            _ => status.clone(),
-        };
-    }
+    // 添加调试日志
+    leptos::logging::log!("查询参数: {:?}", params);
 
     // 调用查询服务
     let result = query_service
-        .list_users(query_params)
+        .list_users(params)
         .await
         .map_err(|e| ServerFnError::new(format!("查询用户失败: {}", e)))?;
 

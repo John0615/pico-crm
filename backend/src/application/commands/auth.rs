@@ -1,6 +1,5 @@
 use crate::domain::auth::provider::{AuthCredential, AuthProvider};
 use crate::domain::models::user::User as DomainUser;
-use crate::application::mappers::user_mapper;
 use shared::user::User;
 
 pub struct AuthAppService<A: AuthProvider> {

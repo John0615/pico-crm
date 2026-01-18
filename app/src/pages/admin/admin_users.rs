@@ -141,15 +141,15 @@ pub fn AdminUsers() -> impl IntoView {
                 <div class="flex gap-2 items-center">
                     <select on:change=filter_by_role class="select select-bordered">
                         <option value="">所有角色</option>
-                        <option value="管理员">管理员</option>
-                        <option value="普通用户">普通用户</option>
-                        <option value="访客">访客</option>
+                        <option value="admin">管理员</option>
+                        <option value="user">普通用户</option>
+                        <option value="guest">访客</option>
                     </select>
                     <select on:change=filter_by_status class="select select-bordered">
                         <option value="">所有状态</option>
-                        <option value="活跃">活跃</option>
-                        <option value="禁用">禁用</option>
-                        <option value="待激活">待激活</option>
+                        <option value="active">活跃</option>
+                        <option value="inactive">禁用</option>
+                        <option value="pending">待激活</option>
                     </select>
                 </div>
             </div>
