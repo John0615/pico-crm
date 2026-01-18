@@ -3,12 +3,12 @@ use crate::components::ui::form::{
 };
 use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
-use crate::server::user_handlers::{update_user, get_user};
+use crate::server::user_handlers::{get_user, update_user};
 use crate::utils::api::call_api;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use shared::user::{User, CreateUserRequest};
+use shared::user::{CreateUserRequest, User};
 
 // 更新用户模态框
 #[component]
@@ -25,15 +25,15 @@ where
 
     // 当模态框打开且有uuid时，加载用户数据
     Effect::new(move |_| {
-        let show_modal = show.get();
-        let uuid = user_uuid.get();
-        
-        if show_modal && !uuid.is_empty() {
+        let show_modal = show.read();
+        let uuid = user_uuid.read();
+
+        if *show_modal && !(*uuid).is_empty() {
             log!("Loading user data for uuid: {}", uuid);
             set_loading.set(true);
-            
+
             spawn_local(async move {
-                match call_api(get_user(uuid)).await {
+                match call_api(get_user((*uuid.clone()).to_string())).await {
                     Ok(user) => {
                         log!("Successfully loaded user: {:?}", user);
                         set_user_data.set(Some(user));
@@ -45,21 +45,25 @@ where
                 }
                 set_loading.set(false);
             });
-        } else if !show_modal {
+        } else if !*show_modal {
             // 模态框关闭时清空数据
             set_user_data.set(None);
         }
     });
 
     let create_initial_fields = move || {
-        let user = user_data.get();
+        let user = user_data.read();
         vec![
             FormField {
                 name: "user_name".to_string(),
                 label: "用户名".to_string(),
                 field_type: FieldType::Text,
                 required: true,
-                value: ArcRwSignal::new(user.as_ref().map(|u| u.user_name.clone()).unwrap_or_default()),
+                value: ArcRwSignal::new(
+                    user.as_ref()
+                        .map(|u| u.user_name.clone())
+                        .unwrap_or_default(),
+                ),
                 placeholder: Some("输入用户名".into()),
                 error_message: ArcRwSignal::new(None),
                 validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
@@ -101,7 +105,11 @@ where
                 label: "邮箱".to_string(),
                 field_type: FieldType::Email,
                 required: false,
-                value: ArcRwSignal::new(user.as_ref().and_then(|u| u.email.clone()).unwrap_or_default()),
+                value: ArcRwSignal::new(
+                    user.as_ref()
+                        .and_then(|u| u.email.clone())
+                        .unwrap_or_default(),
+                ),
                 placeholder: Some("输入邮箱".into()),
                 error_message: ArcRwSignal::new(None),
                 validation: Some(ValidationRule::Regex(r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into())),
@@ -111,7 +119,11 @@ where
                 label: "手机号".to_string(),
                 field_type: FieldType::Text,
                 required: false,
-                value: ArcRwSignal::new(user.as_ref().and_then(|u| u.phone_number.clone()).unwrap_or_default()),
+                value: ArcRwSignal::new(
+                    user.as_ref()
+                        .and_then(|u| u.phone_number.clone())
+                        .unwrap_or_default(),
+                ),
                 placeholder: Some("输入手机号".into()),
                 error_message: ArcRwSignal::new(None),
                 validation: None,

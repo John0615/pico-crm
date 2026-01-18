@@ -50,14 +50,14 @@ pub fn ColumnSorter(
 
     // 点击处理函数
     let handle_click = move |_| {
-        let new_value = sort_value.get().reverse();
+        let new_value = sort_value.read().reverse();
         set_sort_value.set(new_value);
         if let Some(f) = on_change.as_ref() {
             f(new_value);
         }
     };
 
-    let is_asc = move || sort_value.get() == SortValue::Asc;
+    let is_asc = move || sort_value.read() == SortValue::Asc;
 
     view! {
         <span
@@ -94,12 +94,12 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
             <thead>
                 <tr class="bg-base-200">
                     <For
-                        each=move || columns.with_value(|c| c.clone().into_iter().enumerate())
+                        each=move || columns.read_value().to_vec().into_iter().enumerate()
                         key=|(index, _col)| *index
                         children=move |(_index, col)| {
                             let cell_content = view! {
 
-                                {col.label.clone()}
+                                {col.label}
                                 {col.sort.then(|| view! {
                                     <ColumnSorter
                                         initial_sort=col.default_sort
@@ -112,9 +112,9 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
                             };
 
                             if col.freeze {
-                                view! { <th class=col.class.clone().unwrap_or_default()>{cell_content}</th> }.into_any()
+                                view! { <th class=col.class.unwrap_or_default()>{cell_content}</th> }.into_any()
                             } else {
-                                view! { <td class=col.class.clone().unwrap_or_default()>{cell_content}</td> }.into_any()
+                                view! { <td class=col.class.unwrap_or_default()>{cell_content}</td> }.into_any()
                             }
 
                         }
@@ -164,20 +164,18 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
                                     <Provider value=item>
                                         <tr>
                                             <For
-                                                each=move || columns.with_value(|cols|
-                                                    cols.clone().into_iter().enumerate()
-                                                )
+                                                each=move || columns.read_value().to_vec().into_iter().enumerate()
                                                 key=|(index, _)| *index
                                                 children=move |(_, col)| {
                                                     if col.freeze {
                                                         view! {
-                                                            <th class=col.class.clone().unwrap_or_default()>
+                                                            <th class=col.class.unwrap_or_default()>
                                                                 {(col.children)()}
                                                             </th>
                                                         }.into_any()
                                                     } else {
                                                         view! {
-                                                            <td class=col.class.clone().unwrap_or_default()>
+                                                            <td class=col.class.unwrap_or_default()>
                                                                 {(col.children)()}
                                                             </td>
                                                         }.into_any()

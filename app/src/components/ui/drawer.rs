@@ -43,7 +43,7 @@ pub fn DaisyDrawer(
                     class="menu bg-base-200 text-base-content min-h-full p-4"
                     style=format!("width: {}px", width)
                 >
-                    <Show when=move || is_open.get() fallback=|| ()>
+                    <Show when=move || *is_open.read() fallback=|| ()>
                     {children()}
                     </Show>
                 </ul>
