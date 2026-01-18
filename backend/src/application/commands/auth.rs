@@ -1,5 +1,6 @@
 use crate::domain::auth::provider::{AuthCredential, AuthProvider};
 use crate::domain::models::user::User as DomainUser;
+use crate::application::mappers::user_mapper;
 use shared::user::User;
 
 pub struct AuthAppService<A: AuthProvider> {
@@ -18,7 +19,7 @@ impl<A: AuthProvider> AuthAppService<A> {
 
     pub async fn get_user_by_token(&self, token: String) -> Result<Option<User>, String> {
         let auth_credential = AuthCredential(token);
-        let user = self.auth_provider.get_current_user(&auth_credential).await?.map(|user: DomainUser| user.into());
+        let user = self.auth_provider.get_current_user(&auth_credential).await?.map(|domain_user: DomainUser| domain_user.into());
         Ok(user)
     }
 }

@@ -3,15 +3,13 @@ use crate::components::ui::form::{
 };
 use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
+use crate::server::user_handlers::{create_user, ExportedCreateUserRequest as CreateUserRequest};
 use crate::utils::api::call_api;
-use crate::server::user_handlers::{CreateUserRequest, create_user};
 use leptos::logging::log;
 use leptos::prelude::*;
 
 // 重新导出server函数
-pub use crate::server::user_handlers::{fetch_users, delete_user, User, UserQuery, ListResult};
-
-
+pub use crate::server::user_handlers::{delete_user, fetch_users};
 
 // 新建用户模态框
 #[component]
@@ -86,15 +84,15 @@ where
         let request = CreateUserRequest {
             user_name: fields[0].value.get_untracked().clone(),
             password: fields[1].value.get_untracked().clone(),
-            email: if fields[2].value.get_untracked().is_empty() { 
-                None 
-            } else { 
-                Some(fields[2].value.get_untracked().clone()) 
+            email: if fields[2].value.get_untracked().is_empty() {
+                None
+            } else {
+                Some(fields[2].value.get_untracked().clone())
             },
-            phone_number: if fields[3].value.get_untracked().is_empty() { 
-                None 
-            } else { 
-                Some(fields[3].value.get_untracked().clone()) 
+            phone_number: if fields[3].value.get_untracked().is_empty() {
+                None
+            } else {
+                Some(fields[3].value.get_untracked().clone())
             },
         };
         log!("Submitting: {:?}", request);

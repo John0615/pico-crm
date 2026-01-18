@@ -1,6 +1,6 @@
-use crate::domain::repositories::user::UserRepository;
 use crate::domain::models::user::User as DomainUser;
-use shared::user::{User, CreateUserRequest};
+use crate::domain::repositories::user::UserRepository;
+use shared::user::{CreateUserRequest, User};
 
 pub struct UserCommandService<R: UserRepository> {
     user_repository: R,
@@ -73,9 +73,7 @@ impl<R: UserRepository> UserCommandService<R> {
 
         // 检查邮箱是否被其他用户使用（如果提供了邮箱）
         if let Some(ref email) = request.email {
-            if let Ok(Some(existing_user)) =
-                self.user_repository.find_user_by_email(email).await
-            {
+            if let Ok(Some(existing_user)) = self.user_repository.find_user_by_email(email).await {
                 if existing_user.uuid != user.uuid {
                     return Err("邮箱已被其他用户使用".to_string());
                 }

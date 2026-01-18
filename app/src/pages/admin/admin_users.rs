@@ -11,13 +11,14 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
+use shared::user::{User, UserListQuery, PagedResult};
 
-// 重新导出server函数和结构体
-pub use crate::server::user_handlers::{fetch_users, delete_user, User, UserQuery, ListResult};
+// 重新导出server函数
+pub use crate::server::user_handlers::{fetch_users, delete_user};
 
 impl Identifiable for User {
     fn id(&self) -> String {
-        self.id.to_string()
+        self.uuid.clone()
     }
 }
 
@@ -56,7 +57,7 @@ pub fn AdminUsers() -> impl IntoView {
                 .parse::<u64>()
                 .unwrap_or(10);
 
-            let params = UserQuery {
+            let params = UserListQuery {
                 page,
                 page_size,
                 name: (!name.is_empty()).then_some(name),
@@ -66,7 +67,7 @@ pub fn AdminUsers() -> impl IntoView {
 
             let result = call_api(fetch_users(params)).await.unwrap_or_else(|e| {
                 logging::error!("Error loading users: {e}");
-                ListResult {
+                PagedResult {
                     items: Vec::new(),
                     total: 0,
                 }
@@ -185,7 +186,7 @@ pub fn AdminUsers() -> impl IntoView {
                     <Column
                         slot:columns
                         freeze=true
-                        prop="name".to_string()
+                        prop="user_name".to_string()
                         label="用户".to_string()
                         class="font-bold"
                     >
@@ -195,12 +196,12 @@ pub fn AdminUsers() -> impl IntoView {
                                 <div class="flex items-center space-x-3">
                                     <div class="avatar placeholder">
                                         <div class="bg-neutral text-neutral-content rounded-full w-12">
-                                            <span class="text-lg">{user.as_ref().map(|u| u.name.chars().next().unwrap_or('U')).unwrap_or('U')}</span>
+                                            <span class="text-lg">{user.as_ref().map(|u| u.user_name.chars().next().unwrap_or('U')).unwrap_or('U')}</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="font-bold">{user.as_ref().map(|u| u.name.clone()).unwrap_or_default()}</div>
-                                        <div class="text-sm opacity-50">{user.as_ref().map(|u| u.email.clone()).unwrap_or_default()}</div>
+                                        <div class="font-bold">{user.as_ref().map(|u| u.user_name.clone()).unwrap_or_default()}</div>
+                                        <div class="text-sm opacity-50">{user.as_ref().and_then(|u| u.email.clone()).unwrap_or_default()}</div>
                                     </div>
                                 </div>
                             }
@@ -209,7 +210,7 @@ pub fn AdminUsers() -> impl IntoView {
                     <Column
                         slot:columns
                         label="角色".to_string()
-                        prop="role".to_string()
+                        prop="is_admin".to_string()
                         class=""
                     >
                         {
@@ -217,15 +218,20 @@ pub fn AdminUsers() -> impl IntoView {
                             view! {
                                 <span class=format!("badge {}",
                                     user.as_ref().map(|u| {
-                                        match u.role.as_str() {
-                                            "管理员" => "badge-primary",
-                                            "普通用户" => "badge-secondary",
-                                            "访客" => "badge-accent",
-                                            _ => "badge-ghost"
+                                        match u.is_admin {
+                                            Some(true) => "badge-primary",
+                                            Some(false) => "badge-secondary",
+                                            None => "badge-accent"
                                         }
                                     }).unwrap_or("badge-ghost")
                                 )>
-                                    {user.as_ref().map(|u| u.role.clone()).unwrap_or_default()}
+                                    {user.as_ref().map(|u| {
+                                        match u.is_admin {
+                                            Some(true) => "管理员",
+                                            Some(false) => "普通用户",
+                                            None => "访客"
+                                        }
+                                    }).unwrap_or("访客")}
                                 </span>
                             }
                         }
@@ -242,14 +248,23 @@ pub fn AdminUsers() -> impl IntoView {
                                 <div class=format!("badge {}",
                                     user.as_ref().map(|u| {
                                         match u.status.as_str() {
-                                            "活跃" => "badge-success",
-                                            "禁用" => "badge-error",
-                                            "待激活" => "badge-warning",
+                                            "active" => "badge-success",
+                                            "inactive" => "badge-error",
+                                            "pending" => "badge-warning",
                                             _ => "badge-ghost"
                                         }
                                     }).unwrap_or("badge-ghost")
                                 )>
-                                    {user.as_ref().map(|u| u.status.clone()).unwrap_or_default()}
+                                    {
+                                        user.clone().map(|u| {
+                                            match u.status.as_str() {
+                                                "active" => "活跃",
+                                                "inactive" => "禁用",
+                                                "pending" => "待激活",
+                                                _ => "未知",
+                                            }
+                                        }).unwrap_or("未知")
+                                    }
                                 </div>
                             }
                         }
@@ -257,14 +272,14 @@ pub fn AdminUsers() -> impl IntoView {
                     <Column
                         slot:columns
                         label="最后登录".to_string()
-                        prop="last_login".to_string()
+                        prop="last_login_at".to_string()
                         class=""
                     >
                         {
                             let user: Option<User> = use_context::<User>();
                             view! {
                                 <span class="text-sm opacity-70">
-                                    {user.as_ref().map(|u| u.last_login.clone()).unwrap_or_default()}
+                                    {user.as_ref().and_then(|u| u.last_login_at.clone()).unwrap_or("从未登录".to_string())}
                                 </span>
                             }
                         }
@@ -272,14 +287,14 @@ pub fn AdminUsers() -> impl IntoView {
                     <Column
                         slot:columns
                         label="创建时间".to_string()
-                        prop="created_at".to_string()
+                        prop="inserted_at".to_string()
                         class=""
                     >
                         {
                             let user: Option<User> = use_context::<User>();
                             view! {
                                 <span class="text-sm opacity-70">
-                                    {user.as_ref().map(|u| u.created_at.clone()).unwrap_or_default()}
+                                    {user.as_ref().map(|u| u.inserted_at.clone()).unwrap_or_default()}
                                 </span>
                             }
                         }

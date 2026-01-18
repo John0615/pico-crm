@@ -3,17 +3,21 @@ use crate::components::ui::form::{
 };
 use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
+use crate::server::user_handlers::{update_user, ExportedCreateUserRequest as CreateUserRequest};
 use crate::utils::api::call_api;
-use crate::server::user_handlers::{CreateUserRequest, update_user};
 use leptos::logging::log;
 use leptos::prelude::*;
 
 // 重新导出User结构体
-pub use crate::server::user_handlers::User;
+pub use shared::user::User as ExportedUser;
 
 // 更新用户模态框
 #[component]
-pub fn UpdateUserModal<F>(show: RwSignal<bool>, user_uuid: ReadSignal<String>, on_finish: F) -> impl IntoView
+pub fn UpdateUserModal<F>(
+    show: RwSignal<bool>,
+    user_uuid: ReadSignal<String>,
+    on_finish: F,
+) -> impl IntoView
 where
     F: Fn() + Copy + Send + 'static,
 {
@@ -68,9 +72,7 @@ where
             value: ArcRwSignal::new(String::new()),
             placeholder: Some("输入邮箱".into()),
             error_message: ArcRwSignal::new(None),
-            validation: Some(ValidationRule::Regex(
-                r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into(),
-            )),
+            validation: Some(ValidationRule::Regex(r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into())),
         },
         FormField {
             name: "phone_number".to_string(),
@@ -88,15 +90,15 @@ where
         let request = CreateUserRequest {
             user_name: fields[0].value.get_untracked().clone(),
             password: fields[1].value.get_untracked().clone(),
-            email: if fields[2].value.get_untracked().is_empty() { 
-                None 
-            } else { 
-                Some(fields[2].value.get_untracked().clone()) 
+            email: if fields[2].value.get_untracked().is_empty() {
+                None
+            } else {
+                Some(fields[2].value.get_untracked().clone())
             },
-            phone_number: if fields[3].value.get_untracked().is_empty() { 
-                None 
-            } else { 
-                Some(fields[3].value.get_untracked().clone()) 
+            phone_number: if fields[3].value.get_untracked().is_empty() {
+                None
+            } else {
+                Some(fields[3].value.get_untracked().clone())
             },
         };
         let uuid = user_uuid.get_untracked();

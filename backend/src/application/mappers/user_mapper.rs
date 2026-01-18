@@ -8,6 +8,7 @@ impl From<DomainUser> for User {
             Status::Inactive => "inactive".to_string(),
             Status::Active => "active".to_string(),
         };
+            
         Self {
             uuid: user.uuid,
             user_name: user.user_name,

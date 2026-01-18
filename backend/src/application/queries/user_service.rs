@@ -1,6 +1,6 @@
 use crate::domain::models::user::User as DomainUser;
 use crate::domain::queries::user::UserQuery as UQuery;
-use shared::user::{User, UserListQuery, PagedResult};
+use shared::user::{PagedResult, User, UserListQuery};
 
 pub struct UserAppService<R: UQuery> {
     user_query: R,
