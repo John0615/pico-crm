@@ -108,4 +108,15 @@ impl UserQuery for SeaOrmUserQuery {
             total,
         })
     }
+
+    async fn find_user_by_uuid(&self, uuid: &str) -> Result<Option<Self::Result>, String> {
+        let uuid = Uuid::parse_str(uuid).map_err(|e| format!("解析uuid失败: {}", e))?;
+        let user = Entity::find()
+            .filter(Column::Uuid.eq(uuid))
+            .one(&self.db)
+            .await
+            .map_err(|e| format!("查询用户失败: {}", e))?;
+
+        Ok(user.map(UserMapper::to_domain))
+    }
 }

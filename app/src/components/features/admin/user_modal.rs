@@ -3,13 +3,11 @@ use crate::components::ui::form::{
 };
 use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
-use crate::server::user_handlers::{create_user, ExportedCreateUserRequest as CreateUserRequest};
+use crate::server::user_handlers::create_user;
 use crate::utils::api::call_api;
 use leptos::logging::log;
 use leptos::prelude::*;
-
-// 重新导出server函数
-pub use crate::server::user_handlers::{delete_user, fetch_users};
+use shared::user::CreateUserRequest;
 
 // 新建用户模态框
 #[component]

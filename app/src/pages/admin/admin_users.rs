@@ -6,6 +6,7 @@ use crate::components::ui::{
     toast::{error, success},
 };
 use crate::utils::api::call_api;
+use js_sys::Math::random;
 use leptos::logging;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -18,7 +19,9 @@ pub use crate::server::user_handlers::{fetch_users, delete_user};
 
 impl Identifiable for User {
     fn id(&self) -> String {
-        self.uuid.clone()
+        // 添加随机后缀确保数据更新时表格重新渲染
+        let rand_suffix = (random() * 10000.0) as u32;
+        format!("{}-{}", self.uuid, rand_suffix)
     }
 }
 

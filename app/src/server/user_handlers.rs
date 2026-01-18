@@ -2,13 +2,33 @@ use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::user::{CreateUserRequest, PagedResult, User, UserListQuery};
 
-// 重新导出shared中的类型，供前端使用
-pub use shared::user::{
-    CreateUserRequest as ExportedCreateUserRequest, PagedResult as ExportedPagedResult,
-    User as ExportedUser, UserListQuery as ExportedUserListQuery,
-};
-
-// 获取用户列表
+// 获取单个用户
+#[server(
+    name = GetUser,
+    prefix = "/api",
+    endpoint = "/get_user",
+)]
+pub async fn get_user(uuid: String) -> Result<User, ServerFnError> {
+    use backend::infrastructure::queries::user_query_impl::SeaOrmUserQuery;
+    use backend::application::queries::user_service::UserAppService;
+    use backend::infrastructure::db::Database;
+    use leptos::prelude::*;
+    
+    // 从上下文获取数据库连接池
+    let pool = expect_context::<Database>();
+    let db = pool.get_connection().clone();
+    
+    // 创建查询repository和service
+    let query_repository = SeaOrmUserQuery::new(db);
+    let query_service = UserAppService::new(query_repository);
+    
+    // 调用查询服务获取用户
+    let user = query_service.get_user_by_uuid(&uuid).await
+        .map_err(|e| ServerFnError::new(format!("查询用户失败: {}", e)))?
+        .ok_or_else(|| ServerFnError::new("用户不存在".to_string()))?;
+    
+    Ok(user)
+}
 #[server(
     name = FetchUsers,
     prefix = "/api",

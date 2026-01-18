@@ -14,4 +14,9 @@ pub trait UserQuery: Send + Sync {
         &self,
         query: UserListQuery,
     ) -> impl std::future::Future<Output = Result<PagedResult<Self::Result>, String>> + Send;
+
+    fn find_user_by_uuid(
+        &self,
+        uuid: &str,
+    ) -> impl std::future::Future<Output = Result<Option<Self::Result>, String>> + Send;
 }

@@ -52,4 +52,14 @@ impl<R: UQuery<Result = DomainUser>> UserAppService<R> {
             total: result.total,
         })
     }
+
+    pub async fn get_user_by_uuid(&self, uuid: &str) -> Result<Option<User>, String> {
+        let result = self
+            .user_query
+            .find_user_by_uuid(uuid)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        Ok(result.map(|domain_user| domain_user.into()))
+    }
 }
