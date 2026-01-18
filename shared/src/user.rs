@@ -14,3 +14,29 @@ pub struct User {
     pub inserted_at: String,
     pub updated_at: String,
 }
+
+/// 用户创建请求
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CreateUserRequest {
+    pub user_name: String,
+    pub password: String,
+    pub email: Option<String>,
+    pub phone_number: Option<String>,
+}
+
+/// 用户查询参数
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UserListQuery {
+    pub page: u64,
+    pub page_size: u64,
+    pub name: Option<String>,
+    pub role: Option<String>,
+    pub status: Option<String>,
+}
+
+/// 分页结果
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PagedResult<T> {
+    pub items: Vec<T>,
+    pub total: u64,
+}

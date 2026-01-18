@@ -1,11 +1,9 @@
-pub mod contact_modal;
-pub mod contacts_detail;
+pub mod admin;
+pub mod contact;
 pub mod navbar;
 pub mod sidebar;
-pub mod update_contact_modal;
 
-pub use contact_modal::*;
-pub use contacts_detail::*;
+pub use admin::*;
+pub use contact::*;
 pub use navbar::*;
 pub use sidebar::*;
-pub use update_contact_modal::*;

@@ -1,6 +1,6 @@
 use crate::application::utils::parse_utc_time_to_string;
 use crate::domain::models::user::{Status, User as DomainUser};
-use shared::user::User;
+use shared::user::{User, CreateUserRequest};
 
 impl From<DomainUser> for User {
     fn from(user: DomainUser) -> Self {
@@ -21,5 +21,11 @@ impl From<DomainUser> for User {
             inserted_at: parse_utc_time_to_string(user.inserted_at),
             updated_at: parse_utc_time_to_string(user.updated_at),
         }
+    }
+}
+
+impl From<CreateUserRequest> for DomainUser {
+    fn from(request: CreateUserRequest) -> Self {
+        DomainUser::new(request.user_name, request.password, request.email, request.phone_number)
     }
 }

@@ -1,6 +1,6 @@
 use crate::domain::models::user::User as DomainUser;
 use crate::domain::queries::user::UserQuery as UQuery;
-use shared::user::User;
+use shared::user::{User, UserListQuery, PagedResult};
 
 pub struct UserAppService<R: UQuery> {
     user_query: R,
@@ -31,5 +31,25 @@ impl<R: UQuery<Result = DomainUser>> UserAppService<R> {
             None
         };
         Ok(new_result)
+    }
+
+    pub async fn list_users(&self, query: UserListQuery) -> Result<PagedResult<User>, String> {
+        let result = self
+            .user_query
+            .list_users(query)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // 转换为shared::User
+        let shared_users: Vec<User> = result
+            .items
+            .into_iter()
+            .map(|domain_user| domain_user.into())
+            .collect();
+
+        Ok(PagedResult {
+            items: shared_users,
+            total: result.total,
+        })
     }
 }

@@ -210,19 +210,3 @@ impl User {
         }
     }
 }
-
-/// 用户创建请求
-#[derive(Debug, Clone)]
-pub struct CreateUserRequest {
-    pub user_name: String,
-    pub password: String,
-    pub email: Option<String>,
-    pub phone_number: Option<String>,
-}
-
-impl CreateUserRequest {
-    /// 转换为User实体
-    pub fn to_user(self) -> User {
-        User::new(self.user_name, self.password, self.email, self.phone_number)
-    }
-}

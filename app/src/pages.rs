@@ -1,5 +1,4 @@
 pub mod admin;
-pub mod contacts_detail;
 pub mod contacts_list;
 pub mod dashboard;
 pub mod login;
