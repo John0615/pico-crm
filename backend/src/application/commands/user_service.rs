@@ -16,7 +16,7 @@ impl<R: UserRepository> UserCommandService<R> {
         // 检查用户名是否已存在
         if let Ok(Some(_)) = self
             .user_repository
-            .find_user_by_username(request.user_name.clone())
+            .find_user_by_username(&request.user_name)
             .await
         {
             return Err("用户名已存在".to_string());
@@ -24,7 +24,7 @@ impl<R: UserRepository> UserCommandService<R> {
 
         // 检查邮箱是否已存在（如果提供了邮箱）
         if let Some(ref email) = request.email {
-            if let Ok(Some(_)) = self.user_repository.find_user_by_email(email.clone()).await {
+            if let Ok(Some(_)) = self.user_repository.find_user_by_email(email).await {
                 return Err("邮箱已存在".to_string());
             }
         }
@@ -55,7 +55,7 @@ impl<R: UserRepository> UserCommandService<R> {
         // 查找现有用户
         let mut user = self
             .user_repository
-            .find_user_by_uuid(uuid.to_string())
+            .find_user_by_uuid(uuid)
             .await
             .map_err(|e| format!("查找用户失败: {}", e))?
             .ok_or("用户不存在")?;
@@ -63,7 +63,7 @@ impl<R: UserRepository> UserCommandService<R> {
         // 检查用户名是否被其他用户使用
         if let Ok(Some(existing_user)) = self
             .user_repository
-            .find_user_by_username(request.user_name.clone())
+            .find_user_by_username(&request.user_name)
             .await
         {
             if existing_user.uuid != user.uuid {
@@ -74,7 +74,7 @@ impl<R: UserRepository> UserCommandService<R> {
         // 检查邮箱是否被其他用户使用（如果提供了邮箱）
         if let Some(ref email) = request.email {
             if let Ok(Some(existing_user)) =
-                self.user_repository.find_user_by_email(email.clone()).await
+                self.user_repository.find_user_by_email(email).await
             {
                 if existing_user.uuid != user.uuid {
                     return Err("邮箱已被其他用户使用".to_string());
@@ -113,7 +113,7 @@ impl<R: UserRepository> UserCommandService<R> {
         // 检查用户是否存在
         let _user = self
             .user_repository
-            .find_user_by_uuid(uuid.to_string())
+            .find_user_by_uuid(uuid)
             .await
             .map_err(|e| format!("查找用户失败: {}", e))?
             .ok_or("用户不存在")?;
@@ -131,7 +131,7 @@ impl<R: UserRepository> UserCommandService<R> {
     pub async fn activate_user(&self, uuid: &str) -> Result<User, String> {
         let mut user = self
             .user_repository
-            .find_user_by_uuid(uuid.to_string())
+            .find_user_by_uuid(uuid)
             .await
             .map_err(|e| format!("查找用户失败: {}", e))?
             .ok_or("用户不存在")?;
@@ -151,7 +151,7 @@ impl<R: UserRepository> UserCommandService<R> {
     pub async fn deactivate_user(&self, uuid: &str) -> Result<User, String> {
         let mut user = self
             .user_repository
-            .find_user_by_uuid(uuid.to_string())
+            .find_user_by_uuid(uuid)
             .await
             .map_err(|e| format!("查找用户失败: {}", e))?
             .ok_or("用户不存在")?;

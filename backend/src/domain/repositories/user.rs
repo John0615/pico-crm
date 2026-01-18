@@ -16,18 +16,19 @@ pub trait UserRepository: Send + Sync {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send;
 
+    // 命令操作相关的查询方法
     fn find_user_by_uuid(
         &self,
-        uuid: String,
+        uuid: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send;
 
     fn find_user_by_username(
         &self,
-        username: String,
+        username: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send;
 
     fn find_user_by_email(
         &self,
-        email: String,
+        email: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send;
 }

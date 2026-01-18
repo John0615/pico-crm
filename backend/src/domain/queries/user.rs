@@ -4,6 +4,7 @@ use shared::user::{UserListQuery, PagedResult};
 pub trait UserQuery: Send + Sync {
     type Result: Debug + Send + Sync;
 
+    // 纯查询方法 - 用于展示和报表
     fn get_user(
         &self,
         user_name: &str,

@@ -89,12 +89,13 @@ impl UserRepository for SeaOrmUserRepository {
         }
     }
 
+    // 命令操作相关的查询方法
     fn find_user_by_uuid(
         &self,
-        uuid: String,
+        uuid: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
         async move {
-            let uuid = Uuid::parse_str(&uuid).expect("解析uuid失败！");
+            let uuid = Uuid::parse_str(uuid).map_err(|e| format!("解析uuid失败: {}", e))?;
             let user = Entity::find()
                 .filter(Column::Uuid.eq(uuid))
                 .one(&self.db)
@@ -107,7 +108,7 @@ impl UserRepository for SeaOrmUserRepository {
 
     fn find_user_by_username(
         &self,
-        username: String,
+        username: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
         async move {
             let user = Entity::find()
@@ -122,7 +123,7 @@ impl UserRepository for SeaOrmUserRepository {
 
     fn find_user_by_email(
         &self,
-        email: String,
+        email: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
         async move {
             let user = Entity::find()
