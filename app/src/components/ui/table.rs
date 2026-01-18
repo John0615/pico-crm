@@ -83,8 +83,7 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
     columns: Vec<Column>,
     #[prop(optional)] on_sort: Option<Callback<(String, SortValue)>>,
 ) -> impl IntoView {
-    // let data = StoredValue::new(data.clone());
-    let columns = StoredValue::new(columns.clone());
+    let columns = StoredValue::new(columns);
     let sort_change = move |prop, sort_value| {
         if let Some(cb) = on_sort {
             cb.run((prop, sort_value));
@@ -135,7 +134,11 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
             >
                 <tbody>
                     <Show
-                        when=move || !data.get().map(|d| d.0.is_empty()).unwrap_or_default()
+                        when=move || {
+                            data.with(|d| {
+                                matches!(d, Some((items, _)) if !items.is_empty())
+                            })
+                        }
                         fallback=move || view! {
                             <tr class="hover:bg-transparent h-[calc(100vh-300px)]">
                                 <td colspan="9" class="py-12 text-center align-middle">
@@ -147,11 +150,18 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
                         }
                     >
                         <For
-                            each=move || data.get().map(|d| d.0.clone().into_iter().enumerate()).unwrap_or_default()
-                            key=|(_index, item)| item.id()
-                            children=move |(_index, row)| {
+                            each=move || {
+                                data.with(|d| {
+                                    match d {
+                                        Some((items, _total)) => items.clone(),
+                                        None => Vec::new()
+                                    }
+                                })
+                            }
+                            key=|item| item.id()
+                            children=move |item| {
                                 view! {
-                                    <Provider value=row>
+                                    <Provider value=item>
                                         <tr>
                                             <For
                                                 each=move || columns.with_value(|cols|
