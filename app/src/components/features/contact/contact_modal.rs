@@ -3,36 +3,11 @@ use crate::components::ui::form::{
 };
 use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
+use crate::server::contact_handlers::create_contact;
 use crate::utils::api::call_api;
 use leptos::logging::log;
 use leptos::prelude::*;
 use shared::contact::Contact;
-
-#[cfg(feature = "ssr")]
-mod ssr {
-    pub use backend::application::commands::contact_service::ContactAppService;
-    pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::repositories::contact_repository_impl::SeaOrmContactRepository;
-}
-
-#[server]
-pub async fn add_contact(contact: Contact) -> Result<(), ServerFnError> {
-    use self::ssr::*;
-
-    let pool = expect_context::<Database>();
-
-    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let app_service = ContactAppService::new(contact_repository);
-
-    println!("Adding contact: {:?}", contact);
-    let result = app_service
-        .create_contact(contact)
-        .await
-        .map_err(|e| ServerFnError::new(e))?;
-    println!("Adding contact results: {:?}", result);
-
-    Ok(())
-}
 
 #[component]
 pub fn ContactModal<F>(show: RwSignal<bool>, on_finish: F) -> impl IntoView
@@ -148,7 +123,7 @@ where
         };
         log!("Submitting: {:?}", contact);
         // 调用API并处理结果
-        match call_api(add_contact(contact)).await {
+        match call_api(create_contact(contact)).await {
             Ok(_) => {
                 log!("添加成功");
                 show.set(false);

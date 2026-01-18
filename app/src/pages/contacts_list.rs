@@ -5,6 +5,7 @@ use crate::components::ui::{
     message_box::delete_confirm,
     toast::{error, success},
 };
+use crate::server::contact_handlers::{fetch_contacts, delete_contact, export_contacts};
 use crate::utils::api::call_api;
 use crate::utils::file_download::download_file;
 use js_sys::Math::random;
@@ -12,101 +13,10 @@ use leptos::logging;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_query_map;
-use server_fn::ServerFnError;
 use shared::{
     contact::{Contact, ContactFilters, ContactQuery, SortField, SortOption, SortOrder},
     ListResult,
 };
-
-#[cfg(feature = "ssr")]
-pub mod ssr {
-    pub use backend::application::{
-        commands::contact_service::ContactAppService,
-        queries::contact_service::ContactAppService as ContactQueryService,
-    };
-    pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::{
-        queries::contact_query_impl::SeaOrmContactQuery,
-        repositories::contact_repository_impl::SeaOrmContactRepository,
-    };
-}
-
-#[server(
-    name = FetchContacts,
-    prefix = "/api",
-    endpoint = "/fetch_contacts",
-)]
-pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>, ServerFnError> {
-    use self::ssr::*;
-
-    // 认证检查已由中间件统一处理，这里可以安全地获取用户信息
-    let _user = use_context::<shared::user::User>();
-
-    let pool = expect_context::<Database>();
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
-    let app_service = ContactQueryService::new(contact_query);
-
-    println!("pool {:?}", pool);
-
-    println!("Fetching contacts...");
-
-    let res = app_service
-        .fetch_contacts(params)
-        .await
-        .map_err(|e| ServerFnError::new(e))?;
-
-    println!("Fetching contacts result {:?}", res);
-    Ok(res)
-}
-
-#[server]
-pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
-    use self::ssr::*;
-
-    // 认证检查已由中间件统一处理
-    let _user = use_context::<shared::user::User>();
-
-    let pool = expect_context::<Database>();
-    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let app_service = ContactAppService::new(contact_repository);
-
-    println!("pool {:?}", pool);
-
-    println!("Deleting contact...");
-
-    let res = app_service
-        .delete_contact(uuid)
-        .await
-        .map_err(|e| ServerFnError::new(e))?;
-
-    println!("Deleting contact result {:?}", res);
-    Ok(res)
-}
-
-#[server]
-pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnError> {
-    use self::ssr::*;
-
-    // 认证检查已由中间件统一处理
-    let _user = use_context::<shared::user::User>();
-
-    let pool = expect_context::<Database>();
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
-    let app_service = ContactQueryService::new(contact_query);
-
-    println!("pool {:?}", pool);
-
-    println!("Fetching contacts...");
-
-    let excel_data = app_service
-        .fetch_contacts_excel_data(params)
-        .await
-        .map_err(|e| ServerFnError::new(e))?;
-
-    // println!("Fetching contacts excel_data {:?}", excel_data);
-
-    Ok(excel_data)
-}
 
 impl Identifiable for Contact {
     fn id(&self) -> String {

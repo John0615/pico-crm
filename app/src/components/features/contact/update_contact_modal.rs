@@ -3,61 +3,11 @@ use crate::components::ui::form::{
 };
 use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
+use crate::server::contact_handlers::{get_contact, update_contact};
 use crate::utils::api::call_api;
 use leptos::logging::log;
 use leptos::prelude::*;
 use shared::contact::{Contact, UpdateContact};
-
-#[cfg(feature = "ssr")]
-mod ssr {
-    pub use backend::application::{
-        commands::contact_service::ContactAppService,
-        queries::contact_service::ContactAppService as ContactQueryService,
-    };
-    pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::{
-        queries::contact_query_impl::SeaOrmContactQuery,
-        repositories::contact_repository_impl::SeaOrmContactRepository,
-    };
-}
-
-#[server]
-pub async fn get_contact(uuid: String) -> Result<Option<Contact>, ServerFnError> {
-    use self::ssr::*;
-
-    let pool = expect_context::<Database>();
-
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
-    let app_service = ContactQueryService::new(contact_query);
-
-    println!("fetch contact uuid: {:?}", uuid);
-    let result = app_service
-        .fetch_contact(uuid)
-        .await
-        .map_err(|e| ServerFnError::new(e))?;
-    println!("fetch contact result: {:?}", result);
-
-    Ok(result)
-}
-
-#[server]
-pub async fn edit_contact(contact: UpdateContact) -> Result<(), ServerFnError> {
-    use self::ssr::*;
-
-    let pool = expect_context::<Database>();
-
-    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
-    let app_service = ContactAppService::new(contact_repository);
-
-    println!("editing contact: {:?}", contact);
-    let result = app_service
-        .update_contact(contact)
-        .await
-        .map_err(|e| ServerFnError::new(e))?;
-    println!("editing contact results: {:?}", result);
-
-    Ok(())
-}
 
 #[component]
 pub fn UpdateContactModal<F>(
@@ -195,7 +145,7 @@ where
         };
         log!("Submitting: {:?}", contact);
         // 调用API并处理结果
-        match call_api(edit_contact(contact)).await {
+        match call_api(update_contact(contact)).await {
             Ok(_) => {
                 log!("修改成功");
                 show.set(false);
