@@ -135,4 +135,19 @@ impl UserRepository for SeaOrmUserRepository {
             Ok(user.map(UserMapper::to_domain))
         }
     }
+
+    fn find_user_by_phone_number(
+        &self,
+        phone_number: &str,
+    ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
+        async move {
+            let user = Entity::find()
+                .filter(Column::PhoneNumber.eq(phone_number))
+                .one(&self.db)
+                .await
+                .map_err(|e| format!("查询用户失败: {}", e))?;
+
+            Ok(user.map(UserMapper::to_domain))
+        }
+    }
 }

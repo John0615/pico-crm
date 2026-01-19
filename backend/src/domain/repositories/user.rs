@@ -31,4 +31,9 @@ pub trait UserRepository: Send + Sync {
         &self,
         email: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send;
+
+    fn find_user_by_phone_number(
+        &self,
+        phone_number: &str,
+    ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send;
 }
