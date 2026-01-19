@@ -6,6 +6,7 @@ pub mod login_ssr {
     pub use backend::application::commands::auth::AuthAppService;
     pub use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
     pub use backend::infrastructure::db::Database;
+    pub use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
 }
 
 #[server(
@@ -31,7 +32,8 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
 
     let pool = expect_context::<Database>();
     let auth = JwtAuthProvider::new(pool.connection.clone());
-    let auth_app_service = AuthAppService::new(auth);
+    let user_repository = SeaOrmUserRepository::new(pool.connection.clone());
+    let auth_app_service = AuthAppService::new(auth, user_repository);
 
     println!("pool {:?}", pool);
 

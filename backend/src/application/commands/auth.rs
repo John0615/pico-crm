@@ -1,18 +1,30 @@
 use crate::domain::auth::provider::{AuthCredential, AuthProvider};
 use crate::domain::models::user::User as DomainUser;
+use crate::domain::repositories::user::UserRepository;
 use shared::user::User;
 
-pub struct AuthAppService<A: AuthProvider> {
+pub struct AuthAppService<A: AuthProvider, R: UserRepository> {
     auth_provider: A,
+    user_repository: R,
 }
 
-impl<A: AuthProvider> AuthAppService<A> {
-    pub fn new(auth_provider: A) -> Self {
-        Self { auth_provider }
+impl<A: AuthProvider, R: UserRepository> AuthAppService<A, R> {
+    pub fn new(auth_provider: A, user_repository: R) -> Self {
+        Self { 
+            auth_provider,
+            user_repository,
+        }
     }
 
     pub async fn authenticate(&self, user_name: &str, password: &str) -> Result<String, String> {
         let AuthCredential(token) = self.auth_provider.authenticate(user_name, password).await?;
+        
+        // 登录成功后更新最后登录时间
+        if let Ok(Some(mut user)) = self.user_repository.find_user_by_username(user_name).await {
+            user.record_login();
+            let _ = self.user_repository.update_user(user).await; // 忽略更新错误，不影响登录流程
+        }
+        
         Ok(token)
     }
 

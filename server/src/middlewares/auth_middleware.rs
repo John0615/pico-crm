@@ -8,6 +8,7 @@ use axum::{
 use backend::application::commands::auth::AuthAppService;
 use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
 use backend::infrastructure::db::Database;
+use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
 use cookie::{Cookie, CookieJar};
 
 fn get_cookie_jar_from_req<B>(req: &Request<B>) -> CookieJar {
@@ -78,7 +79,8 @@ pub async fn global_api_auth_middleware(
     match server_auth_check(&cookie_jar) {
         Ok(token) => {
             let auth = JwtAuthProvider::new(db.connection.clone());
-            let auth_app_service = AuthAppService::new(auth);
+            let user_repository = SeaOrmUserRepository::new(db.connection.clone());
+            let auth_app_service = AuthAppService::new(auth, user_repository);
             let user_result = auth_app_service
                 .get_user_by_token(token)
                 .await
