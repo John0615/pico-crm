@@ -31,7 +31,11 @@ impl<R: UserRepository> UserCommandService<R> {
 
         // 检查手机号码是否已存在（如果提供了手机号码）
         if let Some(ref phone_number) = request.phone_number {
-            if let Ok(Some(_)) = self.user_repository.find_user_by_phone_number(phone_number).await {
+            if let Ok(Some(_)) = self
+                .user_repository
+                .find_user_by_phone_number(phone_number)
+                .await
+            {
                 return Err("手机号码已存在".to_string());
             }
         }
@@ -89,7 +93,11 @@ impl<R: UserRepository> UserCommandService<R> {
 
         // 检查手机号码是否被其他用户使用（如果提供了手机号码）
         if let Some(ref phone_number) = request.phone_number {
-            if let Ok(Some(existing_user)) = self.user_repository.find_user_by_phone_number(phone_number).await {
+            if let Ok(Some(existing_user)) = self
+                .user_repository
+                .find_user_by_phone_number(phone_number)
+                .await
+            {
                 if existing_user.uuid != user.uuid {
                     return Err("手机号码已被其他用户使用".to_string());
                 }
