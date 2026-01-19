@@ -29,11 +29,6 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
         return Err(ServerFnError::ServerError("密码长度至少6位".to_string()));
     }
 
-    // 模拟其他验证逻辑
-    if user_name != "admin" || password != "123456" {
-        return Err(ServerFnError::ServerError("用户名或密码错误".to_string()));
-    }
-
     let pool = expect_context::<Database>();
     let auth = JwtAuthProvider::new(pool.connection.clone());
     let auth_app_service = AuthAppService::new(auth);

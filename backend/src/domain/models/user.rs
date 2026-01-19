@@ -50,7 +50,7 @@ impl User {
             email,
             phone_number,
             is_admin: Some(false),
-            status: Status::Inactive,
+            status: Status::Active,
             avatar_url: None,
             last_login_at: None,
             email_verified_at: None,

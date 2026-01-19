@@ -73,7 +73,12 @@ impl AuthProvider for JwtAuthProvider {
 
         let user: Option<User> = if let Some(u) = result {
             if u.verify_password(&password)? {
-                Some(u.into())
+                // 检查用户状态是否为活跃
+                if u.is_active() {
+                    Some(u.into())
+                } else {
+                    return Err("用户账户已被禁用".to_string());
+                }
             } else {
                 None
             }
