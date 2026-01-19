@@ -92,7 +92,7 @@ podman run --name my-postgres-temp -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
 sea-orm-cli migrate generate create_table_users
 
 # 生成实体
-sea-orm-cli generate entity -u postgres://postgres:postgres@localhost:5432/pico_crm_dev -o backend/src/entity
+sea-orm-cli generate entity -u postgres://postgres:postgres@localhost:5432/pico_crm_dev -o backend/src/infrastructure/entity
 
 # 启动开发服务器
 cargo leptos watch
