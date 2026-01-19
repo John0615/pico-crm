@@ -15,7 +15,7 @@ use leptos_router::hooks::use_query_map;
 use shared::user::{User, UserListQuery, PagedResult};
 
 // 重新导出server函数
-pub use crate::server::user_handlers::{fetch_users, delete_user};
+pub use crate::server::user_handlers::{fetch_users, delete_user, toggle_user_status};
 
 impl Identifiable for User {
     fn id(&self) -> String {
@@ -117,6 +117,25 @@ pub fn AdminUsers() -> impl IntoView {
                         }
                     }
                 });
+            }
+        });
+    };
+
+    let toggle_status = move |user_uuid: String, current_status: String| {
+        let action_text = if current_status == "active" { "禁用" } else { "激活" };
+        
+        let user_uuid_clone = user_uuid.clone();
+        spawn_local(async move {
+            let result = call_api(toggle_user_status(user_uuid_clone)).await;
+            match result {
+                Ok(_) => {
+                    success(format!("{}成功", action_text));
+                    refresh_count.set(refresh_count.get_untracked() + 1);
+                }
+                Err(err) => {
+                    logging::error!("Failed to toggle user status: {:?}", err);
+                    error(format!("{}失败", action_text));
+                }
             }
         });
     };
@@ -247,27 +266,36 @@ pub fn AdminUsers() -> impl IntoView {
                     >
                         {
                             let user: Option<User> = use_context::<User>();
+                            let user_uuid = user.as_ref().map(|u| u.uuid.clone()).unwrap_or_default();
+                            let current_status = user.as_ref().map(|u| u.status.clone()).unwrap_or_default();
+                            let is_active = current_status == "active";
+                            
+                            // 克隆用于闭包的值
+                            let status_for_closure = current_status.clone();
+                            let status_for_display = current_status.clone();
+                            
                             view! {
-                                <div class=format!("badge {}",
-                                    user.as_ref().map(|u| {
-                                        match u.status.as_str() {
-                                            "active" => "badge-success",
-                                            "inactive" => "badge-error",
-                                            "pending" => "badge-warning",
-                                            _ => "badge-ghost"
+                                <div class="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked=is_active
+                                        class=format!("toggle {}",
+                                            if is_active { "toggle-success" } else { "toggle-error" }
+                                        )
+                                        on:change=move |_| {
+                                            toggle_status(user_uuid.clone(), status_for_closure.clone());
                                         }
-                                    }).unwrap_or("badge-ghost")
-                                )>
-                                    {
-                                        user.clone().map(|u| {
-                                            match u.status.as_str() {
+                                    />
+                                    <span class="text-sm">
+                                        {
+                                            match status_for_display.as_str() {
                                                 "active" => "活跃",
                                                 "inactive" => "禁用",
                                                 "pending" => "待激活",
                                                 _ => "未知",
                                             }
-                                        }).unwrap_or("未知")
-                                    }
+                                        }
+                                    </span>
                                 </div>
                             }
                         }

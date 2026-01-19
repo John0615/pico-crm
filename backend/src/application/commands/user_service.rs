@@ -130,6 +130,17 @@ impl<R: UserRepository> UserCommandService<R> {
         Ok(updated_user.into())
     }
 
+    /// 根据UUID获取用户
+    pub async fn get_user_by_uuid(&self, uuid: &str) -> Result<Option<User>, String> {
+        let user = self
+            .user_repository
+            .find_user_by_uuid(uuid)
+            .await
+            .map_err(|e| format!("查找用户失败: {}", e))?;
+
+        Ok(user.map(|domain_user| domain_user.into()))
+    }
+
     /// 删除用户
     pub async fn delete_user(&self, uuid: &str) -> Result<(), String> {
         // 检查用户是否存在

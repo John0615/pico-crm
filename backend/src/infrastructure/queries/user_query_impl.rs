@@ -3,7 +3,7 @@ use crate::domain::queries::user::UserQuery;
 use shared::user::{UserListQuery, PagedResult};
 use crate::infrastructure::entity::users::{Column, Entity};
 use crate::infrastructure::mappers::user_mapper::UserMapper;
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, PaginatorTrait, Condition};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, PaginatorTrait, Condition, QueryOrder};
 use sea_orm::prelude::*;
 
 pub struct SeaOrmUserQuery {
@@ -83,8 +83,9 @@ impl UserQuery for SeaOrmUserQuery {
             .await
             .map_err(|e| format!("Database count error: {}", e))?;
 
-        // 分页查询
+        // 分页查询，添加默认排序（按创建时间降序）
         let models = select
+            .order_by_desc(Column::InsertedAt)
             .offset(Some((query.page - 1) * query.page_size))
             .limit(Some(query.page_size))
             .all(&self.db)
