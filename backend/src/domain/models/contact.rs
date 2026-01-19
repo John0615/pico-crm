@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct Contact {
@@ -62,6 +63,64 @@ pub enum CustomerValue {
 }
 
 impl Contact {
+    pub fn new(
+        name: String,
+        company: String,
+        position: String,
+        email: String,
+        phone: String,
+        value: CustomerValue,
+        status: CustomerStatus,
+    ) -> Self {
+        let now = Utc::now();
+        Self {
+            uuid: Uuid::new_v4().to_string(),
+            name,
+            company,
+            position,
+            email,
+            phone,
+            last_contact: now,
+            value,
+            status,
+            inserted_at: now,
+            updated_at: now,
+        }
+    }
+
+    pub fn from_shared_data(
+        name: String,
+        company: String,
+        position: String,
+        email: String,
+        phone: String,
+        value_level: i32,
+        status: i32,
+    ) -> Result<Self, String> {
+        let value = Self::parse_customer_value(value_level)?;
+        let status = Self::parse_customer_status(status)?;
+        
+        Ok(Self::new(name, company, position, email, phone, value, status))
+    }
+
+    pub fn parse_customer_value(value_level: i32) -> Result<CustomerValue, String> {
+        match value_level {
+            1 => Ok(CustomerValue::Active),
+            2 => Ok(CustomerValue::Potential),
+            3 => Ok(CustomerValue::Inactive),
+            _ => Err(format!("Invalid customer value: {}", value_level)),
+        }
+    }
+
+    pub fn parse_customer_status(status: i32) -> Result<CustomerStatus, String> {
+        match status {
+            1 => Ok(CustomerStatus::Signed),
+            2 => Ok(CustomerStatus::Pending),
+            3 => Ok(CustomerStatus::Churned),
+            _ => Err(format!("Invalid customer status: {}", status)),
+        }
+    }
+
     pub fn verify(&self) -> Result<(), String> {
         if self.name.is_empty() {
             Err("Name cannot be empty".to_string())

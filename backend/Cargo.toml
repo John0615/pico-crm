@@ -18,3 +18,4 @@ argon2.workspace = true
 jsonwebtoken.workspace = true
 async-trait.workspace = true
 serde.workspace = true
+uuid.workspace = true

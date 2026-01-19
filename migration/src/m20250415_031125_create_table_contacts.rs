@@ -17,18 +17,18 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Contacts::Position).string().not_null())
                     .col(ColumnDef::new(Contacts::PhoneNumber).string().not_null())
                     .col(ColumnDef::new(Contacts::Email).string().not_null())
-                    .col(ColumnDef::new(Contacts::LastContact).date_time().not_null())
+                    .col(ColumnDef::new(Contacts::LastContact).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(Contacts::ValueLevel).integer().not_null())
                     .col(ColumnDef::new(Contacts::CreatorUuid).uuid().not_null())
                     .col(ColumnDef::new(Contacts::Status).integer().not_null())
                     .col(
                         ColumnDef::new(Contacts::InsertedAt)
-                        .date_time()
+                        .timestamp_with_time_zone()
                         .not_null()
                     )
                     .col(
                         ColumnDef::new(Contacts::UpdatedAt)
-                        .date_time()
+                        .timestamp_with_time_zone()
                         .not_null()
                     )
                     .primary_key(

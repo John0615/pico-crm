@@ -1,6 +1,5 @@
 use crate::domain::models::user::{Status, User};
 use crate::infrastructure::entity::users::{ActiveModel, Model};
-use chrono::{TimeZone, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveValue, IntoActiveModel};
 
@@ -21,10 +20,10 @@ impl UserMapper {
                 Status::Inactive => "inactive".to_string(),
             }),
             avatar_url: ActiveValue::Set(user.avatar_url),
-            last_login_at: ActiveValue::Set(user.last_login_at.map(|dt| dt.naive_utc())),
-            email_verified_at: ActiveValue::Set(user.email_verified_at.map(|dt| dt.naive_utc())),
-            inserted_at: ActiveValue::Set(user.inserted_at.naive_utc()),
-            updated_at: ActiveValue::Set(user.updated_at.naive_utc()),
+            last_login_at: ActiveValue::Set(user.last_login_at),
+            email_verified_at: ActiveValue::Set(user.email_verified_at),
+            inserted_at: ActiveValue::Set(user.inserted_at),
+            updated_at: ActiveValue::Set(user.updated_at),
         }
     }
 
@@ -45,10 +44,10 @@ impl UserMapper {
             model.is_admin,
             status,
             model.avatar_url,
-            model.last_login_at.map(|dt| Utc.from_utc_datetime(&dt)),
-            model.email_verified_at.map(|dt| Utc.from_utc_datetime(&dt)),
-            Utc.from_utc_datetime(&model.inserted_at),
-            Utc.from_utc_datetime(&model.updated_at),
+            model.last_login_at,
+            model.email_verified_at,
+            model.inserted_at,
+            model.updated_at,
         )
     }
 
@@ -65,10 +64,9 @@ impl UserMapper {
             Status::Inactive => "inactive".to_string(),
         });
         active_model.avatar_url = ActiveValue::Set(user.avatar_url);
-        active_model.last_login_at = ActiveValue::Set(user.last_login_at.map(|dt| dt.naive_utc()));
-        active_model.email_verified_at =
-            ActiveValue::Set(user.email_verified_at.map(|dt| dt.naive_utc()));
-        active_model.updated_at = ActiveValue::Set(user.updated_at.naive_utc());
+        active_model.last_login_at = ActiveValue::Set(user.last_login_at);
+        active_model.email_verified_at = ActiveValue::Set(user.email_verified_at);
+        active_model.updated_at = ActiveValue::Set(user.updated_at);
 
         active_model
     }

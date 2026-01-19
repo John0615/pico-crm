@@ -1,3 +1,4 @@
+use crate::domain::models::contact::Contact as DomainContact;
 use crate::domain::repositories::contact::ContactRepository;
 use shared::contact::{Contact, UpdateContact};
 
@@ -11,8 +12,18 @@ impl<R: ContactRepository> ContactAppService<R> {
     }
 
     pub async fn create_contact(&self, contact: Contact) -> Result<(), String> {
-        let contact = contact.into();
-        let _new_contact = self.contact_repo.create_contact(contact).await?;
+        let domain_contact = DomainContact::from_shared_data(
+            contact.user_name,
+            contact.company,
+            contact.position,
+            contact.email,
+            contact.phone_number,
+            contact.value_level,
+            contact.status,
+        )?;
+
+        domain_contact.verify()?;
+        let _new_contact = self.contact_repo.create_contact(domain_contact).await?;
         Ok(())
     }
 

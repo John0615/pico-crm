@@ -45,13 +45,13 @@ impl MigrationTrait for Migration {
                             .default("active"), // 用户状态
                     )
                     .col(ColumnDef::new(Users::AvatarUrl).text().null()) // 头像 URL（可选）
-                    .col(ColumnDef::new(Users::LastLoginAt).date_time().null()) // 最后登录时间
-                    .col(ColumnDef::new(Users::EmailVerifiedAt).date_time().null()) // 邮箱验证时间
+                    .col(ColumnDef::new(Users::LastLoginAt).timestamp_with_time_zone().null()) // 最后登录时间
+                    .col(ColumnDef::new(Users::EmailVerifiedAt).timestamp_with_time_zone().null()) // 邮箱验证时间
                     .col(
-                        ColumnDef::new(Users::InsertedAt).date_time().not_null(), // 使用 date_time
+                        ColumnDef::new(Users::InsertedAt).timestamp_with_time_zone().not_null(), 
                     )
                     .col(
-                        ColumnDef::new(Users::UpdatedAt).date_time().not_null(), // 使用 date_time
+                        ColumnDef::new(Users::UpdatedAt).timestamp_with_time_zone().not_null(), 
                     )
                     .to_owned(),
             )

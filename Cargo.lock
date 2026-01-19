@@ -500,6 +500,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "shared",
+ "uuid",
 ]
 
 [[package]]

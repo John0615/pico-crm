@@ -1,4 +1,4 @@
-use crate::infrastructure::utils::{naive_to_utc, parse_date_time_to_string, utc_to_naive};
+use crate::infrastructure::utils::parse_date_time_to_string;
 use crate::{
     domain::models::contact::{Contact, CustomerStatus, CustomerValue, UpdateContact},
     infrastructure::entity::contacts::ActiveModel as ActiveContactEntity,
@@ -48,11 +48,11 @@ impl ContactMapper {
             position: entity.position,
             email: entity.email,
             phone: entity.phone_number,
-            last_contact: naive_to_utc(entity.last_contact),
+            last_contact: entity.last_contact,
             value,
             status,
-            inserted_at: naive_to_utc(entity.inserted_at),
-            updated_at: naive_to_utc(entity.updated_at),
+            inserted_at: entity.inserted_at,
+            updated_at: entity.updated_at,
         }
     }
 
@@ -73,11 +73,11 @@ impl ContactMapper {
             user_name: contact.name,
             email: contact.email,
             phone_number: contact.phone,
-            inserted_at: utc_to_naive(contact.inserted_at),
-            updated_at: utc_to_naive(contact.updated_at),
+            inserted_at: contact.inserted_at,
+            updated_at: contact.updated_at,
             company: contact.company,
             position: contact.position,
-            last_contact: utc_to_naive(contact.last_contact),
+            last_contact: contact.last_contact,
             value_level,
             status,
             creator_uuid: uuid,
@@ -85,11 +85,7 @@ impl ContactMapper {
     }
 
     pub fn to_active_entity(contact: Contact) -> ActiveContactEntity {
-        let uuid = if contact.uuid.is_empty() {
-            Uuid::new_v4()
-        } else {
-            Uuid::parse_str(&contact.uuid).expect("解析uuid失败！")
-        };
+        let uuid = Uuid::parse_str(&contact.uuid).expect("解析uuid失败！");
         let value_level = match contact.value {
             CustomerValue::Active => 1,
             CustomerValue::Potential => 2,
@@ -105,11 +101,11 @@ impl ContactMapper {
             user_name: Set(contact.name),
             email: Set(contact.email),
             phone_number: Set(contact.phone),
-            inserted_at: Set(utc_to_naive(contact.inserted_at)),
-            updated_at: Set(utc_to_naive(contact.updated_at)),
+            inserted_at: Set(contact.inserted_at),
+            updated_at: Set(contact.updated_at),
             company: Set(contact.company),
             position: Set(contact.position),
-            last_contact: Set(utc_to_naive(contact.last_contact)),
+            last_contact: Set(contact.last_contact),
             value_level: Set(value_level),
             creator_uuid: Set(uuid),
             status: Set(status),
@@ -140,11 +136,11 @@ impl ContactMapper {
             user_name: Set(update_data.name),
             email: Set(update_data.email),
             phone_number: Set(update_data.phone),
-            inserted_at: Set(original_entity.inserted_at.clone()),
-            updated_at: Set(Utc::now().naive_utc()),
+            inserted_at: Set(original_entity.inserted_at),
+            updated_at: Set(Utc::now()),
             company: Set(update_data.company),
             position: Set(update_data.position),
-            last_contact: Set(original_entity.last_contact.clone()),
+            last_contact: Set(original_entity.last_contact),
             value_level: Set(value_level),
             creator_uuid: Set(original_entity.creator_uuid.clone()),
             status: Set(status),
