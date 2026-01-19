@@ -12,10 +12,10 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
-use shared::user::{User, UserListQuery, PagedResult};
+use shared::user::{PagedResult, User, UserListQuery};
 
 // 重新导出server函数
-pub use crate::server::user_handlers::{fetch_users, delete_user, toggle_user_status};
+pub use crate::server::user_handlers::{delete_user, fetch_users, toggle_user_status};
 
 impl Identifiable for User {
     fn id(&self) -> String {
@@ -29,7 +29,7 @@ impl Identifiable for User {
 pub fn AdminUsers() -> impl IntoView {
     let query = use_query_map();
     let refresh_count = RwSignal::new(0);
-    
+
     // 简单的筛选状态管理
     let (name, set_name) = signal(String::new());
     let (role, set_role) = signal(String::new());
@@ -100,30 +100,38 @@ pub fn AdminUsers() -> impl IntoView {
     };
 
     let delete_row = move |user_uuid: String| {
-        delete_confirm("删除确认", "确定要删除这个用户吗？", move |result| {
-            if result {
-                let user_uuid_clone = user_uuid.clone();
-                logging::error!("delete row user_uuid: {:?}", user_uuid_clone);
-                spawn_local(async move {
-                    let result = call_api(delete_user(user_uuid_clone)).await;
-                    match result {
-                        Ok(_) => {
-                            success("删除成功".to_string());
-                            refresh_count.set(refresh_count.get_untracked() + 1);
+        delete_confirm(
+            "删除确认",
+            "确定要删除这个用户吗？",
+            move |result| {
+                if result {
+                    let user_uuid_clone = user_uuid.clone();
+                    logging::error!("delete row user_uuid: {:?}", user_uuid_clone);
+                    spawn_local(async move {
+                        let result = call_api(delete_user(user_uuid_clone)).await;
+                        match result {
+                            Ok(_) => {
+                                success("删除成功".to_string());
+                                refresh_count.set(refresh_count.get_untracked() + 1);
+                            }
+                            Err(err) => {
+                                logging::error!("Failed to delete user: {:?}", err);
+                                error("删除失败".to_string());
+                            }
                         }
-                        Err(err) => {
-                            logging::error!("Failed to delete user: {:?}", err);
-                            error("删除失败".to_string());
-                        }
-                    }
-                });
-            }
-        });
+                    });
+                }
+            },
+        );
     };
 
     let toggle_status = move |user_uuid: String, current_status: String| {
-        let action_text = if current_status == "active" { "禁用" } else { "激活" };
-        
+        let action_text = if current_status == "active" {
+            "禁用"
+        } else {
+            "激活"
+        };
+
         let user_uuid_clone = user_uuid.clone();
         spawn_local(async move {
             let result = call_api(toggle_user_status(user_uuid_clone)).await;
@@ -165,13 +173,11 @@ pub fn AdminUsers() -> impl IntoView {
                         <option value="">所有角色</option>
                         <option value="admin">管理员</option>
                         <option value="user">普通用户</option>
-                        <option value="guest">访客</option>
                     </select>
                     <select on:change=filter_by_status class="select select-bordered">
                         <option value="">所有状态</option>
                         <option value="active">活跃</option>
                         <option value="inactive">禁用</option>
-                        <option value="pending">待激活</option>
                     </select>
                 </div>
             </div>
@@ -251,9 +257,9 @@ pub fn AdminUsers() -> impl IntoView {
                                         match u.is_admin {
                                             Some(true) => "管理员",
                                             Some(false) => "普通用户",
-                                            None => "访客"
+                                            None => "普通用户"
                                         }
-                                    }).unwrap_or("访客")}
+                                    }).unwrap_or("普通用户")}
                                 </span>
                             }
                         }
@@ -269,11 +275,11 @@ pub fn AdminUsers() -> impl IntoView {
                             let user_uuid = user.as_ref().map(|u| u.uuid.clone()).unwrap_or_default();
                             let current_status = user.as_ref().map(|u| u.status.clone()).unwrap_or_default();
                             let is_active = current_status == "active";
-                            
+
                             // 克隆用于闭包的值
                             let status_for_closure = current_status.clone();
                             let status_for_display = current_status.clone();
-                            
+
                             view! {
                                 <div class="flex items-center gap-2">
                                     <input
@@ -291,7 +297,6 @@ pub fn AdminUsers() -> impl IntoView {
                                             match status_for_display.as_str() {
                                                 "active" => "活跃",
                                                 "inactive" => "禁用",
-                                                "pending" => "待激活",
                                                 _ => "未知",
                                             }
                                         }

@@ -65,10 +65,6 @@ impl UserQuery for SeaOrmUserQuery {
                         condition = condition.add(Column::IsAdmin.eq(Some(false)));
                         println!("添加普通用户角色筛选");
                     },
-                    "guest" => {
-                        condition = condition.add(Column::IsAdmin.eq(None::<bool>));
-                        println!("添加访客角色筛选");
-                    },
                     _ => {} // 其他角色暂时忽略
                 }
             }
