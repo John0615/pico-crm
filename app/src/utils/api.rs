@@ -91,7 +91,7 @@ fn get_user_friendly_message(error: &ServerFnError) -> &str {
         ServerFnError::ServerError(msg) => {
             // 如果是自定义的服务器错误，直接显示
             if !msg.is_empty() {
-                return "操作失败";
+                return msg;
             }
             "服务器暂时不可用，请稍后重试"
         }
