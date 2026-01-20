@@ -5,7 +5,7 @@ use crate::components::ui::{
     message_box::delete_confirm,
     toast::{error, success},
 };
-use crate::server::contact_handlers::{fetch_contacts, delete_contact, export_contacts};
+use crate::server::contact_handlers::{delete_contact, export_contacts, fetch_contacts};
 use crate::utils::api::call_api;
 use crate::utils::file_download::download_file;
 use js_sys::Math::random;
@@ -26,7 +26,7 @@ impl Identifiable for Contact {
     }
 }
 
-#[component]
+#[island]
 pub fn ContactsList() -> impl IntoView {
     let (sort_ops, set_sort_ops) = signal::<Vec<(String, SortValue)>>(vec![]);
     let (name, set_name) = signal(String::new());

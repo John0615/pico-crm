@@ -25,7 +25,7 @@ impl Identifiable for User {
     }
 }
 
-#[component]
+#[island]
 pub fn AdminUsers() -> impl IntoView {
     let query = use_query_map();
     let refresh_count = RwSignal::new(0);

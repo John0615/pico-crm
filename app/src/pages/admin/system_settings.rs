@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
 
-#[component]
+#[island]
 pub fn SystemSettings() -> impl IntoView {
     view! {
         <Title text="系统设置 - PicoCRM"/>
@@ -49,18 +49,18 @@ pub fn GeneralSettings() -> impl IntoView {
                     <div class="space-y-4">
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend text-left">"系统名称"</legend>
-                            <input 
-                                type="text" 
-                                value="PicoCRM" 
+                            <input
+                                type="text"
+                                value="PicoCRM"
                                 class="input input-bordered w-full"
                                 placeholder="输入系统名称"
                             />
                             <p class="label">"设置系统的显示名称"</p>
                         </fieldset>
-                        
+
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend text-left">"系统描述"</legend>
-                            <textarea 
+                            <textarea
                                 class="textarea textarea-bordered h-24"
                                 placeholder="输入系统描述..."
                             ></textarea>
@@ -107,13 +107,13 @@ pub fn SecuritySettings() -> impl IntoView {
                     <div class="space-y-4">
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend text-left">"密码最小长度"</legend>
-                            <input 
-                                type="range" 
-                                min="6" 
-                                max="20" 
-                                value="8" 
-                                class="range range-primary" 
-                                step="1" 
+                            <input
+                                type="range"
+                                min="6"
+                                max="20"
+                                value="8"
+                                class="range range-primary"
+                                step="1"
                             />
                             <div class="w-full flex justify-between text-xs px-2">
                                 <span>"6"</span>
@@ -145,10 +145,10 @@ pub fn SecuritySettings() -> impl IntoView {
 
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend text-left">"会话超时时间"</legend>
-                            <input 
-                                type="number" 
-                                value="30" 
-                                min="5" 
+                            <input
+                                type="number"
+                                value="30"
+                                min="5"
                                 max="480"
                                 class="input input-bordered w-full"
                                 placeholder="分钟"
@@ -253,10 +253,10 @@ pub fn BackupSettings() -> impl IntoView {
 
                         <fieldset class="fieldset">
                             <legend class="fieldset-legend text-left">"备份保留天数"</legend>
-                            <input 
-                                type="number" 
-                                value="30" 
-                                min="1" 
+                            <input
+                                type="number"
+                                value="30"
+                                min="1"
                                 max="365"
                                 class="input input-bordered w-full"
                                 placeholder="天数"

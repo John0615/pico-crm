@@ -73,7 +73,7 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
     Ok(())
 }
 
-#[component]
+#[island]
 pub fn Login() -> impl IntoView {
     let do_login = ServerAction::<LoginAction>::new();
     let pending = do_login.pending();
