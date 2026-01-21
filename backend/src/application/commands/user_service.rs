@@ -109,7 +109,7 @@ impl<R: UserRepository> UserCommandService<R> {
             Some(request.user_name),
             request.email,
             request.phone_number,
-            None, // avatar_url 暂时不更新
+            request.avatar_url, // 更新头像URL
         );
 
         // 如果提供了新密码，更新密码

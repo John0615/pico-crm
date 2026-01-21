@@ -22,6 +22,9 @@ serde_json.workspace = true
 wasm-bindgen.workspace = true
 js-sys = "0.3"
 cookie.workspace = true
+wasm-bindgen-futures = "0.4"
+uuid.workspace = true
+base64.workspace = true
 web-sys = { version = "0.3", features = [
     "Blob",
     "Url",
@@ -30,6 +33,11 @@ web-sys = { version = "0.3", features = [
     "Window",
     "Document",
     "console",
+    "File",
+    "FileList",
+    "FileReader",
+    "HtmlInputElement",
+    "DataTransfer",
 ] }
 backend = { path = "../backend", optional = true }
 shared = { path = "../shared" }

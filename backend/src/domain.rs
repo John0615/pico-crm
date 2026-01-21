@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod errors;
+pub mod gateways;
 pub mod models;
 pub mod queries;
 pub mod repositories;

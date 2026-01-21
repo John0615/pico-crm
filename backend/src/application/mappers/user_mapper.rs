@@ -27,6 +27,11 @@ impl From<DomainUser> for User {
 
 impl From<CreateUserRequest> for DomainUser {
     fn from(request: CreateUserRequest) -> Self {
-        DomainUser::new(request.user_name, request.password, request.email, request.phone_number)
+        let mut user = DomainUser::new(request.user_name, request.password, request.email, request.phone_number);
+        // 设置头像URL（如果提供了）
+        if let Some(avatar_url) = request.avatar_url {
+            user.avatar_url = Some(avatar_url);
+        }
+        user
     }
 }
