@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
 
-#[island]
+#[component]
 pub fn SystemSettings() -> impl IntoView {
     view! {
         <Title text="系统设置 - PicoCRM"/>

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::future::Future;
 use std::sync::Arc;
+use crate::components::ui::file_input::{FileInfo, SimpleFileInput};
 
 // 表单字段定义
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -32,6 +33,13 @@ pub enum FieldType {
     TextArea,
     Select(Vec<(String, String)>),
     Checkbox,
+    File {
+        accept: Option<String>,
+        multiple: bool,
+        max_size: Option<u64>,
+        #[serde(skip)]
+        on_upload: Option<Callback<FileInfo>>, // 上传回调，跳过序列化
+    },
 }
 
 impl FieldType {
@@ -84,7 +92,7 @@ where
     F: Fn(Vec<FormField>) -> T + Copy + 'static,
     T: Future<Output = Result<(), Vec<String>>> + 'static,
 {
-    let fields = StoredValue::new(initial_fields);
+    let fields = RwSignal::new(initial_fields);
 
     let is_submitting = RwSignal::new(false);
 
@@ -124,7 +132,7 @@ where
     // 验证整个表单
     let validate_form = move || {
         let mut is_valid = true;
-        for field in fields.read_value().iter() {
+        for field in fields.get_untracked().iter() {
             let error = validate_field(field);
             let error = error.clone();
             field.error_message.set(error.clone());
@@ -137,7 +145,7 @@ where
 
     // 重置表单
     let reset = move || {
-        for field in fields.read_value().iter() {
+        for field in fields.get_untracked().iter() {
             field.value.set(String::new());
             field.error_message.set(None);
         }
@@ -154,14 +162,12 @@ where
         is_submitting.set(true);
 
         spawn_local(async move {
-            let result = on_submit(fields.read_value().to_vec().clone()).await;
+            let result = on_submit(fields.get_untracked().clone()).await;
             is_submitting.set(false);
             match result {
                 Ok(_) => reset(),
-                Err(errors) => {
-                    for error in errors {
-                        log!("Form error: {}", error);
-                    }
+                Err(_errors) => {
+                    // Handle errors silently or show user feedback
                 }
             };
         });
@@ -171,7 +177,7 @@ where
         <form class="form-control w-full max-w-md mx-auto" on:submit=submit>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <For
-                    each=move || fields.read_value().to_vec()
+                    each=move || fields.get()
                     key=|field| field.name.clone()
                     children=move |field| {
                         view! {
@@ -219,6 +225,26 @@ where
                                             error_message=field.error_message
                                         />
                                     }.into_any(),
+                                FieldType::File { accept, multiple, max_size, on_upload } => {
+                                    let field_name = field.name.clone();
+                                    let field_label = field.label.clone();
+                                    let field_error = field.error_message.clone();
+                                    let field_value = field.value.clone();
+                                    let accept_str = accept.unwrap_or_default();
+                                    
+                                    view! {
+                                        <FileFieldInput
+                                            _name=field_name
+                                            label=field_label
+                                            accept=accept_str
+                                            multiple=multiple
+                                            max_size=max_size.unwrap_or(10 * 1024 * 1024) // Default 10MB
+                                            value=field_value
+                                            on_upload=on_upload.unwrap_or_else(|| Callback::new(|_| {}))
+                                            error_message=field_error
+                                        />
+                                    }.into_any()
+                                },
                             }}
                         }
                     }
@@ -453,6 +479,238 @@ where
                     }
                 />
             </select>
+            <p class="label">
+                <span class="label-text-alt text-error h-2">
+                    {move || error_message.get().unwrap_or_default()}
+                </span>
+            </p>
+        </fieldset>
+    }
+}
+#[component]
+pub fn FileFieldInput(
+    _name: String,
+    label: String,
+    accept: String,
+    #[prop(optional, default = false)] multiple: bool,
+    max_size: u64,
+    value: ArcRwSignal<String>, // 存储文件路径
+    on_upload: Callback<FileInfo>, // 上传回调
+    #[prop(optional, default = String::new())] class: String,
+    #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
+) -> impl IntoView {
+    let upload_status = RwSignal::new("ready".to_string()); // ready, uploading, success, error
+    let uploaded_files = RwSignal::new(Vec::<String>::new()); // 已上传文件的路径列表
+
+    // Clone value before moving into closures
+    let value_for_handler = value.clone();
+    let value_for_handler2 = value.clone();
+    let value_for_list = value.clone();
+    let value_for_list2 = value.clone();
+    let value_for_image = value.clone();
+    let value_for_image2 = value.clone();
+    let value_for_image3 = value.clone();
+    let value_for_file = value.clone();
+    let value_for_file2 = value.clone();
+    let accept_for_image = accept.clone();
+    let accept_for_file = accept.clone();
+
+    let handle_file_change = move |files: Vec<FileInfo>| {
+        if let Some(file_info) = files.first() {
+            // 立即设置上传状态
+            upload_status.set("uploading".to_string());
+            
+            // 调用上传回调并等待结果
+            on_upload.run(file_info.clone());
+        }
+    };
+
+    // 监听value变化，当有值时表示上传完成
+    Effect::new({
+        let upload_status = upload_status.clone();
+        let value = value.clone();
+        move |_| {
+            let current_value = value.get();
+            let current_status = upload_status.get();
+            
+            // 如果当前是uploading状态，但value有值了，说明上传完成
+            if current_status == "uploading" && !current_value.is_empty() {
+                upload_status.set("success".to_string());
+            }
+            
+            // 如果value为空，重置状态
+            if current_value.is_empty() && current_status != "ready" {
+                upload_status.set("ready".to_string());
+            }
+        }
+    });
+
+    view! {
+        <fieldset class=format!("fieldset form-control {}", class)>
+            <label class="label">
+                <span class="label-text font-medium">{label}</span>
+            </label>
+            
+            <div class="space-y-2">
+                // 文件上传区域 - 始终渲染，但根据状态显示不同内容
+                <div class="relative">
+                    // 上传区域 - 当没有文件且不在上传时显示
+                    <div class=move || {
+                        let current_value = value_for_list.get();
+                        let status = upload_status.get();
+                        if current_value.is_empty() && status != "uploading" {
+                            "block"
+                        } else {
+                            "hidden"
+                        }
+                    }>
+                        <SimpleFileInput
+                            accept=accept.clone()
+                            multiple=multiple
+                            max_size=max_size
+                            class="w-full".to_string()
+                            on_change=Callback::new(handle_file_change)
+                            on_upload=on_upload
+                        />
+                    </div>
+                    
+                    // 预览区域 - 当有文件或正在上传时显示
+                    <div class=move || {
+                        let current_value = value_for_list2.get();
+                        let status = upload_status.get();
+                        if status == "uploading" || !current_value.is_empty() {
+                            "block"
+                        } else {
+                            "hidden"
+                        }
+                    }>
+                        <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-base-100 transition-all duration-200 w-full max-w-xs mx-auto">
+                            // Loading状态显示
+                            <div class=move || {
+                                let status = upload_status.get();
+                                if status == "uploading" {
+                                    "flex flex-col items-center gap-3"
+                                } else {
+                                    "hidden"
+                                }
+                            }>
+                                <div class="loading loading-spinner loading-lg text-primary"></div>
+                                <div class="text-sm text-info font-medium">上传中...</div>
+                                <div class="text-xs text-gray-400">请稍候</div>
+                            </div>
+                            
+                            // 图片预览区域
+                            <div class=move || {
+                                let current_value = value_for_image.get();
+                                let status = upload_status.get();
+                                if accept_for_image.contains("image") && !current_value.contains(",") && !current_value.is_empty() && status != "uploading" {
+                                    "flex flex-col items-center gap-2"
+                                } else {
+                                    "hidden"
+                                }
+                            }>
+                                <div class="w-20 h-20 mx-auto">
+                                    <img src=move || value_for_image2.get() alt="预览" class="w-full h-full object-cover rounded-lg border border-gray-200" />
+                                </div>
+                                <div class="text-sm text-success font-medium">上传成功</div>
+                                <div class="text-xs text-gray-500 break-words max-w-full px-1 leading-tight">{move || {
+                                    let url = value_for_image3.get();
+                                    // 截断长URL显示
+                                    if url.len() > 30 {
+                                        format!("{}...{}", &url[..15], &url[url.len()-10..])
+                                    } else {
+                                        url
+                                    }
+                                }}</div>
+                                // 删除按钮
+                                <button
+                                    type="button"
+                                    class="btn btn-xs btn-outline btn-error mt-1"
+                                    on:click={
+                                        let value = value_for_handler.clone();
+                                        let upload_status = upload_status.clone();
+                                        move |ev: leptos::ev::MouseEvent| {
+                                            ev.prevent_default();
+                                            ev.stop_propagation();
+                                            value.set(String::new());
+                                            upload_status.set("ready".to_string());
+                                        }
+                                    }
+                                    title="删除文件"
+                                >
+                                    "删除"
+                                </button>
+                            </div>
+                            
+                            // 非图片文件预览区域
+                            <div class=move || {
+                                let current_value = value_for_file.get();
+                                let status = upload_status.get();
+                                if !accept_for_file.contains("image") || current_value.contains(",") {
+                                    if !current_value.is_empty() && status != "uploading" {
+                                        "flex flex-col items-center gap-2"
+                                    } else {
+                                        "hidden"
+                                    }
+                                } else {
+                                    "hidden"
+                                }
+                            }>
+                                <div class="text-3xl text-primary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                    </svg>
+                                </div>
+                                <div class="text-sm text-success font-medium">上传成功</div>
+                                <div class="text-xs text-gray-500 break-words max-w-full px-1 leading-tight">{move || {
+                                    let url = value_for_file2.get();
+                                    // 截断长URL显示
+                                    if url.len() > 30 {
+                                        format!("{}...{}", &url[..15], &url[url.len()-10..])
+                                    } else {
+                                        url
+                                    }
+                                }}</div>
+                                // 删除按钮
+                                <button
+                                    type="button"
+                                    class="btn btn-xs btn-outline btn-error mt-1"
+                                    on:click={
+                                        let value = value_for_handler2.clone();
+                                        let upload_status = upload_status.clone();
+                                        move |ev: leptos::ev::MouseEvent| {
+                                            ev.prevent_default();
+                                            ev.stop_propagation();
+                                            value.set(String::new());
+                                            upload_status.set("ready".to_string());
+                                        }
+                                    }
+                                    title="删除文件"
+                                >
+                                    "删除"
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                // 上传状态显示
+                {move || match upload_status.get().as_str() {
+                    "uploading" => view! {
+                        <div class="flex items-center gap-2 text-sm text-info">
+                            <span class="loading loading-spinner loading-sm"></span>
+                            <span>上传中...</span>
+                        </div>
+                    }.into_any(),
+                    "error" => view! {
+                        <div class="text-sm text-error">
+                            <span>"上传失败"</span>
+                        </div>
+                    }.into_any(),
+                    _ => view! { <div></div> }.into_any()
+                }}
+            </div>
+            
             <p class="label">
                 <span class="label-text-alt text-error h-2">
                     {move || error_message.get().unwrap_or_default()}

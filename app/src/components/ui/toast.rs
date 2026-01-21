@@ -42,7 +42,7 @@ pub fn Toast() -> impl IntoView {
 
     view! {
         <div class="toast toast-top toast-center z-[100]">
-            <Show when=move || state.get().visible fallback=move || view!{<div></div>}>
+            <div class=move || if state.get().visible { "block" } else { "hidden" }>
                 {move || state.get().message.map(|msg| {
                     let class = match state.get().toast_type.unwrap() {
                         ToastType::Success => "alert alert-success",
@@ -52,7 +52,7 @@ pub fn Toast() -> impl IntoView {
                     };
                     view! { <div class=class>{msg}</div> }
                 })}
-            </Show>
+            </div>
         </div>
     }
 }

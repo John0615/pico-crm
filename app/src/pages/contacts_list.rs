@@ -26,7 +26,7 @@ impl Identifiable for Contact {
     }
 }
 
-#[island]
+#[component]
 pub fn ContactsList() -> impl IntoView {
     let (sort_ops, set_sort_ops) = signal::<Vec<(String, SortValue)>>(vec![]);
     let (name, set_name) = signal(String::new());

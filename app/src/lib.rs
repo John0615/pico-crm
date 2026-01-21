@@ -12,8 +12,8 @@ use pages::*;
 
 pub mod components;
 pub mod pages;
-pub mod utils;
 pub mod server;
+pub mod utils;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {

@@ -22,6 +22,7 @@ pub struct CreateUserRequest {
     pub password: String,
     pub email: Option<String>,
     pub phone_number: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 /// 用户查询参数

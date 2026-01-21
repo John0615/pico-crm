@@ -73,7 +73,7 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
     Ok(())
 }
 
-#[island]
+#[component]
 pub fn Login() -> impl IntoView {
     let do_login = ServerAction::<LoginAction>::new();
     let pending = do_login.pending();
@@ -244,9 +244,7 @@ pub fn Login() -> impl IntoView {
                             type="submit"
                             class="btn w-full mt-6 bg-gradient-to-r from-purple-500 to-pink-500 border-none text-white hover:from-purple-600 hover:to-pink-600 hover:shadow-lg transition-all rounded-btn btn-comfort"
                         >
-                            <Show when=move || pending.get() fallback=move || view!{<span></span>}>
-                                <span class="loading loading-spinner"></span>
-                            </Show>
+                            <span class="loading loading-spinner" class:hidden=move || !pending.get()></span>
                             "立即登录" <i class="fas fa-arrow-right-long ml-2 text-lg"></i>
                         </button>
                     </ActionForm>

@@ -25,7 +25,7 @@ impl Identifiable for User {
     }
 }
 
-#[island]
+#[component]
 pub fn AdminUsers() -> impl IntoView {
     let query = use_query_map();
     let refresh_count = RwSignal::new(0);
@@ -222,10 +222,28 @@ pub fn AdminUsers() -> impl IntoView {
                             let user: Option<User> = use_context::<User>();
                             view! {
                                 <div class="flex items-center space-x-3">
-                                    <div class="avatar placeholder">
-                                        <div class="bg-neutral text-neutral-content rounded-full w-12">
-                                            <span class="text-lg">{user.as_ref().map(|u| u.user_name.chars().next().unwrap_or('U')).unwrap_or('U')}</span>
-                                        </div>
+                                    <div class="avatar">
+                                        {if let Some(user) = &user {
+                                            if let Some(avatar_url) = &user.avatar_url {
+                                                view! {
+                                                    <div class="w-12 h-12 rounded-full">
+                                                        <img src=avatar_url.clone() alt="头像" class="w-full h-full object-cover" />
+                                                    </div>
+                                                }.into_any()
+                                            } else {
+                                                view! {
+                                                    <div class="bg-neutral text-neutral-content rounded-full w-12 placeholder">
+                                                        <span class="text-lg">{user.user_name.chars().next().unwrap_or('U')}</span>
+                                                    </div>
+                                                }.into_any()
+                                            }
+                                        } else {
+                                            view! {
+                                                <div class="bg-neutral text-neutral-content rounded-full w-12 placeholder">
+                                                    <span class="text-lg">U</span>
+                                                </div>
+                                            }.into_any()
+                                        }}
                                     </div>
                                     <div>
                                         <div class="font-bold">{user.as_ref().map(|u| u.user_name.clone()).unwrap_or_default()}</div>
