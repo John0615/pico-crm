@@ -2,15 +2,19 @@ use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
     components::{Outlet, ParentRoute, Route, Router, Routes},
-    path, StaticSegment,
+    path, Lazy, StaticSegment,
 };
 
 use components::layouts::*;
 use components::ui::{message_box::MessageBox, toast::Toast};
-use pages::admin::{AdminUsers, SystemSettings};
-use pages::*;
+use lazy_routes::{
+    AdminUsersRoute, ContactsListRoute, DashboardRoute, LoginRoute,
+    SystemSettingsRoute,
+};
+use pages::NotFoundPage;
 
 pub mod components;
+mod lazy_routes;
 pub mod pages;
 pub mod server;
 pub mod utils;
@@ -50,20 +54,20 @@ pub fn App() -> impl IntoView {
         <Router>
             <main>
                 <Routes fallback=|| view! { <NotFoundPage /> }>
-                    <Route path=path!("/login") view=Login/>
+                    <Route path=path!("/login") view={Lazy::<LoginRoute>::new()}/>
                     <ParentRoute path=StaticSegment("") view=SidebarLayout>
-                        <Route path=StaticSegment("") view=Dashboard/>
+                        <Route path=StaticSegment("") view={Lazy::<DashboardRoute>::new()}/>
                         <ParentRoute path=path!("/contacts") view=|| view! {
                             <Outlet/>
                         }>
-                            <Route path=path!("") view=ContactsList/>
+                            <Route path=path!("") view={Lazy::<ContactsListRoute>::new()}/>
                         </ParentRoute>
                         <ParentRoute path=path!("/admin") view=|| view! {
                             <Outlet/>
                         }>
-                            <Route path=path!("") view=SystemSettings/>
-                            <Route path=path!("/users") view=AdminUsers/>
-                            <Route path=path!("/settings") view=SystemSettings/>
+                            <Route path=path!("") view={Lazy::<SystemSettingsRoute>::new()}/>
+                            <Route path=path!("/users") view={Lazy::<AdminUsersRoute>::new()}/>
+                            <Route path=path!("/settings") view={Lazy::<SystemSettingsRoute>::new()}/>
                         </ParentRoute>
                     </ParentRoute>
                 </Routes>

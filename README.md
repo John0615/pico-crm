@@ -96,3 +96,5 @@ sea-orm-cli generate entity -u postgres://postgres:postgres@localhost:5432/pico_
 
 # 启动开发服务器
 cargo leptos watch
+
+cargo leptos watch --split

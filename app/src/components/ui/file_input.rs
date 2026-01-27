@@ -335,20 +335,14 @@ pub fn FileInput(
 
                     // 上传文本
                     <div class="text-sm">
-                        {if drag_drop && !disabled {
-                            view! {
-                                <div>
-                                    <span class="text-primary font-medium">点击上传</span>
-                                    <span class="text-gray-500"> 或拖拽文件到此处</span>
-                                </div>
-                            }
-                        } else {
-                            view! {
-                                <div>
-                                    <span class="text-primary font-medium">点击选择文件</span>
-                                </div>
-                            }
-                        }}
+                        <div>
+                            <span class="text-primary font-medium">
+                                {if drag_drop && !disabled { "点击上传" } else { "点击选择文件" }}
+                            </span>
+                            <Show when=move || drag_drop && !disabled>
+                                <span class="text-gray-500"> 或拖拽文件到此处</span>
+                            </Show>
+                        </div>
                     </div>
 
                     // 文件限制提示
@@ -368,9 +362,9 @@ pub fn FileInput(
             </div>
 
             // 文件列表
-            {move || if show_file_list && !files.get().is_empty() {
-                view! {
-                    <div class="file-list mt-4">
+            <Show when=move || show_file_list && !files.get().is_empty()>
+                {move || view! {
+                <div class="file-list mt-4">
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-sm font-medium">已选择文件 ({files.get().len()})</span>
                             <button
@@ -415,33 +409,21 @@ pub fn FileInput(
 
                                         // 操作按钮
                                         <div class="flex items-center gap-2">
-                                            {if !auto_upload {
-                                                view! {
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-primary btn-xs"
-                                                        on:click={
-                                                            let file_info = file_info.clone();
-                                                            let upload_callback = on_upload.clone();
-                                                            move |_| {
-                                                                upload_callback.run(file_info.clone());
-                                                            }
+                                            <Show when=move || !auto_upload>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-primary btn-xs"
+                                                    on:click={
+                                                        let file_info = file_info.clone();
+                                                        let upload_callback = on_upload.clone();
+                                                        move |_| {
+                                                            upload_callback.run(file_info.clone());
                                                         }
-                                                    >
-                                                        上传
-                                                    </button>
-                                                }
-                                            } else {
-                                                view! {
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-primary btn-xs"
-                                                        style="display: none;"
-                                                    >
-                                                        上传
-                                                    </button>
-                                                }
-                                            }}
+                                                    }
+                                                >
+                                                    上传
+                                                </button>
+                                            </Show>
 
                                             <button
                                                 type="button"
@@ -460,16 +442,8 @@ pub fn FileInput(
                             }).collect::<Vec<_>>()}
                         </div>
                     </div>
-                }
-            } else {
-                view! {
-                    <div class="file-list mt-4" style="display: none;">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-sm font-medium">已选择文件 (0)</span>
-                        </div>
-                    </div>
-                }
-            }}
+                }}
+            </Show>
         </div>
     }
 }
