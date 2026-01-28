@@ -63,12 +63,13 @@ pub fn Navbar() -> impl IntoView {
     let result = do_logout.value();
 
     Effect::new(move || {
-        let current_value = result.get(); // 得到 Option<Result<(), ServerFnError>>
-        if let Some(action_result) = current_value {
-            if action_result.is_ok() {
-                navigate("/login", Default::default());
+        result.with(|current_value| {
+            if let Some(action_result) = current_value.as_ref() {
+                if action_result.is_ok() {
+                    navigate("/login", Default::default());
+                }
             }
-        }
+        });
     });
 
     let data = Resource::new(
@@ -131,7 +132,7 @@ pub fn Navbar() -> impl IntoView {
                         <div class="avatar">
                           <div class="w-8 rounded-full">
                             <Suspense>
-                              <img src=move || data.get().unwrap_or_default().avatar_url />
+                              <img src=move || data.with(|value| value.clone().unwrap_or_default().avatar_url) />
                             </Suspense>
                           </div>
                         </div>

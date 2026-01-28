@@ -111,14 +111,26 @@ where
     ];
 
     let submit = move |fields: Vec<FormField>| async move {
+        let user_name = fields[0].value.with_untracked(|value| value.clone());
+        let company = fields[1].value.with_untracked(|value| value.clone());
+        let position = fields[2].value.with_untracked(|value| value.clone());
+        let phone_number = fields[3].value.with_untracked(|value| value.clone());
+        let email = fields[4].value.with_untracked(|value| value.clone());
+        let value_level = fields[5]
+            .value
+            .with_untracked(|value| value.parse::<i32>().unwrap_or(1));
+        let status = fields[6]
+            .value
+            .with_untracked(|value| value.parse::<i32>().unwrap_or(1));
+
         let contact = Contact {
-            user_name: fields[0].value.get_untracked().clone(),
-            company: fields[1].value.get_untracked().clone(),
-            position: fields[2].value.get_untracked().clone(),
-            phone_number: fields[3].value.get_untracked().clone(),
-            email: fields[4].value.get_untracked().clone(),
-            value_level: fields[5].value.get_untracked().parse::<i32>().unwrap_or(1),
-            status: fields[6].value.get_untracked().parse::<i32>().unwrap_or(1),
+            user_name,
+            company,
+            position,
+            phone_number,
+            email,
+            value_level,
+            status,
             ..Default::default()
         };
         log!("Submitting: {:?}", contact);

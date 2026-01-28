@@ -174,8 +174,7 @@ where
                         let avatar_url = avatar_url.clone();
                         let avatar_field_value = avatar_field_value.clone();
                         move |_| {
-                            let url = avatar_url.get();
-                            avatar_field_value.set(url);
+                            avatar_field_value.set(avatar_url.with(|url| url.clone()));
                         }
                     });
                     avatar_field_value
@@ -188,26 +187,24 @@ where
     };
 
     let submit = move |fields: Vec<FormField>| async move {
+        let user_name = fields[0].value.with_untracked(|value| value.clone());
+        let password = fields[1].value.with_untracked(|value| value.clone());
+        let email = fields[2].value.with_untracked(|value| value.clone());
+        let phone_number = fields[3].value.with_untracked(|value| value.clone());
+        let avatar = avatar_url.with_untracked(|value| value.clone());
+
         let request = CreateUserRequest {
-            user_name: fields[0].value.get_untracked().clone(),
-            password: fields[1].value.get_untracked().clone(),
-            email: if fields[2].value.get_untracked().is_empty() {
+            user_name,
+            password,
+            email: if email.is_empty() { None } else { Some(email) },
+            phone_number: if phone_number.is_empty() {
                 None
             } else {
-                Some(fields[2].value.get_untracked().clone())
+                Some(phone_number)
             },
-            phone_number: if fields[3].value.get_untracked().is_empty() {
-                None
-            } else {
-                Some(fields[3].value.get_untracked().clone())
-            },
-            avatar_url: if avatar_url.get_untracked().is_empty() {
-                None
-            } else {
-                Some(avatar_url.get_untracked())
-            },
+            avatar_url: if avatar.is_empty() { None } else { Some(avatar) },
         };
-        let uuid = user_uuid.get_untracked();
+        let uuid = user_uuid.with_untracked(|value| value.clone());
         // 调用API并处理结果
         match call_api(update_user(uuid, request)).await {
             Ok(_) => {
@@ -227,7 +224,7 @@ where
         <Modal show=show>
             <FormContainer title="修改用户">
                 {move || {
-                    if loading.get() {
+                    if *loading.read() {
                         view! {
                             <div class="flex justify-center items-center p-8">
                                 <span class="loading loading-spinner loading-md"></span>
@@ -236,7 +233,7 @@ where
                         }.into_any()
                     } else {
                         let initial_fields = create_initial_fields();
-                        let _current_user = user_data.get();
+                        let _current_user = user_data.read();
 
                         view! {
                             <div class="space-y-4">

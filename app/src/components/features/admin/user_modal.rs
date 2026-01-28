@@ -20,7 +20,7 @@ where
 
     // 当模态框关闭时清理头像URL
     Effect::new(move |_| {
-        let show_modal = show.get();
+        let show_modal = *show.read();
         if !show_modal {
             avatar_url.set(String::new());
         }
@@ -126,16 +126,15 @@ where
             value: {
                 let avatar_field_value = ArcRwSignal::new(String::new());
                 // 创建一个响应式效果，当avatar_url改变时更新字段值
-                Effect::new({
-                    let avatar_url = avatar_url.clone();
-                    let avatar_field_value = avatar_field_value.clone();
-                    move |_| {
-                        let url = avatar_url.get();
-                        avatar_field_value.set(url);
-                    }
-                });
-                avatar_field_value
-            },
+                    Effect::new({
+                        let avatar_url = avatar_url.clone();
+                        let avatar_field_value = avatar_field_value.clone();
+                        move |_| {
+                            avatar_field_value.set(avatar_url.with(|url| url.clone()));
+                        }
+                    });
+                    avatar_field_value
+                },
             placeholder: None,
             error_message: ArcRwSignal::new(None),
             validation: None,
@@ -143,24 +142,22 @@ where
     ];
 
     let submit = move |fields: Vec<FormField>| async move {
+        let user_name = fields[0].value.with_untracked(|value| value.clone());
+        let password = fields[1].value.with_untracked(|value| value.clone());
+        let email = fields[2].value.with_untracked(|value| value.clone());
+        let phone_number = fields[3].value.with_untracked(|value| value.clone());
+        let avatar = avatar_url.with_untracked(|value| value.clone());
+
         let request = CreateUserRequest {
-            user_name: fields[0].value.get_untracked().clone(),
-            password: fields[1].value.get_untracked().clone(),
-            email: if fields[2].value.get_untracked().is_empty() {
+            user_name,
+            password,
+            email: if email.is_empty() { None } else { Some(email) },
+            phone_number: if phone_number.is_empty() {
                 None
             } else {
-                Some(fields[2].value.get_untracked().clone())
+                Some(phone_number)
             },
-            phone_number: if fields[3].value.get_untracked().is_empty() {
-                None
-            } else {
-                Some(fields[3].value.get_untracked().clone())
-            },
-            avatar_url: if avatar_url.get_untracked().is_empty() {
-                None
-            } else {
-                Some(avatar_url.get_untracked())
-            },
+            avatar_url: if avatar.is_empty() { None } else { Some(avatar) },
         };
         // 调用API并处理结果
         match call_api(create_user(request)).await {

@@ -19,7 +19,7 @@ where
     F: Fn() + Copy + Send + 'static,
 {
     let initial_fields = Resource::new(
-        move || contact_uuid.get(),
+        move || contact_uuid.with(|value| value.clone()),
         |uuid| async move {
             let init_contact = if uuid.is_empty() {
                 Contact {
@@ -133,15 +133,28 @@ where
     );
 
     let submit = move |fields: Vec<FormField>| async move {
+        let uuid = contact_uuid.with_untracked(|value| value.clone());
+        let user_name = fields[0].value.with_untracked(|value| value.clone());
+        let company = fields[1].value.with_untracked(|value| value.clone());
+        let position = fields[2].value.with_untracked(|value| value.clone());
+        let phone_number = fields[3].value.with_untracked(|value| value.clone());
+        let email = fields[4].value.with_untracked(|value| value.clone());
+        let value_level = fields[5]
+            .value
+            .with_untracked(|value| value.parse::<i32>().unwrap_or(1));
+        let status = fields[6]
+            .value
+            .with_untracked(|value| value.parse::<i32>().unwrap_or(1));
+
         let contact = UpdateContact {
-            contact_uuid: contact_uuid.get_untracked(),
-            user_name: fields[0].value.get_untracked(),
-            company: fields[1].value.get_untracked(),
-            position: fields[2].value.get_untracked(),
-            phone_number: fields[3].value.get_untracked(),
-            email: fields[4].value.get_untracked(),
-            value_level: fields[5].value.get_untracked().parse::<i32>().unwrap_or(1),
-            status: fields[6].value.get_untracked().parse::<i32>().unwrap_or(1),
+            contact_uuid: uuid,
+            user_name,
+            company,
+            position,
+            phone_number,
+            email,
+            value_level,
+            status,
         };
         log!("Submitting: {:?}", contact);
         // 调用API并处理结果
@@ -174,15 +187,17 @@ where
                     }
                 >
                     {move || {
-                            initial_fields.get().map(|fields| {
-                                view! {
-                                    <DaisyForm
-                                        initial_fields=fields
-                                        on_submit=submit
-                                        submit_text="提交".to_string()
-                                        reset_text="取消".to_string()
-                                    />
-                                }
+                            initial_fields.with(|fields| {
+                                fields.as_ref().map(|fields| {
+                                    view! {
+                                        <DaisyForm
+                                            initial_fields=fields.clone()
+                                            on_submit=submit
+                                            submit_text="提交".to_string()
+                                            reset_text="取消".to_string()
+                                        />
+                                    }
+                                })
                             })
                         }}
 

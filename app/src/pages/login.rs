@@ -81,27 +81,23 @@ pub fn Login() -> impl IntoView {
     let navigate = leptos_router::hooks::use_navigate();
 
     Effect::new(move |_| {
-        let current_value = result.get(); // 得到 Option<Result<(), ServerFnError>>
-
-        if let Some(action_result) = current_value {
-            // 现在 action_result 是 Result<(), ServerFnError>
-            if action_result.is_ok() {
-                // 登录成功后跳转到主页
-                success("登录成功".to_string());
-                navigate("/", Default::default());
+        result.with(|current_value| {
+            if let Some(action_result) = current_value.as_ref() {
+                if action_result.is_ok() {
+                    success("登录成功".to_string());
+                    navigate("/", Default::default());
+                } else if let Err(err) = action_result {
+                    let error_message = err.to_string();
+                    let clean_error =
+                        if error_message.starts_with("error running server function: ") {
+                            error_message.replace("error running server function: ", "")
+                        } else {
+                            error_message
+                        };
+                    error(clean_error);
+                }
             }
-
-            if action_result.is_err() {
-                // 登录失败后显示错误信息
-                let error_message = action_result.err().unwrap().to_string();
-                let clean_error = if error_message.starts_with("error running server function: ") {
-                    error_message.replace("error running server function: ", "")
-                } else {
-                    error_message
-                };
-                error(clean_error);
-            }
-        }
+        });
     });
 
     // 密码可见性状态
@@ -214,7 +210,7 @@ pub fn Login() -> impl IntoView {
                                     <i class="fas fa-lock text-lg"></i>
                                 </span>
                                 <input
-                                    type=move || if password_visible.get() { "text" } else { "password" }
+                                    type=move || if *password_visible.read() { "text" } else { "password" }
                                     name="password"
                                     placeholder="请输入密码"
                                     class="input input-bordered w-full rounded-input bg-white/70 h-12 input-with-icon pr-10 hover:bg-white/90 transition-colors"
@@ -225,7 +221,7 @@ pub fn Login() -> impl IntoView {
                                     class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-purple-500 transition-colors"
                                     on:click=toggle_password
                                 >
-                                    <i class=move || if password_visible.get() { "fas fa-eye text-lg" } else { "fas fa-eye-slash text-lg" }></i>
+                                    <i class=move || if *password_visible.read() { "fas fa-eye text-lg" } else { "fas fa-eye-slash text-lg" }></i>
                                 </button>
                             </div>
                             <div class="text-right mt-1">
@@ -244,7 +240,7 @@ pub fn Login() -> impl IntoView {
                             type="submit"
                             class="btn w-full mt-6 bg-gradient-to-r from-purple-500 to-pink-500 border-none text-white hover:from-purple-600 hover:to-pink-600 hover:shadow-lg transition-all rounded-btn btn-comfort"
                         >
-                            <span class="loading loading-spinner" class:hidden=move || !pending.get()></span>
+                            <span class="loading loading-spinner" class:hidden=move || !*pending.read()></span>
                             "立即登录" <i class="fas fa-arrow-right-long ml-2 text-lg"></i>
                         </button>
                     </ActionForm>

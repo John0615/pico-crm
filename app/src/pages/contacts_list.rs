@@ -41,11 +41,11 @@ pub fn ContactsList() -> impl IntoView {
     let data = Resource::new(
         move || {
             (
-                sort_ops.get(),
-                name.get(),
-                status.get(),
-                refresh_count.get(),
-                query.get(),
+                sort_ops.with(|value| value.clone()),
+                name.with(|value| value.clone()),
+                status.with(|value| value.clone()),
+                *refresh_count.read(),
+                query.with(|value| value.clone()),
             )
         },
         |(sort_ops, name, status, _, query)| async move {
@@ -109,7 +109,7 @@ pub fn ContactsList() -> impl IntoView {
     );
 
     let on_contact_modal_finish = move || {
-        refresh_count.set(refresh_count.get_untracked() + 1);
+        refresh_count.update(|value| *value += 1);
         set_edit_contact_uuid.set(String::new());
     };
 
@@ -147,7 +147,7 @@ pub fn ContactsList() -> impl IntoView {
                     match result {
                         Ok(_) => {
                             success("操作成功".to_string());
-                            refresh_count.set(refresh_count.get_untracked() + 1);
+                            refresh_count.update(|value| *value += 1);
                         }
                         Err(err) => {
                             logging::error!("Failed to delete contact: {:?}", err);
@@ -159,32 +159,37 @@ pub fn ContactsList() -> impl IntoView {
     };
 
     let export_excel = move |_ev| {
-        let sort_options: Vec<SortOption> = sort_ops
-            .get_untracked()
-            .iter()
-            .filter_map(|(field, sort_value)| {
-                let field_enum = match field.as_str() {
-                    "user_name" => Some(SortField::Name),
-                    "last_contact" => Some(SortField::LastContact),
-                    _ => None,
-                }?;
+        let sort_options: Vec<SortOption> = sort_ops.with_untracked(|current| {
+            current
+                .iter()
+                .filter_map(|(field, sort_value)| {
+                    let field_enum = match field.as_str() {
+                        "user_name" => Some(SortField::Name),
+                        "last_contact" => Some(SortField::LastContact),
+                        _ => None,
+                    }?;
 
-                let order = match sort_value {
-                    SortValue::Asc => SortOrder::Asc,
-                    SortValue::Desc => SortOrder::Desc,
-                };
+                    let order = match sort_value {
+                        SortValue::Asc => SortOrder::Asc,
+                        SortValue::Desc => SortOrder::Desc,
+                    };
 
-                Some(SortOption {
-                    field: field_enum,
-                    order,
+                    Some(SortOption {
+                        field: field_enum,
+                        order,
+                    })
                 })
-            })
-            .collect();
+                .collect()
+        });
 
         // logging::error!("Generated sort options: {:?}", sort_options);
+        let (name_value, status_value) = (
+            name.with_untracked(|value| value.clone()),
+            status.with_untracked(|value| value.clone()),
+        );
         let filters = ContactFilters {
-            user_name: (!name.get_untracked().is_empty()).then_some(name.get_untracked()),
-            status: (!status.get_untracked().is_empty()).then_some(status.get_untracked()),
+            user_name: (!name_value.is_empty()).then_some(name_value),
+            status: (!status_value.is_empty()).then_some(status_value),
             email: None,
             phone_number: None,
         };
@@ -474,9 +479,13 @@ pub fn ContactsList() -> impl IntoView {
             </div>
 
             <Transition>
-                 {move || data.get().map(|data| view! {
-                    <Pagination total_items=data.1 />
-                 })}
+                 {move || {
+                    data.with(|data| {
+                        data.as_ref().map(|data| view! {
+                            <Pagination total_items=data.1 />
+                        })
+                    })
+                 }}
             </Transition>
         </div>
     }

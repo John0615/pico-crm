@@ -41,11 +41,11 @@ pub fn AdminUsers() -> impl IntoView {
     let data = Resource::new(
         move || {
             (
-                name.get(),
-                role.get(),
-                status.get(),
-                refresh_count.get(),
-                query.get(),
+                name.with(|value| value.clone()),
+                role.with(|value| value.clone()),
+                status.with(|value| value.clone()),
+                *refresh_count.read(),
+                query.with(|value| value.clone()),
             )
         },
         |(name, role, status, _, query)| async move {
@@ -80,7 +80,7 @@ pub fn AdminUsers() -> impl IntoView {
     );
 
     let on_user_modal_finish = move || {
-        refresh_count.set(refresh_count.get_untracked() + 1);
+        refresh_count.update(|value| *value += 1);
         set_edit_user_uuid.set(String::new());
     };
 
@@ -112,7 +112,7 @@ pub fn AdminUsers() -> impl IntoView {
                         match result {
                             Ok(_) => {
                                 success("删除成功".to_string());
-                                refresh_count.set(refresh_count.get_untracked() + 1);
+                                refresh_count.update(|value| *value += 1);
                             }
                             Err(err) => {
                                 logging::error!("Failed to delete user: {:?}", err);
@@ -138,7 +138,7 @@ pub fn AdminUsers() -> impl IntoView {
             match result {
                 Ok(_) => {
                     success(format!("{}成功", action_text));
-                    refresh_count.set(refresh_count.get_untracked() + 1);
+                    refresh_count.update(|value| *value += 1);
                 }
                 Err(err) => {
                     logging::error!("Failed to toggle user status: {:?}", err);
@@ -381,9 +381,13 @@ pub fn AdminUsers() -> impl IntoView {
             </div>
 
             <Transition>
-                 {move || data.get().map(|data| view! {
-                    <Pagination total_items=data.1 />
-                 })}
+                 {move || {
+                    data.with(|data| {
+                        data.as_ref().map(|data| view! {
+                            <Pagination total_items=data.1 />
+                        })
+                    })
+                 }}
             </Transition>
 
             // 模态框组件
