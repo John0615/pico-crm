@@ -3,7 +3,7 @@ use leptos::prelude::*;
 #[component]
 pub fn Modal(show: RwSignal<bool>, children: Children) -> impl IntoView {
     view! {
-        <dialog open=move || show.get() class="modal modal-bottom sm:modal-middle">
+        <dialog open=move || *show.read() class="modal modal-bottom sm:modal-middle">
             <div class="modal-box w-11/12">
                 <button
                     class="btn btn-sm btn-circle absolute right-2 top-2"

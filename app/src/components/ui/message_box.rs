@@ -39,19 +39,19 @@ pub fn MessageBox() -> impl IntoView {
         .expect("there to be a `message_state` signal provided");
 
     view! {
-        <div class=move || if state.read().visible { "modal modal-open" } else { "modal" }>
+        <div class=move || if state.with(|state| state.visible) { "modal modal-open" } else { "modal" }>
             <div class="modal-box">
                 <button on:click=move |_| {
-                    if let Some(cb) = state.read().on_cancel {
+                    if let Some(cb) = state.with(|state| state.on_cancel.clone()) {
                         cb.run(());
                     }
                     state.update(|s| s.visible = false);
                 } class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">"✕"</button>
                 <h3 class="font-bold text-lg flex items-center gap-2">
-                    {move || state.read().title.clone()}
+                    {move || state.with(|state| state.title.clone())}
                 </h3>
                 <p class="py-2 flex items-center">
-                    {move || match state.read().message_type {
+                    {move || match state.with(|state| state.message_type) {
                         MessageBoxType::Delete => view! {
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-4 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -59,13 +59,13 @@ pub fn MessageBox() -> impl IntoView {
                         }.into_any(),
                             _ => view! {}.into_any(),
                         }}
-                    {move || state.read().message.clone()}
+                    {move || state.with(|state| state.message.clone())}
                 </p>
                 <div class="modal-action">
                     <button
                         class="btn btn-sm btn-ghost"
                         on:click=move |_| {
-                            if let Some(cb) = state.read().on_cancel {
+                            if let Some(cb) = state.with(|state| state.on_cancel.clone()) {
                                 cb.run(());
                             }
                             state.update(|s| s.visible = false);
@@ -74,18 +74,18 @@ pub fn MessageBox() -> impl IntoView {
                         "取消"
                     </button>
                     <button
-                        class=move || match state.read().message_type {
+                        class=move || match state.with(|state| state.message_type) {
                             MessageBoxType::Delete => "btn btn-sm btn-error",
                             _ => "btn btn-sm btn-primary",
                         }
                         on:click=move |_| {
-                            if let Some(cb) = state.read().on_confirm {
+                            if let Some(cb) = state.with(|state| state.on_confirm.clone()) {
                                 cb.run(());
                             }
                             state.update(|s| s.visible = false);
                         }
                     >
-                        {move || match state.read().message_type {
+                        {move || match state.with(|state| state.message_type) {
                             MessageBoxType::Delete => "确认删除",
                             _ => "确认",
                         }}

@@ -97,7 +97,7 @@ where
 
     // 验证单个字段
     let validate_field = move |field: &FormField| -> Option<String> {
-        let value = field.value.with(|value| value.clone());
+        let value = field.value.read();
         if field.required && value.is_empty() {
             return Some(format!("{}不能为空", field.label));
         }
@@ -112,13 +112,13 @@ where
                 }
                 ValidationRule::Regex(pattern) => {
                     if let Ok(re) = Regex::new(pattern) {
-                        if !re.is_match(&value) {
+                        if !re.is_match(value.as_str()) {
                             return Some(format!("{}格式不正确", field.label));
                         }
                     }
                 }
                 ValidationRule::Custom(validator) => {
-                    if let Err(msg) = validator.validate(&value) {
+                    if let Err(msg) = validator.validate(value.as_str()) {
                         return Some(msg);
                     }
                 }
@@ -131,23 +131,27 @@ where
     // 验证整个表单
     let validate_form = move || {
         let mut is_valid = true;
-        for field in fields.get_untracked().iter() {
-            let error = validate_field(field);
-            let error = error.clone();
-            field.error_message.set(error.clone());
-            if error.is_some() {
-                is_valid = false;
+        fields.with_untracked(|fields| {
+            for field in fields.iter() {
+                let error = validate_field(field);
+                let error = error.clone();
+                field.error_message.set(error.clone());
+                if error.is_some() {
+                    is_valid = false;
+                }
             }
-        }
+        });
         is_valid
     };
 
     // 重置表单
     let reset = move || {
-        for field in fields.get_untracked().iter() {
-            field.value.set(String::new());
-            field.error_message.set(None);
-        }
+        fields.with_untracked(|fields| {
+            for field in fields.iter() {
+                field.value.set(String::new());
+                field.error_message.set(None);
+            }
+        });
     };
 
     // 提交表单

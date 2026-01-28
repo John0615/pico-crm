@@ -84,6 +84,7 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
     #[prop(optional)] on_sort: Option<Callback<(String, SortValue)>>,
 ) -> impl IntoView {
     let columns = StoredValue::new(columns);
+    let columns_list = move || columns.with_value(|cols| cols.clone());
     let sort_change = move |prop, sort_value| {
         if let Some(cb) = on_sort {
             cb.run((prop, sort_value));
@@ -94,7 +95,7 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
             <thead>
                 <tr class="bg-base-200">
                     <For
-                        each=move || columns.read_value().to_vec().into_iter().enumerate()
+                        each=move || columns_list().into_iter().enumerate()
                         key=|(index, _col)| *index
                         children=move |(_index, col)| {
                             let cell_content = view! {
@@ -164,7 +165,7 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
                                     <Provider value=item>
                                         <tr>
                                             <For
-                                                each=move || columns.read_value().to_vec().into_iter().enumerate()
+                                                each=move || columns_list().into_iter().enumerate()
                                                 key=|(index, _)| *index
                                                 children=move |(_, col)| {
                                                     if col.freeze {

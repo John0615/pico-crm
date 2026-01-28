@@ -27,7 +27,7 @@ pub fn Toast() -> impl IntoView {
     // 自动隐藏效果
     Effect::new(move |_| {
         // log!("state11: {:?}", state.get());
-        if state.get().visible {
+        if state.with(|state| state.visible) {
             set_timeout(
                 move || {
                     state.set(ToastState {
@@ -42,16 +42,19 @@ pub fn Toast() -> impl IntoView {
 
     view! {
         <div class="toast toast-top toast-center z-[100]">
-            <div class=move || if state.get().visible { "block" } else { "hidden" }>
-                {move || state.get().message.map(|msg| {
-                    let class = match state.get().toast_type.unwrap() {
-                        ToastType::Success => "alert alert-success",
-                        ToastType::Error => "alert alert-error",
-                        ToastType::Warning => "alert alert-warning",
-                        ToastType::Info => "alert alert-info",
-                    };
-                    view! { <div class=class>{msg}</div> }
-                })}
+            <div class=move || if state.with(|state| state.visible) { "block" } else { "hidden" }>
+                {move || {
+                    state.with(|state| {
+                        let msg = state.message.clone()?;
+                        let class = match state.toast_type.unwrap_or(ToastType::Info) {
+                            ToastType::Success => "alert alert-success",
+                            ToastType::Error => "alert alert-error",
+                            ToastType::Warning => "alert alert-warning",
+                            ToastType::Info => "alert alert-info",
+                        };
+                        Some(view! { <div class=class>{msg}</div> })
+                    })
+                }}
             </div>
         </div>
     }

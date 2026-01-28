@@ -10,34 +10,43 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
     // 响应式查询参数
     let (current_page, set_current_page) = signal(
         query
-            .get_untracked()
-            .get("page")
-            .and_then(|p| p.parse().ok())
+            .with_untracked(|query| query.get("page").and_then(|p| p.parse().ok()))
             .unwrap_or(1),
     );
     let (page_size, set_page_size) = signal(
         query
-            .get_untracked()
-            .get("page_size")
-            .and_then(|p| p.parse().ok())
+            .with_untracked(|query| query.get("page_size").and_then(|p| p.parse().ok()))
             .unwrap_or(10),
     );
 
     // 当查询参数变化时更新信号
     Effect::new(move |_| {
-        if let Some(page) = query.get().get("page").and_then(|p| p.parse().ok()) {
+        let (page, size) = query.with(|query| {
+            (
+                query.get("page").and_then(|p| p.parse().ok()),
+                query.get("page_size").and_then(|p| p.parse().ok()),
+            )
+        });
+        if let Some(page) = page {
             set_current_page.set(page);
         }
-        if let Some(size) = query.get().get("page_size").and_then(|p| p.parse().ok()) {
+        if let Some(size) = size {
             set_page_size.set(size);
         }
     });
 
-    let total_pages = move || (total_items.get() as f64 / page_size.get() as f64).ceil() as usize;
+    let total_pages = move || {
+        let size = *page_size.read() as f64;
+        (total_items.with(|total| *total) as f64 / size).ceil() as usize
+    };
 
     let nav_handler = StoredValue::new(move || {
         navigate(
-            &format!("?page={}&page_size={}", current_page.get(), page_size.get()),
+            &format!(
+                "?page={}&page_size={}",
+                *current_page.read(),
+                *page_size.read()
+            ),
             Default::default(),
         );
     });
@@ -61,7 +70,7 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
     // 生成页码按钮的逻辑
     let render_page_buttons = move || {
         let page_count = total_pages();
-        let current = current_page.get();
+        let current = *current_page.read();
 
         if page_count == 1 {
             vec![1]
@@ -96,12 +105,12 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
                     class="select select-bordered select-sm min-w-24"
                     on:change=on_page_size_change
                 >
-                    <option selected=move || page_size.get() == 10 value="10">10</option>
-                    <option selected=move || page_size.get() == 20 value="20">20</option>
-                    <option selected=move || page_size.get() == 50 value="50">50</option>
+                    <option selected=move || *page_size.read() == 10 value="10">10</option>
+                    <option selected=move || *page_size.read() == 20 value="20">20</option>
+                    <option selected=move || *page_size.read() == 50 value="50">50</option>
                 </select>
                 <span class="text-sm shrink-0">
-                    {move || format!("共 {} 条记录", total_items.get())}
+                    {move || format!("共 {} 条记录", total_items.with(|total| *total))}
                 </span>
             </div>
 
@@ -110,14 +119,14 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
                 <button
                     class="join-item btn btn-sm"
                     on:click=move |_| on_page_change(1)
-                    disabled=move || current_page.get() == 1
+                    disabled=move || *current_page.read() == 1
                 >
                     "«"
                 </button>
                 <button
                     class="join-item btn btn-sm"
-                    on:click=move |_| on_page_change(current_page.get() - 1)
-                    disabled=move || current_page.get() == 1
+                    on:click=move |_| on_page_change(*current_page.read() - 1)
+                    disabled=move || *current_page.read() == 1
                 >
                     "‹"
                 </button>
@@ -135,7 +144,7 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
                             view! {
                                 <button
                                     class="join-item btn btn-sm"
-                                    disabled=move || page == current_page.get()
+                                    disabled=move || page == *current_page.read()
                                     on:click=move |_| on_page_change(page)
                                 >
                                     {page}
@@ -146,15 +155,15 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
                 />
                 <button
                     class="join-item btn btn-sm"
-                    on:click=move |_| on_page_change(current_page.get() + 1)
-                    disabled=move || current_page.get() == total_pages()
+                    on:click=move |_| on_page_change(*current_page.read() + 1)
+                    disabled=move || *current_page.read() == total_pages()
                 >
                     "›"
                 </button>
                 <button
                     class="join-item btn btn-sm"
                     on:click=move |_| on_page_change(total_pages())
-                    disabled=move || current_page.get() == total_pages()
+                    disabled=move || *current_page.read() == total_pages()
                 >
                     "»"
                 </button>

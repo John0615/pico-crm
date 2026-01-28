@@ -25,9 +25,12 @@ pub fn DaisyDrawer(
                 id=id
                 type="checkbox"
                 class="drawer-toggle"
-                checked=is_open
+                checked=move || *is_open.read()
                 // 这个on:change是为了支持原生点击遮罩层关闭
-                on:change=move |ev| is_open.set(event_target_checked(&ev))
+                on:change={
+                    let is_open = is_open.clone();
+                    move |ev| is_open.set(event_target_checked(&ev))
+                }
             />
             // 抽屉内容容器 (空容器，内容完全由外部控制)
             <div class="drawer-content"></div>
