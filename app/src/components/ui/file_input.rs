@@ -37,7 +37,6 @@ pub fn FileInput(
 ) -> impl IntoView {
     let file_input_ref = NodeRef::<leptos::html::Input>::new();
     let files = RwSignal::new(Vec::<FileInfo>::new());
-    let _upload_status = RwSignal::new(UploadStatus::Ready);
     let accept_attr = accept.clone();
     let is_dragging = RwSignal::new(false);
 
@@ -84,113 +83,129 @@ pub fn FileInput(
     // 处理文件选择
     let handle_files = {
         let files = files.clone();
-        let _on_change = on_change.clone();
+        let on_change = on_change.clone();
         let on_upload = on_upload.clone();
         let on_error = on_error.clone();
         move |file_list: FileList| {
-            leptos::logging::log!("handle_files被调用，文件数量: {}", file_list.length());
-            let mut new_files = Vec::new();
-            let current_files = files.get_untracked();
+            let mut current_count = files.get_untracked().len();
+            let mut placeholders = Vec::new();
+            let mut accepted_files = Vec::new();
 
             for i in 0..file_list.length() {
-                if let Some(file) = file_list.get(i) {
-                    // 检查文件数量限制
-                    if let Some(max_files) = max_files {
-                        if current_files.len() + new_files.len() >= max_files {
-                            if let Some(on_error) = &on_error {
-                                on_error.run(format!("最多只能上传 {} 个文件", max_files));
-                            }
-                            break;
+                let Some(file) = file_list.get(i) else {
+                    continue;
+                };
+
+                if let Some(max_files) = max_files {
+                    if current_count >= max_files {
+                        if let Some(on_error) = &on_error {
+                            on_error.run(format!("最多只能上传 {} 个文件", max_files));
                         }
+                        break;
                     }
+                }
 
-                    // 验证文件
-                    match validate_file(&file) {
-                        Ok(_) => {
-                            // Create FileInfo without web_sys::File for thread safety
-                            let file_name = file.name();
-                            let file_size = file.size() as u64;
-                            let file_type = file.type_();
+                if let Err(error) = validate_file(&file) {
+                    if let Some(on_error) = &on_error {
+                        on_error.run(error);
+                    }
+                    continue;
+                }
 
-                            let file_info = FileInfo {
-                                name: file_name.clone(),
-                                size: file_size,
-                                file_type: file_type.clone(),
-                                data: Vec::new(), // Will be populated when needed
-                            };
-                            new_files.push(file_info.clone());
+                current_count += 1;
 
-                            // 处理文件上传
-                            leptos::logging::log!(
-                                "检测到上传回调，开始异步读取文件: {}",
-                                file_name
-                            );
-                            #[cfg(target_arch = "wasm32")]
-                            {
-                                let upload_callback = on_upload.clone();
-                                let web_file = file.clone();
+                let file_name = file.name();
+                let file_size = file.size() as u64;
+                let file_type = file.type_();
 
-                                // 异步读取文件数据并上传
-                                leptos::task::spawn_local(async move {
-                                    leptos::logging::log!("开始读取文件数据: {}", file_name);
-                                    // 读取文件数据
-                                    match crate::utils::file_upload::read_file_as_bytes(&web_file)
-                                        .await
-                                    {
-                                        Ok(file_data) => {
-                                            leptos::logging::log!(
-                                                "文件读取成功: {} ({}字节)",
-                                                file_name,
-                                                file_data.len()
-                                            );
-                                            // 创建包含实际数据的 FileInfo
-                                            let file_info_with_data = FileInfo {
+                placeholders.push(FileInfo {
+                    name: file_name.clone(),
+                    size: file_size,
+                    file_type: file_type.clone(),
+                    data: Vec::new(),
+                });
+                accepted_files.push((file, file_name, file_size, file_type));
+            }
+
+            if placeholders.is_empty() {
+                return;
+            }
+
+            let mut current_files = files.get_untracked();
+            let start_index = current_files.len();
+            current_files.extend(placeholders.clone());
+            files.set(current_files);
+            on_change.run(placeholders);
+
+            for (offset, (file_handle, file_name, file_size, file_type)) in
+                accepted_files.into_iter().enumerate()
+            {
+                let index = start_index + offset;
+
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let files = files.clone();
+                    let on_upload = on_upload.clone();
+                    let on_error = on_error.clone();
+                    let web_file = file_handle.clone();
+                    let auto_upload = auto_upload;
+
+                    leptos::task::spawn_local(async move {
+                        match crate::utils::file_upload::read_file_as_bytes(&web_file).await {
+                            Ok(file_data) => {
+                                if auto_upload {
+                                    on_upload.run(FileInfo {
+                                        name: file_name,
+                                        size: file_size,
+                                        file_type,
+                                        data: file_data,
+                                    });
+                                } else {
+                                    files.update(|list| {
+                                        if let Some(entry) = list.get_mut(index) {
+                                            *entry = FileInfo {
                                                 name: file_name,
                                                 size: file_size,
                                                 file_type,
                                                 data: file_data,
                                             };
-                                            leptos::logging::log!("调用上传回调");
-                                            upload_callback.run(file_info_with_data);
                                         }
-                                        Err(e) => {
-                                            leptos::logging::error!("读取文件失败: {}", e);
-                                            if let Some(on_error) = &on_error {
-                                                on_error.run(format!("读取文件失败: {}", e));
-                                            }
-                                        }
-                                    }
-                                });
+                                    });
+                                }
                             }
-                            #[cfg(not(target_arch = "wasm32"))]
-                            {
-                                on_upload.run(file_info.clone());
+                            Err(e) => {
+                                if let Some(on_error) = &on_error {
+                                    on_error.run(format!("读取文件失败: {}", e));
+                                }
                             }
                         }
-                        Err(error) => {
-                            if let Some(on_error) = &on_error {
-                                on_error.run(error);
+                    });
+                }
+
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let _ = &file_handle;
+                    if auto_upload {
+                        on_upload.run(FileInfo {
+                            name: file_name,
+                            size: file_size,
+                            file_type,
+                            data: Vec::new(),
+                        });
+                    } else {
+                        files.update(|list| {
+                            if let Some(entry) = list.get_mut(index) {
+                                *entry = FileInfo {
+                                    name: file_name,
+                                    size: file_size,
+                                    file_type,
+                                    data: Vec::new(),
+                                };
                             }
-                        }
+                        });
                     }
                 }
             }
-
-            // if !new_files.is_empty() {
-            //     let mut all_files = current_files;
-            //     all_files.extend(new_files.clone());
-            //     files.set(all_files);
-
-            //     on_change.run(new_files.clone());
-
-            //     // 自动上传 - 只有在auto_upload=true且没有on_upload回调时才执行
-            //     if auto_upload && on_upload.is_none() {
-            //         for file_info in new_files {
-            //             // 这里需要实际的上传逻辑，但由于没有on_upload回调，暂时跳过
-            //             leptos::logging::log!("自动上传文件: {}", file_info.name);
-            //         }
-            //     }
-            // }
         }
     };
 
@@ -200,17 +215,13 @@ pub fn FileInput(
         move |ev: leptos::ev::Event| {
             ev.prevent_default(); // 阻止默认行为
             ev.stop_propagation(); // 阻止事件冒泡到父元素（避免触发表单的其他提交逻辑）
-            leptos::logging::log!("文件输入变化事件被触发");
             let input = ev
                 .target()
                 .unwrap()
                 .dyn_into::<web_sys::HtmlInputElement>()
                 .unwrap();
             if let Some(file_list) = input.files() {
-                leptos::logging::log!("检测到{}个文件", file_list.length());
                 handle_files(file_list);
-            } else {
-                leptos::logging::log!("没有检测到文件");
             }
         }
     };
@@ -219,10 +230,8 @@ pub fn FileInput(
     let trigger_file_input = move |ev: leptos::ev::MouseEvent| {
         ev.prevent_default(); // 阻止默认行为
         ev.stop_propagation(); // 阻止事件冒泡
-        leptos::logging::log!("上传区域被点击");
         if !disabled {
             if let Some(input) = file_input_ref.get_untracked() {
-                leptos::logging::log!("触发文件选择对话框");
                 input.click();
             }
         }
@@ -314,7 +323,7 @@ pub fn FileInput(
                     "upload-area border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 w-full max-w-xs mx-auto {}",
                     if disabled {
                         "border-gray-300 bg-gray-50 cursor-not-allowed"
-                    } else if is_dragging.get() {
+                    } else if is_dragging.with(|value| *value) {
                         "border-primary bg-primary/10"
                     } else {
                         "border-gray-300 hover:border-primary hover:bg-base-200"
@@ -362,11 +371,11 @@ pub fn FileInput(
             </div>
 
             // 文件列表
-            <Show when=move || show_file_list && !files.get().is_empty()>
+            <Show when=move || show_file_list && files.with(|list| !list.is_empty())>
                 {move || view! {
                 <div class="file-list mt-4">
                         <div class="flex justify-between items-center mb-2">
-                            <span class="text-sm font-medium">已选择文件 ({files.get().len()})</span>
+                            <span class="text-sm font-medium">已选择文件 ({files.with(|list| list.len())})</span>
                             <button
                                 type="button"
                                 class="btn btn-ghost btn-xs"
@@ -377,7 +386,7 @@ pub fn FileInput(
                         </div>
 
                         <div class="space-y-2">
-                            {files.get().into_iter().enumerate().map(|(index, file_info)| {
+                            {files.with(|list| list.clone()).into_iter().enumerate().map(|(index, file_info)| {
                                 view! {
                                     <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
                                         <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -468,7 +477,7 @@ pub fn SimpleFileInput(
             class=class
             show_file_list=false
             drag_drop=false
-            auto_upload=false
+            auto_upload=true
             on_change=on_change
             on_upload=on_upload
         />
@@ -492,12 +501,10 @@ pub fn AvatarUpload(
     };
 
     let handle_file_change = move |files: Vec<FileInfo>| {
-        if let Some(file_info) = files.first() {
+        if !files.is_empty() {
             // For now, we'll use a placeholder URL since we don't have the File object
             // In a real implementation, you'd create a blob URL from the file data
             avatar_preview.set(Some("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyUzYuNDggMjIgMTIgMjJTMjIgMTcuNTIgMjIgMTJTMTcuNTIgMiAxMiAyWk0xMiA2QzEzLjY2IDYgMTUgNy4zNCAxNSA5UzEzLjY2IDEyIDEyIDEyUzkgMTAuNjYgOSA5UzEwLjM0IDYgMTIgNlpNMTIgMjBDOS43NCAyMCA3Ljc5IDE4Ljg1IDYuNzggMTcuMUM3LjY4IDE1LjgxIDkuNzUgMTUgMTIgMTVTMTYuMzIgMTUuODEgMTcuMjIgMTcuMUMxNi4yMSAxOC44NSAxNC4yNiAyMCAxMiAyMFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K".to_string()));
-
-            on_upload.run(file_info.clone());
         }
     };
 
@@ -507,7 +514,7 @@ pub fn AvatarUpload(
                 // 头像预览
                 <div class=format!("avatar {}", size_class)>
                     <div class="rounded-full overflow-hidden border-2 border-gray-200">
-                        {move || if let Some(src) = avatar_preview.get() {
+                        {move || if let Some(src) = avatar_preview.with(|value| value.clone()) {
                             view! {
                                 <img src=src alt="Avatar" class="w-full h-full object-cover" />
                             }.into_any()

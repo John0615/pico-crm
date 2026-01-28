@@ -1,4 +1,4 @@
-use crate::components::ui::file_input::{FileInfo, SimpleFileInput};
+use crate::components::ui::file_input::{FileInfo, SimpleFileInput, UploadStatus};
 use leptos::ev::SubmitEvent;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -97,7 +97,7 @@ where
 
     // 验证单个字段
     let validate_field = move |field: &FormField| -> Option<String> {
-        let value = field.value.get();
+        let value = field.value.with(|value| value.clone());
         if field.required && value.is_empty() {
             return Some(format!("{}不能为空", field.label));
         }
@@ -176,7 +176,7 @@ where
         <form class="form-control w-full max-w-md mx-auto" on:submit=submit>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <For
-                    each=move || fields.get()
+                    each=move || fields.with(|fields| fields.clone())
                     key=|field| field.name.clone()
                     children=move |field| {
                         view! {
@@ -255,7 +255,7 @@ where
                     type="button"
                     class="btn btn-ghost"
                     on:click=move |_|reset()
-                    disabled=move || is_submitting.get()
+                    disabled=move || *is_submitting.read()
                 >
                     {reset_text.unwrap_or("重置".into())}
                 </button>
@@ -263,9 +263,9 @@ where
                 <button
                     type="submit"
                     class="btn btn-primary"
-                    disabled=move || is_submitting.get()
+                    disabled=move || *is_submitting.read()
                 >
-                    {move || if is_submitting.get() {
+                    {move || if *is_submitting.read() {
                         view! {
                             <span class="loading loading-spinner"></span>
                         }.into_view().into_any()
@@ -344,7 +344,7 @@ pub fn TextInput(
                 class="input input-bordered"
                 placeholder=placeholder
                 required=required
-                prop:value=move || value_clone.get()
+                prop:value=move || value_clone.with(|value| value.clone())
                 on:input=move |ev| {
                     let new_value = event_target_value(&ev);
                     value.set(new_value.clone());
@@ -352,7 +352,7 @@ pub fn TextInput(
             />
             <p class="label">
                 <span class="label-text-alt text-error h-2">
-                    {move || error_message.get().unwrap_or_default()}
+                    {move || error_message.with(|msg| msg.clone().unwrap_or_default())}
                 </span>
             </p>
         </fieldset>
@@ -374,14 +374,20 @@ pub fn CheckboxInput(
                     type="checkbox"
                     name=name
                     class="checkbox checkbox-primary"
-                    checked=checked.get()
-                    on:change=move |ev| checked.set(event_target_checked(&ev))
+                    checked={
+                        let checked = checked.clone();
+                        move || *checked.read()
+                    }
+                    on:change={
+                        let checked = checked.clone();
+                        move |ev| checked.set(event_target_checked(&ev))
+                    }
                 />
                 <span class="label-text">{label}</span>
             </label>
             <p class="label">
                 <span class="label-text-alt text-error h-2">
-                    {move || error_message.get().unwrap_or_default()}
+                    {move || error_message.with(|msg| msg.clone().unwrap_or_default())}
                 </span>
             </p>
         </fieldset>
@@ -410,12 +416,18 @@ pub fn TextAreaInput(
                 class="textarea textarea-bordered"
                 placeholder=placeholder
                 rows=rows
-                prop:value=value.get()
-                on:input=move |ev| value.set(event_target_value(&ev))
+                prop:value={
+                    let value = value.clone();
+                    move || value.with(|value| value.clone())
+                }
+                on:input={
+                    let value = value.clone();
+                    move |ev| value.set(event_target_value(&ev))
+                }
             ></textarea>
             <p class="label">
                 <span class="label-text-alt text-error h-2">
-                    {move || error_message.get().unwrap_or_default()}
+                    {move || error_message.with(|msg| msg.clone().unwrap_or_default())}
                 </span>
             </p>
         </fieldset>
@@ -466,7 +478,8 @@ where
                     key=|(_, text)| text.clone()
                     children=move |(val, text)| {
                         let value = cloned_value2.clone();
-                        let is_selected = move || value.get() == val;
+                        let val = val.clone();
+                        let is_selected = move || value.with(|current| current == &val);
                         view! {
                             <option
                                 value=text
@@ -480,12 +493,23 @@ where
             </select>
             <p class="label">
                 <span class="label-text-alt text-error h-2">
-                    {move || error_message.get().unwrap_or_default()}
+                    {move || error_message.with(|msg| msg.clone().unwrap_or_default())}
                 </span>
             </p>
         </fieldset>
     }
 }
+
+fn looks_like_image_url(value: &str) -> bool {
+    if value.starts_with("data:image/") {
+        return true;
+    }
+    let value = value.split('?').next().unwrap_or(value).to_ascii_lowercase();
+    [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"]
+        .iter()
+        .any(|ext| value.ends_with(ext))
+}
+
 #[component]
 pub fn FileFieldInput(
     _name: String,
@@ -498,50 +522,57 @@ pub fn FileFieldInput(
     #[prop(optional, default = String::new())] class: String,
     #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
 ) -> impl IntoView {
-    let upload_status = RwSignal::new("ready".to_string()); // ready, uploading, success, error
+    let upload_status = RwSignal::new(UploadStatus::Ready);
+    let accept_is_image = accept.to_lowercase().contains("image");
 
-    // Clone value before moving into closures
-    let value_for_handler = value.clone();
-    let value_for_handler2 = value.clone();
-    let value_for_list = value.clone();
-    let value_for_list2 = value.clone();
-    let value_for_image = value.clone();
-    let value_for_image2 = value.clone();
-    let value_for_image3 = value.clone();
-    let value_for_file = value.clone();
-    let value_for_file2 = value.clone();
-    let accept_for_image = accept.clone();
-    let accept_for_file = accept.clone();
-
-    let handle_file_change = move |files: Vec<FileInfo>| {
-        if let Some(file_info) = files.first() {
-            // 立即设置上传状态
-            upload_status.set("uploading".to_string());
-
-            // 调用上传回调并等待结果
-            on_upload.run(file_info.clone());
+    let handle_file_change = {
+        let upload_status = upload_status.clone();
+        move |files: Vec<FileInfo>| {
+            if !files.is_empty() {
+                upload_status.set(UploadStatus::Uploading);
+            }
         }
     };
 
-    // 监听value变化，当有值时表示上传完成
+    let handle_upload = {
+        let upload_status = upload_status.clone();
+        let on_upload = on_upload.clone();
+        Callback::new(move |file_info: FileInfo| {
+            upload_status.set(UploadStatus::Uploading);
+            on_upload.run(file_info);
+        })
+    };
+
+    // 监听 value 变化：有值 -> 成功；清空 -> 重置
     Effect::new({
         let upload_status = upload_status.clone();
         let value = value.clone();
         move |_| {
-            let current_value = value.get();
-            let current_status = upload_status.get();
-
-            // 如果当前是uploading状态，但value有值了，说明上传完成
-            if current_status == "uploading" && !current_value.is_empty() {
-                upload_status.set("success".to_string());
+            let is_empty = value.with(|current_value| current_value.is_empty());
+            if is_empty {
+                let should_reset =
+                    upload_status.with(|status| !matches!(status, UploadStatus::Ready));
+                if should_reset {
+                    upload_status.set(UploadStatus::Ready);
+                }
+                return;
             }
 
-            // 如果value为空，重置状态
-            if current_value.is_empty() && current_status != "ready" {
-                upload_status.set("ready".to_string());
+            let should_mark_success = upload_status
+                .with(|status| matches!(status, UploadStatus::Uploading | UploadStatus::Ready));
+            if should_mark_success {
+                upload_status.set(UploadStatus::Success);
             }
         }
     });
+
+    let value_for_upload_area = value.clone();
+    let value_for_preview_area = value.clone();
+    let value_for_image = value.clone();
+    let value_for_image_src = value.clone();
+    let value_for_image_url = value.clone();
+    let value_for_file = value.clone();
+    let value_for_file_url = value.clone();
 
     view! {
         <fieldset class=format!("fieldset form-control {}", class)>
@@ -554,9 +585,10 @@ pub fn FileFieldInput(
                 <div class="relative">
                     // 上传区域 - 当没有文件且不在上传时显示
                     <div class=move || {
-                        let current_value = value_for_list.get();
-                        let status = upload_status.get();
-                        if current_value.is_empty() && status != "uploading" {
+                        let is_empty = value_for_upload_area.with(|value| value.is_empty());
+                        let is_uploading =
+                            upload_status.with(|status| matches!(status, UploadStatus::Uploading));
+                        if is_empty && !is_uploading {
                             "block"
                         } else {
                             "hidden"
@@ -568,15 +600,16 @@ pub fn FileFieldInput(
                             max_size=max_size
                             class="w-full".to_string()
                             on_change=Callback::new(handle_file_change)
-                            on_upload=on_upload
+                            on_upload=handle_upload
                         />
                     </div>
 
                     // 预览区域 - 当有文件或正在上传时显示
                     <div class=move || {
-                        let current_value = value_for_list2.get();
-                        let status = upload_status.get();
-                        if status == "uploading" || !current_value.is_empty() {
+                        let has_value = value_for_preview_area.with(|value| !value.is_empty());
+                        let is_uploading =
+                            upload_status.with(|status| matches!(status, UploadStatus::Uploading));
+                        if is_uploading || has_value {
                             "block"
                         } else {
                             "hidden"
@@ -585,8 +618,9 @@ pub fn FileFieldInput(
                         <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-base-100 transition-all duration-200 w-full max-w-xs mx-auto">
                             // Loading状态显示
                             <div class=move || {
-                                let status = upload_status.get();
-                                if status == "uploading" {
+                                let is_uploading =
+                                    upload_status.with(|status| matches!(status, UploadStatus::Uploading));
+                                if is_uploading {
                                     "flex flex-col items-center gap-3"
                                 } else {
                                     "hidden"
@@ -599,39 +633,44 @@ pub fn FileFieldInput(
 
                             // 图片预览区域
                             <div class=move || {
-                                let current_value = value_for_image.get();
-                                let status = upload_status.get();
-                                if accept_for_image.contains("image") && !current_value.contains(",") && !current_value.is_empty() && status != "uploading" {
+                                let is_image = value_for_image.with(|current_value| {
+                                    !current_value.is_empty()
+                                        && !current_value.contains(',')
+                                        && (accept_is_image || looks_like_image_url(current_value))
+                                });
+                                let is_uploading =
+                                    upload_status.with(|status| matches!(status, UploadStatus::Uploading));
+                                if is_image && !is_uploading {
                                     "flex flex-col items-center gap-2"
                                 } else {
                                     "hidden"
                                 }
                             }>
                                 <div class="w-20 h-20 mx-auto">
-                                    <img src=move || value_for_image2.get() alt="预览" class="w-full h-full object-cover rounded-lg border border-gray-200" />
+                                    <img src=move || value_for_image_src.with(|value| value.clone()) alt="预览" class="w-full h-full object-cover rounded-lg border border-gray-200" />
                                 </div>
                                 <div class="text-sm text-success font-medium">上传成功</div>
                                 <div class="text-xs text-gray-500 break-words max-w-full px-1 leading-tight">{move || {
-                                    let url = value_for_image3.get();
-                                    // 截断长URL显示
-                                    if url.len() > 30 {
-                                        format!("{}...{}", &url[..15], &url[url.len()-10..])
-                                    } else {
-                                        url
-                                    }
+                                    value_for_image_url.with(|url| {
+                                        if url.len() > 30 {
+                                            format!("{}...{}", &url[..15], &url[url.len()-10..])
+                                        } else {
+                                            url.clone()
+                                        }
+                                    })
                                 }}</div>
                                 // 删除按钮
                                 <button
                                     type="button"
                                     class="btn btn-xs btn-outline btn-error mt-1"
                                     on:click={
-                                        let value = value_for_handler.clone();
+                                        let value = value.clone();
                                         let upload_status = upload_status.clone();
                                         move |ev: leptos::ev::MouseEvent| {
                                             ev.prevent_default();
                                             ev.stop_propagation();
                                             value.set(String::new());
-                                            upload_status.set("ready".to_string());
+                                            upload_status.set(UploadStatus::Ready);
                                         }
                                     }
                                     title="删除文件"
@@ -642,14 +681,16 @@ pub fn FileFieldInput(
 
                             // 非图片文件预览区域
                             <div class=move || {
-                                let current_value = value_for_file.get();
-                                let status = upload_status.get();
-                                if !accept_for_file.contains("image") || current_value.contains(",") {
-                                    if !current_value.is_empty() && status != "uploading" {
-                                        "flex flex-col items-center gap-2"
-                                    } else {
-                                        "hidden"
-                                    }
+                                let (has_value, is_image) = value_for_file.with(|current_value| {
+                                    let is_image = !current_value.is_empty()
+                                        && !current_value.contains(',')
+                                        && (accept_is_image || looks_like_image_url(current_value));
+                                    (!current_value.is_empty(), is_image)
+                                });
+                                let is_uploading =
+                                    upload_status.with(|status| matches!(status, UploadStatus::Uploading));
+                                if has_value && !is_uploading && !is_image {
+                                    "flex flex-col items-center gap-2"
                                 } else {
                                     "hidden"
                                 }
@@ -661,26 +702,26 @@ pub fn FileFieldInput(
                                 </div>
                                 <div class="text-sm text-success font-medium">上传成功</div>
                                 <div class="text-xs text-gray-500 break-words max-w-full px-1 leading-tight">{move || {
-                                    let url = value_for_file2.get();
-                                    // 截断长URL显示
-                                    if url.len() > 30 {
-                                        format!("{}...{}", &url[..15], &url[url.len()-10..])
-                                    } else {
-                                        url
-                                    }
+                                    value_for_file_url.with(|url| {
+                                        if url.len() > 30 {
+                                            format!("{}...{}", &url[..15], &url[url.len()-10..])
+                                        } else {
+                                            url.clone()
+                                        }
+                                    })
                                 }}</div>
                                 // 删除按钮
                                 <button
                                     type="button"
                                     class="btn btn-xs btn-outline btn-error mt-1"
                                     on:click={
-                                        let value = value_for_handler2.clone();
+                                        let value = value.clone();
                                         let upload_status = upload_status.clone();
                                         move |ev: leptos::ev::MouseEvent| {
                                             ev.prevent_default();
                                             ev.stop_propagation();
                                             value.set(String::new());
-                                            upload_status.set("ready".to_string());
+                                            upload_status.set(UploadStatus::Ready);
                                         }
                                     }
                                     title="删除文件"
@@ -693,25 +734,25 @@ pub fn FileFieldInput(
                 </div>
 
                 // 上传状态显示
-                {move || match upload_status.get().as_str() {
-                    "uploading" => view! {
+                {move || upload_status.with(|status| match status {
+                    UploadStatus::Uploading => view! {
                         <div class="flex items-center gap-2 text-sm text-info">
                             <span class="loading loading-spinner loading-sm"></span>
                             <span>上传中...</span>
                         </div>
                     }.into_any(),
-                    "error" => view! {
+                    UploadStatus::Error(_) => view! {
                         <div class="text-sm text-error">
                             <span>"上传失败"</span>
                         </div>
                     }.into_any(),
                     _ => view! { <div></div> }.into_any()
-                }}
+                })}
             </div>
 
             <p class="label">
                 <span class="label-text-alt text-error h-2">
-                    {move || error_message.get().unwrap_or_default()}
+                    {move || error_message.with(|msg| msg.clone().unwrap_or_default())}
                 </span>
             </p>
         </fieldset>
