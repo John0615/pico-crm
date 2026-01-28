@@ -1,5 +1,5 @@
+use crate::components::ui::file_input::{FileInfo, SimpleFileInput};
 use leptos::ev::SubmitEvent;
-use leptos::logging::log;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use regex::Regex;
@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::future::Future;
 use std::sync::Arc;
-use crate::components::ui::file_input::{FileInfo, SimpleFileInput};
 
 // 表单字段定义
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -231,7 +230,7 @@ where
                                     let field_error = field.error_message.clone();
                                     let field_value = field.value.clone();
                                     let accept_str = accept.unwrap_or_default();
-                                    
+
                                     view! {
                                         <FileFieldInput
                                             _name=field_name
@@ -494,13 +493,12 @@ pub fn FileFieldInput(
     accept: String,
     #[prop(optional, default = false)] multiple: bool,
     max_size: u64,
-    value: ArcRwSignal<String>, // 存储文件路径
+    value: ArcRwSignal<String>,    // 存储文件路径
     on_upload: Callback<FileInfo>, // 上传回调
     #[prop(optional, default = String::new())] class: String,
     #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
 ) -> impl IntoView {
     let upload_status = RwSignal::new("ready".to_string()); // ready, uploading, success, error
-    let uploaded_files = RwSignal::new(Vec::<String>::new()); // 已上传文件的路径列表
 
     // Clone value before moving into closures
     let value_for_handler = value.clone();
@@ -519,7 +517,7 @@ pub fn FileFieldInput(
         if let Some(file_info) = files.first() {
             // 立即设置上传状态
             upload_status.set("uploading".to_string());
-            
+
             // 调用上传回调并等待结果
             on_upload.run(file_info.clone());
         }
@@ -532,12 +530,12 @@ pub fn FileFieldInput(
         move |_| {
             let current_value = value.get();
             let current_status = upload_status.get();
-            
+
             // 如果当前是uploading状态，但value有值了，说明上传完成
             if current_status == "uploading" && !current_value.is_empty() {
                 upload_status.set("success".to_string());
             }
-            
+
             // 如果value为空，重置状态
             if current_value.is_empty() && current_status != "ready" {
                 upload_status.set("ready".to_string());
@@ -550,7 +548,7 @@ pub fn FileFieldInput(
             <label class="label">
                 <span class="label-text font-medium">{label}</span>
             </label>
-            
+
             <div class="space-y-2">
                 // 文件上传区域 - 始终渲染，但根据状态显示不同内容
                 <div class="relative">
@@ -573,7 +571,7 @@ pub fn FileFieldInput(
                             on_upload=on_upload
                         />
                     </div>
-                    
+
                     // 预览区域 - 当有文件或正在上传时显示
                     <div class=move || {
                         let current_value = value_for_list2.get();
@@ -598,7 +596,7 @@ pub fn FileFieldInput(
                                 <div class="text-sm text-info font-medium">上传中...</div>
                                 <div class="text-xs text-gray-400">请稍候</div>
                             </div>
-                            
+
                             // 图片预览区域
                             <div class=move || {
                                 let current_value = value_for_image.get();
@@ -641,7 +639,7 @@ pub fn FileFieldInput(
                                     "删除"
                                 </button>
                             </div>
-                            
+
                             // 非图片文件预览区域
                             <div class=move || {
                                 let current_value = value_for_file.get();
@@ -693,7 +691,7 @@ pub fn FileFieldInput(
                         </div>
                     </div>
                 </div>
-                
+
                 // 上传状态显示
                 {move || match upload_status.get().as_str() {
                     "uploading" => view! {
@@ -710,7 +708,7 @@ pub fn FileFieldInput(
                     _ => view! { <div></div> }.into_any()
                 }}
             </div>
-            
+
             <p class="label">
                 <span class="label-text-alt text-error h-2">
                     {move || error_message.get().unwrap_or_default()}

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{

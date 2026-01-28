@@ -6,7 +6,6 @@ use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
 use crate::server::user_handlers::{get_user, update_user};
 use crate::utils::api::call_api;
-use leptos::logging::log;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use shared::user::{CreateUserRequest, User};
@@ -147,13 +146,15 @@ where
                             let file_name = file_info.name.clone();
                             let file_data = file_info.data.clone();
                             let content_type = file_info.file_type.clone();
-                            
+
                             leptos::task::spawn_local(async move {
                                 match crate::utils::file_upload::upload_file_info_with_data(
                                     file_name,
                                     file_data,
                                     content_type,
-                                ).await {
+                                )
+                                .await
+                                {
                                     Ok(response) => {
                                         avatar_url.set(response.file_url);
                                     }

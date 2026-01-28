@@ -6,7 +6,6 @@ use crate::components::ui::modal::Modal;
 use crate::components::ui::toast::success;
 use crate::server::user_handlers::create_user;
 use crate::utils::api::call_api;
-use leptos::logging::log;
 use leptos::prelude::*;
 use shared::user::CreateUserRequest;
 

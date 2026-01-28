@@ -98,3 +98,7 @@ sea-orm-cli generate entity -u postgres://postgres:postgres@localhost:5432/pico_
 cargo leptos watch
 
 cargo leptos watch --split
+
+# 发布
+cargo leptos build --release --split
+LEPTOS_WASM_OPT_VERSION=version_125 cargo leptos build --release --split
