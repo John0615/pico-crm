@@ -13,44 +13,45 @@ pub fn DaisyDrawer(
     // 抽屉内容
     children: ChildrenFn,
 ) -> impl IntoView {
-    let position_class = match position {
-        "left" => "drawer-start",
-        "right" => "drawer-end",
-        _ => "drawer-end",
-    };
+    let is_left = position == "left";
+    let panel_position = if is_left { "left-0" } else { "right-0" };
+    let panel_translate = if is_left { "-translate-x-full" } else { "translate-x-full" };
 
     view! {
-        <div class=format!("drawer {}", position_class)>
-            <input
-                id=id
-                type="checkbox"
-                class="drawer-toggle"
-                checked=move || *is_open.read()
-                // 这个on:change是为了支持原生点击遮罩层关闭
-                on:change={
-                    let is_open = is_open.clone();
-                    move |ev| is_open.set(event_target_checked(&ev))
+        <div class="relative">
+            <div
+                class=move || {
+                    if *is_open.read() {
+                        "fixed inset-0 z-[60] bg-black/30 opacity-100 transition-opacity"
+                    } else {
+                        "fixed inset-0 z-[60] bg-black/30 opacity-0 pointer-events-none transition-opacity"
+                    }
                 }
-            />
-            // 抽屉内容容器 (空容器，内容完全由外部控制)
-            <div class="drawer-content"></div>
+                on:click=move |_| is_open.set(false)
+            ></div>
 
-            // 抽屉侧边栏
-            <div class="drawer-side z-50">
-                <label
-                    aria-label="close sidebar"
-                    class="drawer-overlay"
-                    on:click=move |_| is_open.set(false)
-                ></label>
-                <ul
-                    class="menu bg-base-200 text-base-content min-h-full p-4"
-                    style=format!("width: {}px", width)
-                >
-                    <div class=move || if *is_open.read() { "block" } else { "hidden" }>
-                    {children()}
+            <aside
+                id=id
+                class=move || {
+                    let base = format!(
+                        "fixed top-0 {} z-[70] h-screen transition-transform duration-300 ease-in-out",
+                        panel_position
+                    );
+                    if *is_open.read() {
+                        format!("{base} translate-x-0")
+                    } else {
+                        format!("{base} {panel_translate}")
+                    }
+                }
+                style=format!("width: {}px", width)
+                aria-hidden=move || (!*is_open.read()).to_string()
+            >
+                <div class="h-full bg-base-100 shadow-lg overflow-y-auto">
+                    <div class="p-4">
+                        {children()}
                     </div>
-                </ul>
-            </div>
+                </div>
+            </aside>
         </div>
     }
 }

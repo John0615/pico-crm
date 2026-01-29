@@ -619,7 +619,7 @@ pub fn FileFieldInput(
                             "hidden"
                         }
                     }>
-                        <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-4 text-center bg-base-100 transition-all duration-200 w-full max-w-xs mx-auto">
+                        <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-3 text-center bg-base-100 transition-all duration-200 w-full max-w-xs mx-auto min-h-[148px]">
                             // Loading状态显示
                             <div class=move || {
                                 let is_uploading =
@@ -645,7 +645,7 @@ pub fn FileFieldInput(
                                 let is_uploading =
                                     upload_status.with(|status| matches!(status, UploadStatus::Uploading));
                                 if is_image && !is_uploading {
-                                    "flex flex-col items-center gap-2"
+                                    "flex flex-col items-center gap-1"
                                 } else {
                                     "hidden"
                                 }
@@ -666,7 +666,7 @@ pub fn FileFieldInput(
                                 // 删除按钮
                                 <button
                                     type="button"
-                                    class="btn btn-xs btn-outline btn-error mt-1"
+                                    class="btn btn-xs btn-outline btn-error absolute top-2 right-2"
                                     on:click={
                                         let value = value.clone();
                                         let upload_status = upload_status.clone();
@@ -694,7 +694,7 @@ pub fn FileFieldInput(
                                 let is_uploading =
                                     upload_status.with(|status| matches!(status, UploadStatus::Uploading));
                                 if has_value && !is_uploading && !is_image {
-                                    "flex flex-col items-center gap-2"
+                                    "flex flex-col items-center gap-1"
                                 } else {
                                     "hidden"
                                 }
@@ -717,7 +717,7 @@ pub fn FileFieldInput(
                                 // 删除按钮
                                 <button
                                     type="button"
-                                    class="btn btn-xs btn-outline btn-error mt-1"
+                                    class="btn btn-xs btn-outline btn-error absolute top-2 right-2"
                                     on:click={
                                         let value = value.clone();
                                         let upload_status = upload_status.clone();

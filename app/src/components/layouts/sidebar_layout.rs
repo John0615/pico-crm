@@ -5,18 +5,16 @@ use leptos_router::components::Outlet;
 #[component]
 pub fn SidebarLayout() -> impl IntoView {
     view! {
-        <div class="drawer lg:drawer-open">
-            <input id="sidebar-toggle" type="checkbox" class="drawer-toggle" />
+        <div class="h-screen bg-base-100 relative overflow-hidden">
+            <Sidebar />
 
-            <div class="drawer-content flex flex-col">
-               <Navbar />
+            <div class="flex h-screen flex-col transition-all duration-300 sm:ps-60 sm:overlay-minified:ps-16">
+                <Navbar />
 
-                <main class="p-4 flex-1">
+                <main class="p-4 flex-1 overflow-y-auto">
                     <Outlet/>
                 </main>
             </div>
-
-            <Sidebar />
         </div>
     }
 }

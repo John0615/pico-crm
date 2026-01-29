@@ -1,9 +1,29 @@
 @import "tailwindcss";
 @plugin "daisyui";
+@plugin "flyonui";
+@plugin "@iconify/tailwind4";
+
+@import "flyonui/variants.css";
+@source "./node_modules/flyonui/flyonui.js";
 
 /*@import "tailwindcss/utilities.css" layer(utilities);*/
 
 @layer utilities {
+    dialog.modal[open] {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Restore DaisyUI modal visibility when FlyonUI modal styles are present */
+    .modal.modal-open {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    .modal.modal-open .modal-box {
+        pointer-events: auto !important;
+    }
+
     .input:focus-within,
     .input:focus,
     .select:focus-within,

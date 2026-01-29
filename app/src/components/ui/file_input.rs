@@ -320,7 +320,7 @@ pub fn FileInput(
             // 上传区域
             <div
                 class=move || format!(
-                    "upload-area border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 w-full max-w-xs mx-auto {}",
+                    "upload-area border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 w-full max-w-xs mx-auto min-h-[148px] {}",
                     if disabled {
                         "border-gray-300 bg-gray-50 cursor-not-allowed"
                     } else if is_dragging.with(|value| *value) {

@@ -1,12 +1,12 @@
 use crate::domain::gateways::file_storage::FileStorageGateway;
 use crate::domain::models::file::{
-    FileUploadRequest, FileUploadResponse, FileDownloadRequest, FileDownloadResponse,
-    FileDeleteRequest, FileListRequest, FileListResponse, FileInfo
+    FileDeleteRequest, FileDownloadRequest, FileDownloadResponse, FileInfo, FileListRequest,
+    FileListResponse, FileUploadRequest, FileUploadResponse,
 };
 use async_trait::async_trait;
 use aws_config::BehaviorVersion;
 use aws_credential_types::Credentials;
-use aws_sdk_s3::{primitives::ByteStream, config::Region, Client};
+use aws_sdk_s3::{Client, config::Region, primitives::ByteStream};
 use std::env;
 
 #[derive(Debug, Clone)]
@@ -76,7 +76,7 @@ impl RustFSGateway {
 impl FileStorageGateway for RustFSGateway {
     async fn upload_file(&self, request: FileUploadRequest) -> Result<FileUploadResponse, String> {
         let file_size = request.data.len() as u64;
-        
+
         let mut put_object = self
             .client
             .put_object()
@@ -91,12 +91,13 @@ impl FileStorageGateway for RustFSGateway {
         match put_object.send().await {
             Ok(res) => {
                 let file_path = format!("{}/{}", request.bucket, request.key);
-                let file_url = format!("{}/{}/{}", 
+                let file_url = format!(
+                    "{}/{}/{}",
                     env::var("RUSTFS_ENDPOINT_URL").unwrap_or_default(),
                     request.bucket,
                     request.key
                 );
-                
+
                 Ok(FileUploadResponse {
                     file_path,
                     file_url,
@@ -113,7 +114,10 @@ impl FileStorageGateway for RustFSGateway {
         }
     }
 
-    async fn download_file(&self, request: FileDownloadRequest) -> Result<FileDownloadResponse, String> {
+    async fn download_file(
+        &self,
+        request: FileDownloadRequest,
+    ) -> Result<FileDownloadResponse, String> {
         match self
             .client
             .get_object()
@@ -132,10 +136,7 @@ impl FileStorageGateway for RustFSGateway {
                     .into_bytes()
                     .to_vec();
 
-                Ok(FileDownloadResponse {
-                    data,
-                    content_type,
-                })
+                Ok(FileDownloadResponse { data, content_type })
             }
             Err(e) => {
                 eprintln!("Error downloading file: {:?}", e);
@@ -154,7 +155,10 @@ impl FileStorageGateway for RustFSGateway {
             .await
         {
             Ok(_) => {
-                println!("File deleted successfully: {}/{}", request.bucket, request.key);
+                println!(
+                    "File deleted successfully: {}/{}",
+                    request.bucket, request.key
+                );
                 Ok(())
             }
             Err(e) => {
@@ -165,10 +169,7 @@ impl FileStorageGateway for RustFSGateway {
     }
 
     async fn list_files(&self, request: FileListRequest) -> Result<FileListResponse, String> {
-        let mut list_objects = self
-            .client
-            .list_objects_v2()
-            .bucket(&request.bucket);
+        let mut list_objects = self.client.list_objects_v2().bucket(&request.bucket);
 
         if let Some(prefix) = request.prefix {
             list_objects = list_objects.prefix(prefix);
@@ -201,13 +202,7 @@ impl FileStorageGateway for RustFSGateway {
     }
 
     async fn create_bucket(&self, bucket: &str) -> Result<(), String> {
-        match self
-            .client
-            .create_bucket()
-            .bucket(bucket)
-            .send()
-            .await
-        {
+        match self.client.create_bucket().bucket(bucket).send().await {
             Ok(_) => {
                 println!("Bucket created successfully: {}", bucket);
                 Ok(())
@@ -220,13 +215,7 @@ impl FileStorageGateway for RustFSGateway {
     }
 
     async fn delete_bucket(&self, bucket: &str) -> Result<(), String> {
-        match self
-            .client
-            .delete_bucket()
-            .bucket(bucket)
-            .send()
-            .await
-        {
+        match self.client.delete_bucket().bucket(bucket).send().await {
             Ok(_) => {
                 println!("Bucket deleted successfully: {}", bucket);
                 Ok(())

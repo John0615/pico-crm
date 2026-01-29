@@ -3,6 +3,107 @@ use leptos::logging;
 use leptos::prelude::*;
 use shared::user::User;
 
+#[cfg(target_arch = "wasm32")]
+fn try_init_flyonui_components() {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen::JsValue;
+
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let Some(document) = window.document() else {
+        return;
+    };
+    if document.get_element_by_id("collapsible-mini-sidebar").is_none() {
+        return;
+    }
+    let overlay_btn_exists = document
+        .query_selector("[data-overlay-minifier=\"#collapsible-mini-sidebar\"]")
+        .ok()
+        .flatten()
+        .is_some();
+    let dropdown_exists = document
+        .query_selector("#admin-dropdown")
+        .ok()
+        .flatten()
+        .is_some();
+    if !overlay_btn_exists && !dropdown_exists {
+        return;
+    }
+
+    let static_methods = js_sys::Reflect::get(&window, &JsValue::from_str("HSStaticMethods"));
+    if let Ok(static_methods) = static_methods {
+        if !static_methods.is_undefined() && !static_methods.is_null() {
+            let auto_init = js_sys::Reflect::get(&static_methods, &JsValue::from_str("autoInit"));
+            if let Ok(auto_init) = auto_init {
+                if let Ok(auto_init) = auto_init.dyn_into::<js_sys::Function>() {
+                    let collections = js_sys::Array::of2(
+                        &JsValue::from_str("overlay"),
+                        &JsValue::from_str("dropdown"),
+                    );
+                    let _ = auto_init.call1(&static_methods, &collections);
+                    return;
+                }
+            }
+        }
+    }
+
+    let overlay = js_sys::Reflect::get(&window, &JsValue::from_str("HSOverlay"));
+    if let Ok(overlay) = overlay {
+        if !overlay.is_undefined() && !overlay.is_null() {
+            if let Ok(auto_init) = js_sys::Reflect::get(&overlay, &JsValue::from_str("autoInit"))
+            {
+                if let Ok(auto_init) = auto_init.dyn_into::<js_sys::Function>() {
+                    let _ = auto_init.call0(&overlay);
+                }
+            }
+        }
+    }
+
+    let dropdown = js_sys::Reflect::get(&window, &JsValue::from_str("HSDropdown"));
+    if let Ok(dropdown) = dropdown {
+        if !dropdown.is_undefined() && !dropdown.is_null() {
+            if let Ok(auto_init) = js_sys::Reflect::get(&dropdown, &JsValue::from_str("autoInit"))
+            {
+                if let Ok(auto_init) = auto_init.dyn_into::<js_sys::Function>() {
+                    let _ = auto_init.call0(&dropdown);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn init_flyonui_overlay_with_retry() {
+    use wasm_bindgen::closure::Closure;
+    use wasm_bindgen::JsCast;
+
+    try_init_flyonui_components();
+
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+
+    let cb_1 = Closure::once_into_js(|| {
+        try_init_flyonui_components();
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        cb_1.unchecked_ref(),
+        100,
+    );
+
+    let cb_2 = Closure::once_into_js(|| {
+        try_init_flyonui_components();
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        cb_2.unchecked_ref(),
+        400,
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn init_flyonui_overlay_with_retry() {}
+
 #[server(
     name = Logout,
     prefix = "/api",
@@ -58,6 +159,9 @@ pub async fn get_user_info() -> Result<User, ServerFnError> {
 #[component]
 pub fn Navbar() -> impl IntoView {
     let navigate = leptos_router::hooks::use_navigate();
+    Effect::new(move |_| {
+        init_flyonui_overlay_with_retry();
+    });
 
     let do_logout = ServerAction::<Logout>::new();
     let result = do_logout.value();
@@ -83,83 +187,99 @@ pub fn Navbar() -> impl IntoView {
         },
     );
     view! {
-        <div class="navbar bg-base-100 sticky top-0 z-50 border-b border-base-200 shadow-sm">
-            <div class="flex-none lg:hidden">
-                <label for="sidebar-toggle" class="btn btn-square btn-ghost hover:bg-base-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-6 h-6 stroke-current">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                </label>
+        <div class="navbar bg-base-100 sticky top-0 z-50 border-b border-base-200 shadow-sm h-16 min-h-16 w-full px-4">
+            <div class="navbar-start gap-2 items-center">
+                <div class="sm:hidden">
+                    <button
+                        type="button"
+                        class="btn btn-square btn-ghost"
+                        aria-haspopup="dialog"
+                        aria-expanded="false"
+                        aria-controls="collapsible-mini-sidebar"
+                        data-overlay="#collapsible-mini-sidebar"
+                    >
+                        <span class="icon-[tabler--menu-2] size-5"></span>
+                    </button>
+                </div>
+
+                <button
+                    type="button"
+                    class="hidden sm:inline-flex items-center justify-center rounded-md p-2 text-base-content hover:bg-base-200"
+                    aria-haspopup="dialog"
+                    aria-expanded="false"
+                    aria-controls="collapsible-mini-sidebar"
+                    aria-label="Toggle sidebar width"
+                    data-overlay-minifier="#collapsible-mini-sidebar"
+                >
+                    <span class="icon-[tabler--menu-2] size-5"></span>
+                </button>
+
+                <span class="sr-only">"PicoCRM"</span>
             </div>
 
-            // <div class="breadcrumbs text-sm pl-2">
-            //   <ul>
-            //     <li><a>客户管理</a></li>
-            //     <li>客户列表</li>
-            //   </ul>
-            // </div>
-
-            <div class="flex-1 px-2 mx-2">
-                <span class="font-bold text-xl bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    PicoCRM
-                </span>
-            </div>
-
-            <div class="flex-none gap-2">
-                <div class="dropdown dropdown-end mr-4">
-                    <button class="btn btn-ghost btn-circle hover:bg-base-200">
+            <div class="navbar-end gap-2 items-center">
+                <div class="dropdown dropdown-end [--trigger:click] mr-4">
+                    <button
+                        type="button"
+                        class="btn btn-text btn-circle text-base-content hover:bg-base-200 dropdown-toggle"
+                        aria-haspopup="menu"
+                        aria-expanded="false"
+                        aria-label="Notifications"
+                    >
                         <div class="indicator">
                             <span class="indicator-item badge badge-primary badge-sm">3</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                            </svg>
+                            <span class="icon-[tabler--bell] size-5"></span>
                         </div>
                     </button>
-                    <div tabindex="0" class="mt-3 z-[1] card card-compact dropdown-content w-72 bg-base-100 shadow">
-                        <div class="card-body">
+                    <div class="dropdown-menu mt-3 w-72 bg-base-100 shadow hidden dropdown-open:opacity-100">
+                        <div class="p-4">
                             <span class="font-bold text-lg">3 条新通知</span>
-                            <div class="flex flex-col gap-2">
-                                <a class="hover:bg-base-200 p-2 rounded">用户 A 提交了新订单</a>
-                                <a class="hover:bg-base-200 p-2 rounded">系统将于今晚进行维护</a>
-                                <a class="hover:bg-base-200 p-2 rounded">您收到了新消息</a>
+                            <div class="mt-2 flex flex-col gap-2">
+                                <a class="dropdown-item hover:bg-base-200">用户 A 提交了新订单</a>
+                                <a class="dropdown-item hover:bg-base-200">系统将于今晚进行维护</a>
+                                <a class="dropdown-item hover:bg-base-200">您收到了新消息</a>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="dropdown dropdown-end">
-                    <label tabindex="0" class="btn btn-ghost btn-circle avatar hover:bg-base-200">
+                <div class="dropdown dropdown-end [--trigger:click]">
+                    <button
+                        type="button"
+                        class="btn btn-text btn-circle text-base-content hover:bg-base-200 dropdown-toggle"
+                        aria-haspopup="menu"
+                        aria-expanded="false"
+                        aria-label="User menu"
+                    >
                         <div class="avatar">
-                          <div class="w-8 rounded-full">
-                            <Suspense>
-                              <img src=move || data.with(|value| value.clone().unwrap_or_default().avatar_url) />
-                            </Suspense>
-                          </div>
+                            <div class="w-8 rounded-full">
+                                <Suspense>
+                                    <img src=move || data.with(|value| value.clone().unwrap_or_default().avatar_url) />
+                                </Suspense>
+                            </div>
                         </div>
-                    </label>
+                    </button>
 
-                    <ul tabindex="0" class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 border border-base-200">
-                        <li>
-                            <a class="hover:bg-base-200">
-                                <i class="fas fa-user-circle"></i>
-                                个人中心
-                            </a>
-                        </li>
-                        <li>
-                            <a class="hover:bg-base-200">
-                                <i class="fas fa-cog"></i>
-                                设置
-                            </a>
-                        </li>
-                        <li on:click=move |_| {
-                            do_logout.dispatch(Logout{});
-                        }>
-                            <a href="#" class="hover:bg-error hover:text-error-content">
-                                <i class="fas fa-sign-out-alt"></i>
-                                退出
-                            </a>
-                        </li>
-                    </ul>
+                    <div class="dropdown-menu mt-3 w-52 bg-base-100 shadow hidden dropdown-open:opacity-100">
+                        <a class="dropdown-item hover:bg-base-200">
+                            <i class="fas fa-user-circle"></i>
+                            个人中心
+                        </a>
+                        <a class="dropdown-item hover:bg-base-200">
+                            <i class="fas fa-cog"></i>
+                            设置
+                        </a>
+                        <button
+                            type="button"
+                            class="dropdown-item text-error hover:bg-error/10"
+                            on:click=move |_| {
+                                do_logout.dispatch(Logout{});
+                            }
+                        >
+                            <i class="fas fa-sign-out-alt"></i>
+                            退出
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

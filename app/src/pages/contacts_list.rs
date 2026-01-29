@@ -221,7 +221,7 @@ pub fn ContactsList() -> impl IntoView {
     view! {
         <div class="">
             <div class="flex flex-col md:flex-row gap-4 mb-4">
-                <label class="input">
+                <label class="input w-full md:w-80 md:flex-none">
                     <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                         <g
                             stroke-linejoin="round"
@@ -236,7 +236,7 @@ pub fn ContactsList() -> impl IntoView {
                     </svg>
                     <input type="search" on:input=search required placeholder="搜索客户..." />
                 </label>
-                <div class="flex gap-2 items-center">
+                <div class="flex gap-2 items-center md:flex-nowrap">
                     <select on:change=filter_by_status class="select select-bordered">
                         <option disabled selected>状态筛选</option>
                         <option value="">全部</option>
@@ -244,13 +244,13 @@ pub fn ContactsList() -> impl IntoView {
                         <option value="2">待跟进</option>
                         <option value="3">已流失</option>
                     </select>
-                    <button class="btn btn-ghost">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <button class="btn btn-sm btn-outline btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                         </svg>
                         更多筛选
                     </button>
-                    <button on:click=export_excel class="btn btn-sm btn-ghost">
+                    <button on:click=export_excel class="btn btn-sm btn-outline btn-primary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>

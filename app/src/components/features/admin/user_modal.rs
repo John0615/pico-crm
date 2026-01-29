@@ -175,7 +175,7 @@ where
     };
 
     view! {
-        <Modal show=show>
+        <Modal show=show box_class="max-h-none overflow-visible">
             <FormContainer title="新建用户">
                 <DaisyForm
                     initial_fields

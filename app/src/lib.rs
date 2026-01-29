@@ -34,6 +34,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
             </head>
             <body>
                 <App/>
+                <script src="/vendor/flyonui.js"></script>
             </body>
         </html>
     }

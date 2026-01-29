@@ -153,7 +153,7 @@ pub fn AdminUsers() -> impl IntoView {
         <div class="">
             // 搜索和筛选栏
             <div class="flex flex-col md:flex-row gap-4 mb-4">
-                <label class="input">
+                <label class="input w-full md:w-80 md:flex-none">
                     <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                         <g
                             stroke-linejoin="round"
@@ -168,7 +168,7 @@ pub fn AdminUsers() -> impl IntoView {
                     </svg>
                     <input type="search" on:input=search required placeholder="搜索用户..." />
                 </label>
-                <div class="flex gap-2 items-center">
+                <div class="flex gap-2 items-center md:flex-nowrap">
                     <select on:change=filter_by_role class="select select-bordered">
                         <option value="">所有角色</option>
                         <option value="admin">管理员</option>
