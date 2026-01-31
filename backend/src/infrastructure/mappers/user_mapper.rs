@@ -52,8 +52,8 @@ impl UserMapper {
     }
 
     /// 将domain User转换为用于更新的ActiveModel
-    pub fn to_update_active_entity(user: User, original: &Model) -> ActiveModel {
-        let mut active_model = original.clone().into_active_model();
+    pub fn to_update_active_entity(user: User, original: Model) -> ActiveModel {
+        let mut active_model = original.into_active_model();
 
         active_model.user_name = ActiveValue::Set(user.user_name);
         active_model.email = ActiveValue::Set(user.email);

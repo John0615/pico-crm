@@ -134,6 +134,14 @@ impl User {
     }
 
     pub fn generate_password_hash(&self, password: &str) -> Result<String, String> {
+        Self::hash_password_inner(password)
+    }
+
+    pub fn hash_password(password: &str) -> Result<String, String> {
+        Self::hash_password_inner(password)
+    }
+
+    fn hash_password_inner(password: &str) -> Result<String, String> {
         // 校验密码是否为空
         if password.is_empty() {
             return Err("错误：密码不能为空".to_string());

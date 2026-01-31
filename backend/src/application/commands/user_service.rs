@@ -40,12 +40,21 @@ impl<R: UserRepository> UserCommandService<R> {
             }
         }
 
+        let CreateUserRequest {
+            user_name,
+            password,
+            email,
+            phone_number,
+            avatar_url,
+        } = request;
+
         // 创建用户实体并生成密码哈希
-        let mut user: DomainUser = request.clone().into();
-        let password_hash = user
-            .generate_password_hash(&request.password)
-            .map_err(|e| format!("密码加密失败: {}", e))?;
-        user.change_password(password_hash);
+        let password_hash =
+            DomainUser::hash_password(&password).map_err(|e| format!("密码加密失败: {}", e))?;
+        let mut user = DomainUser::new(user_name, password_hash, email, phone_number);
+        if let Some(avatar_url) = avatar_url {
+            user.avatar_url = Some(avatar_url);
+        }
 
         // 保存到数据库
         let created_user = self
@@ -114,8 +123,7 @@ impl<R: UserRepository> UserCommandService<R> {
 
         // 如果提供了新密码，更新密码
         if !request.password.is_empty() {
-            let password_hash = user
-                .generate_password_hash(&request.password)
+            let password_hash = DomainUser::hash_password(&request.password)
                 .map_err(|e| format!("密码加密失败: {}", e))?;
             user.change_password(password_hash);
         }

@@ -142,7 +142,7 @@ impl ContactMapper {
             position: Set(update_data.position),
             last_contact: Set(original_entity.last_contact),
             value_level: Set(value_level),
-            creator_uuid: Set(original_entity.creator_uuid.clone()),
+            creator_uuid: Set(original_entity.creator_uuid),
             status: Set(status),
         }
     }

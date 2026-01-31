@@ -56,7 +56,7 @@ impl UserRepository for SeaOrmUserRepository {
                 .ok_or_else(|| format!("未找到 uuid 为 {} 的用户", user.uuid))?;
 
             // 转换为 ActiveModel
-            let active_user = UserMapper::to_update_active_entity(user, &original_user);
+            let active_user = UserMapper::to_update_active_entity(user, original_user);
 
             // 执行更新
             let updated = active_user
