@@ -65,6 +65,19 @@ cargo leptos build --release --split
 - The server loads `.env.{APP_ENV}` (default: `dev`).
 - Migrations are executed on server startup.
 
+### Environment Variables
+
+- `APP_ENV`: dev / prod
+- `DATABASE_URL`: PostgreSQL connection string
+- `JWT_SECRET`: JWT signing secret
+- `JWT_EXPIRY_HOURS`: access token expiry (hours)
+- `JWT_REFRESH_EXPIRY_DAYS`: refresh token expiry (days)
+- `TENANT_SCHEMA_PREFIX`: tenant schema prefix (default `merchant_`)
+- `UPLOAD_BUCKET` / `UPLOAD_REGION`: object storage config (optional)
+- `SMS_API_KEY`: SMS provider key (optional)
+- `ADMIN_TRIAL_DAYS_DEFAULT`: default trial length (optional)
+- `ADMIN_SMS_TEMPLATE_ID`: SMS template identifier (optional)
+
 ## Contributing
 
 See `CONTRIBUTING.md`.

@@ -6,6 +6,8 @@ pub struct User {
     pub user_name: String,
     pub email: Option<String>,
     pub phone_number: Option<String>,
+    pub merchant_uuid: Option<String>,
+    pub role: String,
     pub is_admin: Option<bool>,
     pub status: String,
     pub avatar_url: Option<String>,
@@ -23,6 +25,8 @@ pub struct CreateUserRequest {
     pub email: Option<String>,
     pub phone_number: Option<String>,
     pub avatar_url: Option<String>,
+    pub merchant_uuid: Option<String>,
+    pub role: Option<String>,
 }
 
 /// 用户查询参数

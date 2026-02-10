@@ -53,19 +53,24 @@ impl UserQuery for SeaOrmUserQuery {
             }
         }
 
-        // 如果有角色筛选，需要根据is_admin字段进行转换
+        // 角色筛选优先使用 role 字段，保持对旧 is_admin 的兼容
         if let Some(role) = &query.role {
             if !role.is_empty() {
                 match role.as_str() {
                     "admin" => {
-                        condition = condition.add(Column::IsAdmin.eq(Some(true)));
+                        let mut role_condition = Condition::any();
+                        role_condition = role_condition.add(Column::Role.eq("admin"));
+                        role_condition = role_condition.add(Column::IsAdmin.eq(Some(true)));
+                        condition = condition.add(role_condition);
                         println!("添加管理员角色筛选");
-                    },
+                    }
                     "user" => {
-                        condition = condition.add(Column::IsAdmin.eq(Some(false)));
+                        condition = condition.add(Column::Role.ne("admin"));
                         println!("添加普通用户角色筛选");
-                    },
-                    _ => {} // 其他角色暂时忽略
+                    }
+                    _ => {
+                        condition = condition.add(Column::Role.eq(role));
+                    }
                 }
             }
         }

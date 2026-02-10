@@ -5,7 +5,7 @@ use backend::infrastructure::db::Database;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, LeptosRoutes};
-use migration::{Migrator, MigratorTrait};
+use migration::{Migrator, MigratorTrait, PublicMigrator};
 use std::env;
 
 pub mod middlewares;
@@ -21,6 +21,7 @@ async fn main() {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
     println!("db_url: {:?}", db_url);
     let db = Database::new().await;
+    PublicMigrator::up(db.get_connection(), None).await.unwrap();
     Migrator::up(db.get_connection(), None).await.unwrap();
 
     let conf = get_configuration(None).unwrap();

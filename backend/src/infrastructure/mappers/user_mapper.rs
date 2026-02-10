@@ -14,6 +14,12 @@ impl UserMapper {
             password: ActiveValue::Set(user.password),
             email: ActiveValue::Set(user.email),
             phone_number: ActiveValue::Set(user.phone_number),
+            merchant_uuid: ActiveValue::Set(
+                user.merchant_uuid
+                    .as_ref()
+                    .map(|value| Uuid::parse_str(value).expect("Invalid merchant UUID")),
+            ),
+            role: ActiveValue::Set(user.role),
             is_admin: ActiveValue::Set(user.is_admin),
             status: ActiveValue::Set(match user.status {
                 Status::Active => "active".to_string(),
@@ -35,12 +41,20 @@ impl UserMapper {
             _ => Status::Inactive, // 默认为inactive
         };
 
+        let role = if model.is_admin.unwrap_or(false) {
+            "admin".to_string()
+        } else {
+            model.role
+        };
+
         User::from_db_record(
             model.uuid.to_string(),
             model.user_name,
             model.password,
             model.email,
             model.phone_number,
+            model.merchant_uuid.map(|value| value.to_string()),
+            role,
             model.is_admin,
             status,
             model.avatar_url,
@@ -58,6 +72,12 @@ impl UserMapper {
         active_model.user_name = ActiveValue::Set(user.user_name);
         active_model.email = ActiveValue::Set(user.email);
         active_model.phone_number = ActiveValue::Set(user.phone_number);
+        active_model.merchant_uuid = ActiveValue::Set(
+            user.merchant_uuid
+                .as_ref()
+                .map(|value| Uuid::parse_str(value).expect("Invalid merchant UUID")),
+        );
+        active_model.role = ActiveValue::Set(user.role);
         active_model.is_admin = ActiveValue::Set(user.is_admin);
         active_model.status = ActiveValue::Set(match user.status {
             Status::Active => "active".to_string(),

@@ -6,15 +6,19 @@ use serde::{Deserialize, Serialize};
 pub struct JwtClaims {
     pub sub: String,
     pub user_name: String,
+    pub merchant_id: String,
+    pub role: String,
     pub exp: i64,
 }
 
 impl JwtClaims {
-    pub fn from_user(user: &User, expiry_hours: i64) -> Self {
+    pub fn from_user(user: &User, merchant_id: String, role: String, expiry_hours: i64) -> Self {
         let expiration = Utc::now() + Duration::hours(expiry_hours);
         Self {
             sub: user.uuid.clone(),
             user_name: user.user_name.clone(),
+            merchant_id,
+            role,
             exp: expiration.timestamp(),
         }
     }

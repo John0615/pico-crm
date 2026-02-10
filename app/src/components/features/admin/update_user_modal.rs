@@ -203,6 +203,8 @@ where
                 Some(phone_number)
             },
             avatar_url: if avatar.is_empty() { None } else { Some(avatar) },
+            merchant_uuid: None,
+            role: None,
         };
         let uuid = user_uuid.with_untracked(|value| value.clone());
         // 调用API并处理结果

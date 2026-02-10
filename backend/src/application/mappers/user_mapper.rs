@@ -14,6 +14,8 @@ impl From<DomainUser> for User {
             user_name: user.user_name,
             email: user.email,
             phone_number: user.phone_number,
+            merchant_uuid: user.merchant_uuid,
+            role: user.role,
             is_admin: user.is_admin,
             status: status,
             avatar_url: user.avatar_url,
@@ -27,7 +29,18 @@ impl From<DomainUser> for User {
 
 impl From<CreateUserRequest> for DomainUser {
     fn from(request: CreateUserRequest) -> Self {
-        let mut user = DomainUser::new(request.user_name, request.password, request.email, request.phone_number);
+        let mut user = DomainUser::new(
+            request.user_name,
+            request.password,
+            request.email,
+            request.phone_number,
+        );
+        if let Some(role) = request.role {
+            user.set_role(role);
+        }
+        if let Some(merchant_uuid) = request.merchant_uuid {
+            user.set_merchant_uuid(merchant_uuid);
+        }
         // 设置头像URL（如果提供了）
         if let Some(avatar_url) = request.avatar_url {
             user.avatar_url = Some(avatar_url);

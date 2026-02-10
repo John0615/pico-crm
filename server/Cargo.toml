@@ -20,3 +20,4 @@ dotenvy.workspace = true
 cookie.workspace = true
 migration = { path = "../migration" }
 backend = { path = "../backend" }
+shared = { path = "../shared" }

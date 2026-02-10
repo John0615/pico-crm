@@ -5,11 +5,13 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Redirect},
 };
-use backend::application::commands::auth::AuthAppService;
+use backend::domain::auth::provider::{AuthCredential, AuthProvider};
 use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
+use backend::infrastructure::config::app::AppConfig;
 use backend::infrastructure::db::Database;
-use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
+use backend::infrastructure::tenant::{schema_name_from_merchant, TenantContext};
 use cookie::{Cookie, CookieJar};
+use shared::user::User;
 
 fn get_cookie_jar_from_req<B>(req: &Request<B>) -> CookieJar {
     let mut jar = CookieJar::new();
@@ -68,7 +70,7 @@ pub async fn global_api_auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
-    let white_list = ["/login", "/api/logout", "/api/login"];
+    let white_list = ["/login", "/api/logout", "/api/login", "/api/register_merchant"];
     let path = req.uri().path().to_string();
 
     if white_list.contains(&path.as_str()) {
@@ -79,23 +81,48 @@ pub async fn global_api_auth_middleware(
     match server_auth_check(&cookie_jar) {
         Ok(token) => {
             let auth = JwtAuthProvider::new(db.connection.clone());
-            let user_repository = SeaOrmUserRepository::new(db.connection.clone());
-            let auth_app_service = AuthAppService::new(auth, user_repository);
-            let user_result = auth_app_service
-                .get_user_by_token(token)
+            let claims = auth.get_claims(&token).map_err(|err| {
+                println!("error: {:?}", err);
+                StatusCode::UNAUTHORIZED
+            })?;
+
+            let config = AppConfig::from_env().map_err(|err| {
+                println!("error: {:?}", err);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+            let schema_name = if claims.role == "admin" {
+                "public".to_string()
+            } else {
+                schema_name_from_merchant(&config.tenant_schema_prefix, &claims.merchant_id)
+                    .map_err(|err| {
+                        println!("error: {:?}", err);
+                        StatusCode::UNAUTHORIZED
+                    })?
+            };
+
+            req.extensions_mut().insert(TenantContext {
+                merchant_id: claims.merchant_id,
+                role: claims.role,
+                schema_name,
+            });
+
+            let user: Option<User> = auth
+                .get_current_user(&AuthCredential(token.clone()))
                 .await
                 .map_err(|err| {
                     println!("error: {:?}", err);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
-            println!("user: {:?}", user_result);
-            if let Some(user) = user_result {
-                req.extensions_mut().insert(user.clone());
-                Ok(next.run(req).await)
+                    StatusCode::UNAUTHORIZED
+                })?
+                .map(|domain_user| domain_user.into());
+
+            if let Some(user) = user {
+                req.extensions_mut().insert(user);
             } else {
-                // token 无效，返回认证失败
-                handle_auth_failure(&path).await
+                return handle_auth_failure(&path).await;
             }
+
+            Ok(next.run(req).await)
         }
         Err(_) => {
             // 未登录，直接在中间件层面拦截

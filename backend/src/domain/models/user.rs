@@ -25,6 +25,8 @@ pub struct User {
     pub password: String,
     pub email: Option<String>,
     pub phone_number: Option<String>,
+    pub merchant_uuid: Option<String>,
+    pub role: String,
     pub is_admin: Option<bool>,
     pub status: Status,
     pub avatar_url: Option<String>,
@@ -49,6 +51,8 @@ impl User {
             password,
             email,
             phone_number,
+            merchant_uuid: None,
+            role: "operator".to_string(),
             is_admin: Some(false),
             status: Status::Active,
             avatar_url: None,
@@ -84,6 +88,19 @@ impl User {
     /// 设置管理员权限
     pub fn set_admin(&mut self, is_admin: bool) {
         self.is_admin = Some(is_admin);
+        if is_admin {
+            self.role = "admin".to_string();
+        }
+        self.updated_at = Utc::now();
+    }
+
+    pub fn set_role(&mut self, role: String) {
+        self.role = role;
+        self.updated_at = Utc::now();
+    }
+
+    pub fn set_merchant_uuid(&mut self, merchant_uuid: String) {
+        self.merchant_uuid = Some(merchant_uuid);
         self.updated_at = Utc::now();
     }
 
@@ -194,6 +211,8 @@ impl User {
         password: String,
         email: Option<String>,
         phone_number: Option<String>,
+        merchant_uuid: Option<String>,
+        role: String,
         is_admin: Option<bool>,
         status: Status,
         avatar_url: Option<String>,
@@ -208,6 +227,8 @@ impl User {
             password,
             email,
             phone_number,
+            merchant_uuid,
+            role,
             is_admin,
             status,
             avatar_url,

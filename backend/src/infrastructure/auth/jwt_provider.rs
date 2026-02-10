@@ -28,11 +28,19 @@ impl JwtAuthProvider {
         }
     }
 
-    fn generate_jwt(&self, user_uuid: String, user_name: String) -> Result<String, String> {
+    fn generate_jwt(
+        &self,
+        user_uuid: String,
+        user_name: String,
+        merchant_id: String,
+        role: String,
+    ) -> Result<String, String> {
         let expiration = Utc::now() + Duration::hours(self.jwt_config.expiry_hours);
         let claims = JwtClaims {
             sub: user_uuid,
             user_name: user_name,
+            merchant_id,
+            role,
             exp: expiration.timestamp(),
         };
 
@@ -52,6 +60,10 @@ impl JwtAuthProvider {
         )
         .map(|data| data.claims)
         .map_err(|err| err.to_string())
+    }
+
+    pub fn get_claims(&self, token: &str) -> Result<JwtClaims, String> {
+        self.validate_jwt(token)
     }
 
     async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>, String> {
@@ -87,8 +99,20 @@ impl AuthProvider for JwtAuthProvider {
         };
 
         if let Some(u) = user {
+            let role = if u.is_admin() {
+                "admin".to_string()
+            } else {
+                u.role.clone()
+            };
+            let merchant_id = if role == "admin" {
+                "public".to_string()
+            } else {
+                u.merchant_uuid
+                    .clone()
+                    .ok_or_else(|| "用户缺少商户信息".to_string())?
+            };
             let token = self
-                .generate_jwt(u.uuid, u.user_name)
+                .generate_jwt(u.uuid, u.user_name, merchant_id, role)
                 .map_err(|e| format!("生成 Token 失败：{}", e))?;
 
             // 3. 返回抽象的认证凭证（领域层类型）

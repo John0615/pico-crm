@@ -3,4 +3,5 @@
 pub mod prelude;
 
 pub mod contacts;
+pub mod merchant;
 pub mod users;

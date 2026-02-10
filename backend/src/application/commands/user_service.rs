@@ -46,12 +46,20 @@ impl<R: UserRepository> UserCommandService<R> {
             email,
             phone_number,
             avatar_url,
+            merchant_uuid,
+            role,
         } = request;
 
         // 创建用户实体并生成密码哈希
         let password_hash =
             DomainUser::hash_password(&password).map_err(|e| format!("密码加密失败: {}", e))?;
         let mut user = DomainUser::new(user_name, password_hash, email, phone_number);
+        if let Some(role) = role {
+            user.set_role(role);
+        }
+        if let Some(merchant_uuid) = merchant_uuid {
+            user.set_merchant_uuid(merchant_uuid);
+        }
         if let Some(avatar_url) = avatar_url {
             user.avatar_url = Some(avatar_url);
         }

@@ -9,6 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 shared = { path = "../shared" }
+migration = { path = "../migration" }
 dotenvy.workspace = true
 sea-orm.workspace = true
 chrono.workspace = true

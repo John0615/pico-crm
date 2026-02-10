@@ -6,4 +6,5 @@ pub mod gateways;
 pub mod mappers;
 pub mod queries;
 pub mod repositories;
+pub mod tenant;
 pub mod utils;

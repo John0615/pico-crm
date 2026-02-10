@@ -158,6 +158,8 @@ where
                 Some(phone_number)
             },
             avatar_url: if avatar.is_empty() { None } else { Some(avatar) },
+            merchant_uuid: None,
+            role: None,
         };
         // 调用API并处理结果
         match call_api(create_user(request)).await {

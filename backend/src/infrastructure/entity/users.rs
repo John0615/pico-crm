@@ -15,6 +15,8 @@ pub struct Model {
     pub email: Option<String>,
     #[sea_orm(unique)]
     pub phone_number: Option<String>,
+    pub merchant_uuid: Option<Uuid>,
+    pub role: String,
     pub is_admin: Option<bool>,
     pub status: String,
     #[sea_orm(column_type = "Text", nullable)]
