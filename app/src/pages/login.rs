@@ -107,152 +107,243 @@ pub fn Login() -> impl IntoView {
     };
 
     view! {
-        <div
-            class="min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-blue-50 to-purple-100"
-        >
+        <div class="min-h-screen crm-login">
             <style>
                 {r#"
-                /* 自定义圆角 */
-                .rounded-soft {
-                    border-radius: 12px;
-                }
-                .rounded-btn {
-                    border-radius: 10px;
-                }
-                .rounded-input {
-                    border-radius: 8px;
+                @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+                .crm-login {
+                    --crm-ink: #0b1220;
+                    --crm-muted: #475569;
+                    --crm-accent: #0ea5e9;
+                    --crm-accent-2: #14b8a6;
+                    --crm-warm: #f59e0b;
+                    --crm-surface: #f8fafc;
+                    font-family: "Space Grotesk", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+                    background:
+                        radial-gradient(1200px circle at 10% 10%, rgba(14, 165, 233, 0.12), transparent 40%),
+                        radial-gradient(1000px circle at 90% -10%, rgba(20, 184, 166, 0.18), transparent 45%),
+                        linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+                    color: var(--crm-ink);
                 }
 
-                /* 卡片浮动动画 */
-                @keyframes card-float {
-                    0%, 100% { transform: translateY(0) rotate(-0.5deg); }
-                    50% { transform: translateY(-10px) rotate(0.5deg); }
-                }
-                .floating-card {
-                    animation: card-float 6s ease-in-out infinite;
-                    box-shadow: 0 15px 30px -10px rgba(109, 40, 217, 0.2);
-                }
-                .floating-card:hover {
-                    animation-play-state: paused;
+                .crm-hero {
+                    background: linear-gradient(135deg, #0b1d32 0%, #0f3d4c 45%, #0f766e 100%);
                 }
 
-                /* 输入框样式 */
-                .input-container {
-                    position: relative;
-                    margin-top: 0.5rem;  /* 调整标签和输入框间距 */
-                }
-                .input-label {
-                    display: block;
-                    text-align: left;  /* 左对齐标签 */
-                    margin-bottom: 0.25rem;  /* 标签和输入框间距 */
-                }
-                .input-icon {
-                    position: absolute;
-                    left: 12px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    pointer-events: none;
-                    color: #9CA3AF;
-                    z-index: 10;
-                }
-                .input-with-icon {
-                    padding-left: 40px !important;
+                .crm-grid {
+                    background-image: radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+                    background-size: 18px 18px;
                 }
 
-                /* 按钮样式 */
-                .btn-comfort {
-                    height: 3.25rem;
-                    font-size: 1.05rem;
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
+                .crm-card {
+                    background: rgba(255, 255, 255, 0.88);
+                    border: 1px solid rgba(148, 163, 184, 0.25);
+                    box-shadow: 0 24px 60px -32px rgba(15, 23, 42, 0.6);
+                    backdrop-filter: blur(16px);
                 }
 
-                /* 装饰元素 */
-                .bubble {
-                    position: absolute;
-                    border-radius: 50%;
-                    background: rgba(216, 180, 254, 0.3);
-                    filter: blur(40px);
-                    z-index: -1;
+                .crm-muted {
+                    color: var(--crm-muted);
+                }
+
+                @keyframes crm-enter {
+                    from {
+                        opacity: 0;
+                        transform: translateY(18px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                @keyframes crm-float {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-8px); }
+                }
+
+                .crm-enter {
+                    animation: crm-enter 0.8s ease both;
+                }
+
+                .crm-enter-delay {
+                    animation: crm-enter 0.9s ease both;
+                    animation-delay: 0.12s;
+                }
+
+                .crm-float {
+                    animation: crm-float 8s ease-in-out infinite;
                 }
                 "#}
             </style>
 
-            <div class="card w-full max-w-md bg-white/90 backdrop-blur-sm border border-white/20 rounded-soft overflow-hidden floating-card">
-                <div class="bg-gradient-to-r from-purple-600 to-pink-500 text-white p-6 text-center rounded-t-soft">
-                    <h1 class="text-3xl font-bold">"欢迎登录PicoCRM"</h1>
-                    <p class="opacity-90 mt-1 text-sm">"开启您的专属体验"</p>
-                </div>
+            <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-12">
+                <div class="grid items-stretch gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                    <section class="crm-hero relative overflow-hidden rounded-3xl p-8 lg:p-10 crm-enter">
+                        <div class="crm-grid absolute inset-0 opacity-30"></div>
+                        <div class="absolute -top-24 -right-16 h-56 w-56 rounded-full bg-white/10 blur-3xl"></div>
 
-                <div class="card-body p-8 space-y-4">
-                    <ActionForm action=do_login>
-                        <div class="form-control">
-                            <label class="input-label font-medium text-gray-700">"用户名"</label>
-                            <div class="input-container">
-                                <span class="input-icon">
-                                    <i class="fas fa-user text-lg"></i>
-                                </span>
-                                <input
-                                    type="text"
-                                    name="user_name"
-                                    placeholder="请输入用户名"
-                                    class="input input-bordered w-full rounded-input bg-white/70 h-12 input-with-icon hover:bg-white/90 transition-colors"
-                                    required
-                                />
+                        <div class="relative z-10 flex h-full flex-col justify-between gap-10">
+                            <div class="space-y-6">
+                                <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.35em] text-white/80">
+                                    <span class="icon-[tabler--sparkles] size-4"></span>
+                                    <span>"PicoCRM"</span>
+                                </div>
+                                <div class="space-y-3">
+                                    <h1 class="text-4xl font-semibold text-white leading-tight">
+                                        "让客户运营更有节奏"
+                                    </h1>
+                                    <p class="max-w-md text-sm text-white/75 leading-relaxed">
+                                        "把线索、商机与续费链路拉通，让团队在同一节奏里协作与成交。"
+                                    </p>
+                                </div>
+
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div class="crm-float rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                                        <div class="flex items-center gap-2 text-white">
+                                            <span class="icon-[tabler--users-group] size-5"></span>
+                                            <span class="text-sm font-semibold">"统一客户视图"</span>
+                                        </div>
+                                        <p class="mt-2 text-sm text-white/75 leading-relaxed">
+                                            "客户资料、跟进记录与关键文件一处汇总，协作更顺畅。"
+                                        </p>
+                                        <div class="mt-3 flex items-center gap-2 text-xs text-white/70">
+                                            <span class="badge badge-sm badge-outline border-white/30 text-white/80">"全程留痕"</span>
+                                            <span>"减少重复触达"</span>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm crm-enter-delay"
+                                        style="animation-delay: 0.2s;"
+                                    >
+                                        <div class="flex items-center gap-2 text-white">
+                                            <span class="icon-[tabler--bell-ringing] size-5"></span>
+                                            <span class="text-sm font-semibold">"关键节点提醒"</span>
+                                        </div>
+                                        <p class="mt-2 text-sm text-white/75 leading-relaxed">
+                                            "跟进与SLA自动提醒，机会不再悄悄流失。"
+                                        </p>
+                                        <div class="mt-3 flex items-center gap-2 text-xs text-white/70">
+                                            <span class="badge badge-sm badge-outline border-white/30 text-white/80">"智能节奏"</span>
+                                            <span>"更快成交"</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3 text-sm text-white/75 sm:grid-cols-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="icon-[tabler--shield-check] size-5"></span>
+                                    <span>"登录安全"</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="icon-[tabler--cloud-lock] size-5"></span>
+                                    <span>"数据加密"</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="icon-[tabler--headset] size-5"></span>
+                                    <span>"7x12 支持"</span>
+                                </div>
                             </div>
                         </div>
+                    </section>
 
-                        <div class="form-control">
-                            <label class="input-label font-medium text-gray-700">"密码"</label>
-                            <div class="input-container">
-                                <span class="input-icon">
-                                    <i class="fas fa-lock text-lg"></i>
-                                </span>
-                                <input
-                                    type=move || if *password_visible.read() { "text" } else { "password" }
-                                    name="password"
-                                    placeholder="请输入密码"
-                                    class="input input-bordered w-full rounded-input bg-white/70 h-12 input-with-icon pr-10 hover:bg-white/90 transition-colors"
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-purple-500 transition-colors"
-                                    on:click=toggle_password
-                                >
-                                    <i class=move || if *password_visible.read() { "fas fa-eye text-lg" } else { "fas fa-eye-slash text-lg" }></i>
-                                </button>
-                            </div>
-                            <div class="text-right mt-1">
-                                <a href="#" class="text-sm text-purple-500 hover:text-purple-600 font-medium">"忘记密码？"</a>
+                    <section class="flex items-center justify-center crm-enter-delay">
+                        <div class="card crm-card w-full max-w-md">
+                            <div class="card-body space-y-6">
+                                <div class="rounded-2xl border border-slate-200/70 bg-white/80 p-5">
+                                    <div class="flex items-center gap-4">
+                                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
+                                            <span class="icon-[tabler--shield-lock] size-6"></span>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <p class="text-xs uppercase tracking-[0.35em] text-slate-400">"登录入口"</p>
+                                            <h2 class="text-2xl font-semibold text-slate-900">"进入 PicoCRM"</h2>
+                                            <p class="text-sm text-slate-500">"使用工作账户继续"</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <ActionForm action=do_login>
+                                    <div class="space-y-4 text-left">
+                                        <div class="form-control">
+                                        <label class="label">
+                                            <span class="label-text font-medium">"用户名"</span>
+                                        </label>
+                                        <label class="input input-bordered flex items-center gap-2 bg-white">
+                                            <span class="icon-[tabler--user] size-5 text-slate-400"></span>
+                                            <input
+                                                type="text"
+                                                name="user_name"
+                                                placeholder="请输入用户名"
+                                                class="grow"
+                                                required
+                                            />
+                                        </label>
+                                        </div>
+
+                                        <div class="form-control">
+                                        <label class="label">
+                                            <span class="label-text font-medium">"密码"</span>
+                                            <a href="#" class="label-text-alt link link-hover text-sky-600">"忘记密码？"</a>
+                                        </label>
+                                        <label class="input input-bordered flex items-center gap-2 bg-white">
+                                            <span class="icon-[tabler--lock] size-5 text-slate-400"></span>
+                                            <input
+                                                type=move || if *password_visible.read() { "text" } else { "password" }
+                                                name="password"
+                                                placeholder="请输入密码"
+                                                class="grow"
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                class="btn btn-ghost btn-sm h-7 min-h-0 px-2 text-slate-500"
+                                                aria-label="切换密码可见"
+                                                on:click=toggle_password
+                                            >
+                                                <span class=move || if *password_visible.read() { "icon-[tabler--eye] size-5" } else { "icon-[tabler--eye-off] size-5" }></span>
+                                            </button>
+                                        </label>
+                                        </div>
+
+                                        <div class="flex items-center justify-between text-sm">
+                                        <label class="flex cursor-pointer items-center gap-2">
+                                            <input type="checkbox" class="checkbox checkbox-sm border-slate-300" />
+                                            <span class="crm-muted">"保持登录状态"</span>
+                                        </label>
+                                        <span class="text-xs text-slate-400">"登录后可直接进入仪表盘"</span>
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            class="btn w-full border-none text-white"
+                                            style="background: linear-gradient(135deg, var(--crm-accent), var(--crm-accent-2));"
+                                        >
+                                            <span class="loading loading-spinner" class:hidden=move || !*pending.read()></span>
+                                            <span class="ml-2">"登录进入"</span>
+                                        </button>
+                                    </div>
+                                </ActionForm>
+
+                                <div class="divider text-slate-300">"or"</div>
+
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="crm-muted">"还没有账号？"</span>
+                                    <a href="#" class="link link-hover text-sky-700 font-medium">"申请试用"</a>
+                                </div>
+
+                                <div class="flex items-center gap-2 text-xs text-slate-400">
+                                    <span class="icon-[tabler--shield-lock] size-4"></span>
+                                    <span>"登录即同意安全协议与隐私条款"</span>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="flex items-center justify-between mt-2">
-                            <label class="cursor-pointer flex items-center gap-2">
-                                <input type="checkbox" class="checkbox checkbox-sm border-gray-300 [--chkbg:theme(colors.purple.500)] rounded-sm" />
-                                <span class="text-gray-600 text-sm">"保持登录状态"</span>
-                            </label>
-                        </div>
-
-                        <button
-                            type="submit"
-                            class="btn w-full mt-6 bg-gradient-to-r from-purple-500 to-pink-500 border-none text-white hover:from-purple-600 hover:to-pink-600 hover:shadow-lg transition-all rounded-btn btn-comfort"
-                        >
-                            <span class="loading loading-spinner" class:hidden=move || !*pending.read()></span>
-                            "立即登录" <i class="fas fa-arrow-right-long ml-2 text-lg"></i>
-                        </button>
-                    </ActionForm>
-
-                    <div class="text-center mt-6 pt-5 border-t border-gray-100/50">
-                        <p class="text-gray-500 text-sm">"新用户？"
-                            <a href="#" class="font-medium text-purple-500 hover:text-purple-600 transition-colors">"点击注册"</a>
-                        </p>
-                    </div>
+                    </section>
                 </div>
             </div>
-
         </div>
     }
 }
