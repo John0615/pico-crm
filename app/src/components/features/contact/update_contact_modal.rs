@@ -82,9 +82,7 @@ where
                     value: ArcRwSignal::new(init_contact.phone_number.clone()),
                     placeholder: Some("输入联系电话".into()),
                     error_message: ArcRwSignal::new(None),
-                    validation: Some(ValidationRule::Regex(
-                        r"^1[3-9]\d{9}$".into(), // 中国手机号正则
-                    )),
+                    validation: Some(ValidationRule::CnMobile),
                 },
                 FormField {
                     name: "email".to_string(),
@@ -94,9 +92,7 @@ where
                     value: ArcRwSignal::new(init_contact.email.clone()),
                     placeholder: Some("输入电子邮箱".to_string()),
                     error_message: ArcRwSignal::new(None),
-                    validation: Some(ValidationRule::Regex(
-                        r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into(), // 基础邮箱验证
-                    )),
+                    validation: Some(ValidationRule::Email),
                 },
                 FormField {
                     name: "value_level".to_string(),

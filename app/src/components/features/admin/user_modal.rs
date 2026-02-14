@@ -73,9 +73,7 @@ where
             value: ArcRwSignal::new(String::new()),
             placeholder: Some("输入邮箱".into()),
             error_message: ArcRwSignal::new(None),
-            validation: Some(ValidationRule::Regex(
-                r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into(), // 基础邮箱验证
-            )),
+            validation: Some(ValidationRule::Email),
         },
         FormField {
             name: "phone_number".to_string(),

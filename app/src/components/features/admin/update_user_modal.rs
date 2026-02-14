@@ -115,7 +115,7 @@ where
                 ),
                 placeholder: Some("输入邮箱".into()),
                 error_message: ArcRwSignal::new(None),
-                validation: Some(ValidationRule::Regex(r"^[^@\s]+@[^@\s]+\.[^@\s]+$".into())),
+                validation: Some(ValidationRule::Email),
             },
             FormField {
                 name: "phone_number".to_string(),

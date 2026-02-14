@@ -2,7 +2,6 @@ use crate::components::ui::file_input::{FileInfo, SimpleFileInput, UploadStatus}
 use leptos::ev::SubmitEvent;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::future::Future;
@@ -58,7 +57,8 @@ impl FieldType {
 pub enum ValidationRule {
     MinLength(usize),
     MaxLength(usize),
-    Regex(String),
+    Email,
+    CnMobile,
     Custom(CustomValidator),
 }
 
@@ -78,6 +78,52 @@ impl CustomValidator {
     pub fn validate(&self, value: &str) -> Result<(), String> {
         (self.0)(value)
     }
+}
+
+fn is_valid_email(value: &str) -> bool {
+    let value = value.trim();
+    let mut parts = value.split('@');
+    let local = match parts.next() {
+        Some(part) if !part.is_empty() => part,
+        _ => return false,
+    };
+    let domain = match parts.next() {
+        Some(part) if !part.is_empty() => part,
+        _ => return false,
+    };
+    if parts.next().is_some() {
+        return false;
+    }
+    if local.chars().any(|c| c.is_whitespace()) || domain.chars().any(|c| c.is_whitespace()) {
+        return false;
+    }
+    let mut domain_parts = domain.split('.');
+    let first = match domain_parts.next() {
+        Some(part) if !part.is_empty() => part,
+        _ => return false,
+    };
+    let mut has_dot = false;
+    for part in domain_parts {
+        if part.is_empty() {
+            return false;
+        }
+        has_dot = true;
+    }
+    !first.is_empty() && has_dot
+}
+
+fn is_valid_cn_mobile(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 11 {
+        return false;
+    }
+    if bytes[0] != b'1' {
+        return false;
+    }
+    if !(b'3'..=b'9').contains(&bytes[1]) {
+        return false;
+    }
+    bytes.iter().all(|b| b.is_ascii_digit())
 }
 
 #[component]
@@ -110,11 +156,14 @@ where
                 ValidationRule::MaxLength(max) if value.len() > *max => {
                     return Some(format!("{}长度最多{}", field.label, max));
                 }
-                ValidationRule::Regex(pattern) => {
-                    if let Ok(re) = Regex::new(pattern) {
-                        if !re.is_match(value.as_str()) {
-                            return Some(format!("{}格式不正确", field.label));
-                        }
+                ValidationRule::Email => {
+                    if !value.is_empty() && !is_valid_email(value.as_str()) {
+                        return Some(format!("{}格式不正确", field.label));
+                    }
+                }
+                ValidationRule::CnMobile => {
+                    if !value.is_empty() && !is_valid_cn_mobile(value.as_str()) {
+                        return Some(format!("{}格式不正确", field.label));
                     }
                 }
                 ValidationRule::Custom(validator) => {
