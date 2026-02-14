@@ -5,7 +5,7 @@ use backend::infrastructure::db::Database;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, LeptosRoutes};
-use migration::{Migrator, MigratorTrait, PublicMigrator};
+use migration::{MigratorTrait, PublicMigrator};
 use std::env;
 
 pub mod middlewares;
@@ -22,7 +22,7 @@ async fn main() {
     println!("db_url: {:?}", db_url);
     let db = Database::new().await;
     PublicMigrator::up(db.get_connection(), None).await.unwrap();
-    Migrator::up(db.get_connection(), None).await.unwrap();
+    // Tenant 迁移在商户开通时执行，并通过 search_path 定向到租户 schema
 
     let conf = get_configuration(None).unwrap();
     let addr = conf.leptos_options.site_addr;
