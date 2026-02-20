@@ -2,10 +2,12 @@ use async_trait::async_trait;
 use sea_orm::entity::prelude::*;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
-    DatabaseTransaction, EntityTrait, QueryFilter, Statement, TransactionTrait,
+    DatabaseTransaction, EntityTrait, QueryFilter, Statement, TransactionTrait, ActiveValue,
+    IntoActiveModel,
 };
+use chrono::Utc;
 
-use crate::domain::models::merchant::Merchant;
+use crate::domain::models::merchant::{Merchant, MerchantUpdate};
 use crate::domain::repositories::merchant::MerchantRepository;
 use crate::infrastructure::entity::merchant::{Column, Entity};
 use crate::infrastructure::mappers::merchant_mapper::MerchantMapper;
@@ -109,6 +111,64 @@ impl MerchantRepository for SeaOrmMerchantRepository {
                         .await
                         .map_err(|e| format!("update merchant error: {}", e))?;
                     Ok(())
+                })
+            })
+            .await
+        }
+    }
+
+    fn update_merchant(
+        &self,
+        uuid: &str,
+        update: MerchantUpdate,
+    ) -> impl std::future::Future<Output = Result<Merchant, String>> + Send {
+        let uuid = uuid.to_string();
+        async move {
+            self.with_public_txn(|txn| {
+                Box::pin(async move {
+                    let merchant_uuid = Uuid::parse_str(&uuid)
+                        .map_err(|e| format!("invalid merchant uuid: {}", e))?;
+                    let merchant = Entity::find_by_id(merchant_uuid)
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("query merchant error: {}", e))?
+                        .ok_or_else(|| format!("merchant {} not found", uuid))?;
+
+                    let mut active_model = merchant.into_active_model();
+                    if let Some(name) = update.name {
+                        active_model.name = ActiveValue::Set(name);
+                    }
+                    if let Some(short_name) = update.short_name {
+                        active_model.short_name = ActiveValue::Set(Some(short_name));
+                    }
+                    if let Some(contact_name) = update.contact_name {
+                        active_model.contact_name = ActiveValue::Set(contact_name);
+                    }
+                    if let Some(contact_phone) = update.contact_phone {
+                        active_model.contact_phone = ActiveValue::Set(contact_phone);
+                    }
+                    if let Some(merchant_type) = update.merchant_type {
+                        active_model.merchant_type = ActiveValue::Set(Some(merchant_type));
+                    }
+                    if let Some(status) = update.status {
+                        active_model.status = ActiveValue::Set(status);
+                    }
+                    if let Some(plan_type) = update.plan_type {
+                        active_model.plan_type = ActiveValue::Set(Some(plan_type));
+                    }
+                    if let Some(trial_end_at) = update.trial_end_at {
+                        active_model.trial_end_at = ActiveValue::Set(Some(trial_end_at));
+                    }
+                    if let Some(expired_at) = update.expired_at {
+                        active_model.expired_at = ActiveValue::Set(Some(expired_at));
+                    }
+                    active_model.updated_at = ActiveValue::Set(Utc::now());
+
+                    let updated = active_model
+                        .update(txn)
+                        .await
+                        .map_err(|e| format!("update merchant error: {}", e))?;
+                    Ok(MerchantMapper::to_domain(updated))
                 })
             })
             .await

@@ -68,10 +68,17 @@ pub async fn fetch_users(params: UserListQuery) -> Result<PagedResult<User>, Ser
     endpoint = "/create_user",
 )]
 pub async fn create_user(request: CreateUserRequest) -> Result<User, ServerFnError> {
+    use axum::extract::Extension;
     use backend::application::commands::user_service::UserCommandService;
     use backend::infrastructure::db::Database;
     use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
     use leptos::prelude::*;
+    use leptos_axum::extract;
+
+    let Extension(current_user): Extension<User> = extract().await?;
+    if current_user.is_admin.unwrap_or(false) || current_user.role != "operator" {
+        return Err(ServerFnError::new("无权限创建用户".to_string()));
+    }
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();

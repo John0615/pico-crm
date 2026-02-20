@@ -18,6 +18,8 @@ tower-http.workspace = true
 log.workspace = true
 dotenvy.workspace = true
 cookie.workspace = true
+chrono.workspace = true
+sea-orm.workspace = true
 migration = { path = "../migration" }
 backend = { path = "../backend" }
 shared = { path = "../shared" }

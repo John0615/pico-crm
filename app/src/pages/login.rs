@@ -1,12 +1,15 @@
 use crate::components::ui::toast::{error, success};
+use shared::auth::LoginResponse;
 use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
 pub mod login_ssr {
-    pub use backend::application::commands::auth::AuthAppService;
+    pub use backend::application::commands::admin_auth::AdminAuthAppService;
+    pub use backend::application::commands::merchant_auth::MerchantAuthAppService;
     pub use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
     pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
+    pub use backend::infrastructure::repositories::admin_user_repository_impl::SeaOrmAdminUserRepository;
+    pub use backend::infrastructure::repositories::merchant_repository_impl::SeaOrmMerchantRepository;
 }
 
 #[server(
@@ -14,7 +17,12 @@ pub mod login_ssr {
     prefix = "/api",
     endpoint = "/login",
 )]
-pub async fn login_action(user_name: String, password: String) -> Result<(), ServerFnError> {
+pub async fn login_action(
+    user_name: String,
+    password: String,
+    login_mode: String,
+    merchant_contact_phone: String,
+) -> Result<LoginResponse, ServerFnError> {
     use self::login_ssr::*;
     use cookie::{time::Duration, Cookie, SameSite};
     use http::header::SET_COOKIE;
@@ -30,26 +38,44 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
         return Err(ServerFnError::ServerError("密码长度至少6位".to_string()));
     }
 
+    let merchant_contact_phone = merchant_contact_phone.trim().to_string();
+
     let pool = expect_context::<Database>();
     let auth = JwtAuthProvider::new(pool.connection.clone());
-    let user_repository = SeaOrmUserRepository::new(pool.connection.clone());
-    let auth_app_service = AuthAppService::new(auth, user_repository);
 
     println!("pool {:?}", pool);
-
     println!("Fetching user...");
 
-    let token = auth_app_service
-        .authenticate(&user_name, &password)
-        .await
-        .map_err(|e| ServerFnError::new(e))?;
+    let token = if login_mode == "admin" {
+        let admin_repo = SeaOrmAdminUserRepository::new(pool.connection.clone());
+        let admin_service = AdminAuthAppService::new(admin_repo, auth.clone());
+        admin_service
+            .authenticate(&user_name, &password)
+            .await
+            .map_err(|e| ServerFnError::new(e))?
+    } else {
+        if merchant_contact_phone.is_empty() {
+            return Err(ServerFnError::ServerError("商户手机号不能为空".to_string()));
+        }
+
+        let merchant_repo = SeaOrmMerchantRepository::new(pool.connection.clone());
+        let merchant_auth = MerchantAuthAppService::new(
+            merchant_repo,
+            pool.connection.clone(),
+            auth.clone(),
+        );
+        merchant_auth
+            .authenticate_by_contact_phone(&merchant_contact_phone, &user_name, &password)
+            .await
+            .map_err(|e| ServerFnError::new(e))?
+    };
 
     println!("User Token: {:?}", token);
 
     let response = expect_context::<ResponseOptions>();
 
     // 使用cookie库构建cookie
-    let session_cookie = Cookie::build(("user_session", token))
+    let session_cookie = Cookie::build(("user_session", token.clone()))
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
@@ -70,12 +96,25 @@ pub async fn login_action(user_name: String, password: String) -> Result<(), Ser
 
     response.insert_header(SET_COOKIE, header_value);
 
-    Ok(())
+    let claims = auth
+        .get_claims(&token)
+        .map_err(|e| ServerFnError::new(e))?;
+    let redirect_to = if claims.role == "admin" {
+        "/admin/merchants"
+    } else {
+        "/"
+    };
+
+    Ok(LoginResponse {
+        role: claims.role,
+        redirect_to: redirect_to.to_string(),
+    })
 }
 
 #[component]
 pub fn Login() -> impl IntoView {
     let do_login = ServerAction::<LoginAction>::new();
+    let (login_mode, set_login_mode) = signal("merchant".to_string());
     let pending = do_login.pending();
     let result = do_login.value();
     let navigate = leptos_router::hooks::use_navigate();
@@ -83,9 +122,9 @@ pub fn Login() -> impl IntoView {
     Effect::new(move |_| {
         result.with(|current_value| {
             if let Some(action_result) = current_value.as_ref() {
-                if action_result.is_ok() {
+                if let Ok(response) = action_result {
                     success("登录成功".to_string());
-                    navigate("/", Default::default());
+                    navigate(&response.redirect_to, Default::default());
                 } else if let Err(err) = action_result {
                     let error_message = err.to_string();
                     let clean_error =
@@ -267,7 +306,62 @@ pub fn Login() -> impl IntoView {
                                 </div>
 
                                 <ActionForm action=do_login>
+                                    <div class="join w-full">
+                                        <button
+                                            type="button"
+                                            class=move || {
+                                                if login_mode.with(|mode| mode == "merchant") {
+                                                    "btn btn-sm join-item btn-primary"
+                                                } else {
+                                                    "btn btn-sm join-item btn-outline"
+                                                }
+                                            }
+                                            on:click=move |_| set_login_mode.set("merchant".to_string())
+                                        >
+                                            "商户登录"
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class=move || {
+                                                if login_mode.with(|mode| mode == "admin") {
+                                                    "btn btn-sm join-item btn-primary"
+                                                } else {
+                                                    "btn btn-sm join-item btn-outline"
+                                                }
+                                            }
+                                            on:click=move |_| set_login_mode.set("admin".to_string())
+                                        >
+                                            "管理员登录"
+                                        </button>
+                                    </div>
+                                    <input
+                                        type="hidden"
+                                        name="login_mode"
+                                        value=move || login_mode.with(|mode| mode.clone())
+                                    />
                                     <div class="space-y-4 text-left">
+                                        <div class=move || {
+                                            if login_mode.with(|mode| mode == "merchant") {
+                                                "form-control"
+                                            } else {
+                                                "form-control hidden"
+                                            }
+                                        }>
+                                        <label class="label">
+                                            <span class="label-text font-medium">"商户手机号"</span>
+                                        </label>
+                                        <label class="input input-bordered flex items-center gap-2 bg-white">
+                                            <span class="icon-[tabler--building-store] size-5 text-slate-400"></span>
+                                            <input
+                                                type="text"
+                                                name="merchant_contact_phone"
+                                                placeholder="请输入商户手机号"
+                                                class="grow"
+                                                required=move || login_mode.with(|mode| mode == "merchant")
+                                            />
+                                        </label>
+                                        </div>
+
                                         <div class="form-control">
                                         <label class="label">
                                             <span class="label-text font-medium">"用户名"</span>

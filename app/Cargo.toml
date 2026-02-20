@@ -25,6 +25,7 @@ cookie.workspace = true
 wasm-bindgen-futures = "0.4"
 uuid.workspace = true
 base64.workspace = true
+chrono.workspace = true
 web-sys = { version = "0.3", features = [
     "Blob",
     "Url",

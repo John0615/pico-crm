@@ -1,4 +1,4 @@
-use crate::domain::models::merchant::Merchant;
+use crate::domain::models::merchant::{Merchant, MerchantUpdate};
 
 pub trait MerchantRepository: Send + Sync {
     fn create_merchant(
@@ -16,4 +16,10 @@ pub trait MerchantRepository: Send + Sync {
         uuid: &str,
         status: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send;
+
+    fn update_merchant(
+        &self,
+        uuid: &str,
+        update: MerchantUpdate,
+    ) -> impl std::future::Future<Output = Result<Merchant, String>> + Send;
 }

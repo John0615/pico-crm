@@ -17,6 +17,19 @@ pub struct Merchant {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct MerchantUpdate {
+    pub name: Option<String>,
+    pub short_name: Option<String>,
+    pub contact_name: Option<String>,
+    pub contact_phone: Option<String>,
+    pub merchant_type: Option<String>,
+    pub status: Option<String>,
+    pub plan_type: Option<String>,
+    pub trial_end_at: Option<DateTime<Utc>>,
+    pub expired_at: Option<DateTime<Utc>>,
+}
+
 impl Merchant {
     pub fn new(
         uuid: String,

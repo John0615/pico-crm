@@ -28,6 +28,8 @@ pub enum FieldType {
     Email,
     Password,
     Number,
+    DateTimeLocal,
+    DateTimePicker,
     TextArea,
     Select(Vec<(String, String)>),
     Checkbox,
@@ -47,6 +49,8 @@ impl FieldType {
             FieldType::Email => "email".to_string(),
             FieldType::Password => "password".to_string(),
             FieldType::Number => "number".to_string(),
+            FieldType::DateTimeLocal => "datetime-local".to_string(),
+            FieldType::DateTimePicker => "text".to_string(),
             _ => "text".to_string(),
         }
     }
@@ -132,6 +136,7 @@ pub fn DaisyForm<F, T>(
     on_submit: F,
     #[prop(optional)] submit_text: Option<String>,
     #[prop(optional)] reset_text: Option<String>,
+    #[prop(optional)] form_class: Option<String>,
 ) -> impl IntoView
 where
     F: Fn(Vec<FormField>) -> T + Copy + 'static,
@@ -225,8 +230,13 @@ where
         });
     };
 
+    let form_class = format!(
+        "form-control w-full {}",
+        form_class.unwrap_or_else(|| "max-w-md mx-auto".to_string())
+    );
+
     view! {
-        <form class="form-control w-full max-w-md mx-auto" on:submit=submit>
+        <form class=form_class on:submit=submit>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <For
                     each=move || fields.with(|fields| fields.clone())
@@ -234,10 +244,25 @@ where
                     children=move |field| {
                         view! {
                             {match field.field_type.clone() {
-                                FieldType::Text | FieldType::Email | FieldType::Password | FieldType::Number =>
+                                FieldType::Text
+                                | FieldType::Email
+                                | FieldType::Password
+                                | FieldType::Number
+                                | FieldType::DateTimeLocal =>
                                     view! {
                                         <TextInput
                                             field_type=field.field_type.to_string()
+                                            name=field.name
+                                            label=field.label
+                                            value=field.value
+                                            required=field.required
+                                            placeholder=field.placeholder.unwrap_or_default()
+                                            error_message=field.error_message
+                                        />
+                                    }.into_any(),
+                                FieldType::DateTimePicker =>
+                                    view! {
+                                        <DateTimePickerInput
                                             name=field.name
                                             label=field.label
                                             value=field.value
@@ -263,7 +288,7 @@ where
                                             name=field.name
                                             label=field.label
                                             value=field.value
-                                            required=true
+                                            required=field.required
                                             options=options
                                             error_message=field.error_message
                                         />
@@ -410,6 +435,243 @@ pub fn TextInput(
             </p>
         </fieldset>
     }
+}
+
+#[component]
+pub fn DateTimePickerInput(
+    name: String,
+    label: String,
+    value: ArcRwSignal<String>,
+    #[prop(optional)] placeholder: String,
+    #[prop(optional)] required: bool,
+    #[prop(optional)] class: String,
+    #[prop(optional)] error_message: ArcRwSignal<Option<String>>,
+) -> impl IntoView {
+    let value_clone = value.clone();
+    let input_ref = NodeRef::<leptos::html::Input>::new();
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let input_ref = input_ref.clone();
+        let initialized = RwSignal::new(false);
+        Effect::new(move |_| {
+            if initialized.get() {
+                return;
+            }
+            if let Some(input) = input_ref.get() {
+                init_flatpickr_with_retry(input);
+                initialized.set(true);
+            }
+        });
+
+        let input_ref = input_ref.clone();
+        let value = value.clone();
+        Effect::new(move |_| {
+            let current = value.get();
+            if let Some(input) = input_ref.get() {
+                sync_flatpickr_value(&input, current.as_str());
+            }
+        });
+    }
+
+    view! {
+        <fieldset class=format!("fieldset form-control {}", class)>
+            <label class="label">
+                <span class="label-text">{label}</span>
+                {required.then(|| view! { <span class="text-error">*</span> })}
+            </label>
+            <input
+                node_ref=input_ref
+                type="text"
+                name=name
+                class="input input-bordered"
+                placeholder=placeholder
+                required=required
+                prop:value=move || value_clone.with(|value| value.clone())
+                on:input={
+                    let value = value.clone();
+                    move |ev| {
+                        let new_value = event_target_value(&ev);
+                        value.set(new_value.clone());
+                    }
+                }
+                on:change={
+                    let value = value.clone();
+                    move |ev| {
+                        let new_value = event_target_value(&ev);
+                        value.set(new_value.clone());
+                    }
+                }
+            />
+            <p class="label">
+                <span class="label-text-alt text-error h-2">
+                    {move || error_message.with(|msg| msg.clone().unwrap_or_default())}
+                </span>
+            </p>
+        </fieldset>
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn init_flatpickr_with_retry(input: web_sys::HtmlInputElement) {
+    use wasm_bindgen::closure::Closure;
+    use wasm_bindgen::JsCast;
+
+    if init_flatpickr(&input) {
+        return;
+    }
+
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+
+    let input_clone = input.clone();
+    let cb_1 = Closure::once_into_js(move || {
+        let _ = init_flatpickr(&input_clone);
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        cb_1.unchecked_ref(),
+        100,
+    );
+
+    let input_clone = input.clone();
+    let cb_2 = Closure::once_into_js(move || {
+        let _ = init_flatpickr(&input_clone);
+    });
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        cb_2.unchecked_ref(),
+        400,
+    );
+}
+
+#[cfg(target_arch = "wasm32")]
+fn init_flatpickr(input: &web_sys::HtmlInputElement) -> bool {
+    use wasm_bindgen::closure::Closure;
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen::JsValue;
+    use web_sys::Event;
+
+    let Some(window) = web_sys::window() else {
+        return false;
+    };
+    let Ok(flatpickr) = js_sys::Reflect::get(&window, &JsValue::from_str("flatpickr")) else {
+        return false;
+    };
+    if flatpickr.is_null() || flatpickr.is_undefined() {
+        return false;
+    }
+    if let Ok(existing) = js_sys::Reflect::get(input, &JsValue::from_str("_flatpickr")) {
+        if !existing.is_null() && !existing.is_undefined() {
+            return true;
+        }
+    }
+
+    let options = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(
+        &options,
+        &JsValue::from_str("enableTime"),
+        &JsValue::from_bool(true),
+    );
+    let _ = js_sys::Reflect::set(
+        &options,
+        &JsValue::from_str("time_24hr"),
+        &JsValue::from_bool(true),
+    );
+    let _ = js_sys::Reflect::set(
+        &options,
+        &JsValue::from_str("allowInput"),
+        &JsValue::from_bool(true),
+    );
+    let _ = js_sys::Reflect::set(
+        &options,
+        &JsValue::from_str("dateFormat"),
+        &JsValue::from_str("Y-m-d H:i"),
+    );
+    let _ = js_sys::Reflect::set(
+        &options,
+        &JsValue::from_str("minuteIncrement"),
+        &JsValue::from_f64(5.0),
+    );
+    // Use zh locale if it has been loaded (public/vendor/zh.js).
+    if let Ok(l10ns) = js_sys::Reflect::get(&flatpickr, &JsValue::from_str("l10ns")) {
+        if let Ok(zh) = js_sys::Reflect::get(&l10ns, &JsValue::from_str("zh")) {
+            if !zh.is_undefined() && !zh.is_null() {
+                let _ = js_sys::Reflect::set(
+                    &options,
+                    &JsValue::from_str("locale"),
+                    &zh,
+                );
+            }
+        }
+    }
+    // flatpickr updates the input programmatically; dispatch events so Leptos picks up changes.
+    let input_clone = input.clone();
+    let on_change = Closure::wrap(Box::new(move |_selected_dates: JsValue| {
+        if let Ok(event) = Event::new("input") {
+            let _ = input_clone.dispatch_event(&event);
+        }
+        if let Ok(event) = Event::new("change") {
+            let _ = input_clone.dispatch_event(&event);
+        }
+    }) as Box<dyn FnMut(JsValue)>);
+    let _ = js_sys::Reflect::set(
+        &options,
+        &JsValue::from_str("onChange"),
+        on_change.as_ref().unchecked_ref(),
+    );
+    on_change.forget();
+
+    if let Ok(flatpickr) = flatpickr.dyn_into::<js_sys::Function>() {
+        let input_value: JsValue = input.clone().into();
+        let options_value: JsValue = options.into();
+        let _ = flatpickr.call2(&JsValue::NULL, &input_value, &options_value);
+        return true;
+    }
+
+    false
+}
+
+#[cfg(target_arch = "wasm32")]
+fn sync_flatpickr_value(input: &web_sys::HtmlInputElement, value: &str) {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen::JsValue;
+
+    let trimmed = value.trim();
+    if input.value() == trimmed {
+        return;
+    }
+
+    if let Ok(instance) = js_sys::Reflect::get(input, &JsValue::from_str("_flatpickr")) {
+        if instance.is_null() || instance.is_undefined() {
+            input.set_value(trimmed);
+            return;
+        }
+
+        if trimmed.is_empty() {
+            if let Ok(clear) = js_sys::Reflect::get(&instance, &JsValue::from_str("clear")) {
+                if let Ok(clear_fn) = clear.dyn_into::<js_sys::Function>() {
+                    let _ = clear_fn.call0(&instance);
+                    return;
+                }
+            }
+            input.set_value("");
+            return;
+        }
+
+        if let Ok(set_date) = js_sys::Reflect::get(&instance, &JsValue::from_str("setDate")) {
+            if let Ok(set_date_fn) = set_date.dyn_into::<js_sys::Function>() {
+                let _ = set_date_fn.call3(
+                    &instance,
+                    &JsValue::from_str(trimmed),
+                    &JsValue::from_bool(false),
+                    &JsValue::from_str("Y-m-d H:i"),
+                );
+                return;
+            }
+        }
+    }
+
+    input.set_value(trimmed);
 }
 
 #[component]

@@ -10,7 +10,8 @@ use leptos_router::{
 use components::layouts::*;
 use components::ui::{message_box::MessageBox, toast::Toast};
 use lazy_routes::{
-    AdminUsersRoute, ContactsListRoute, DashboardRoute, LoginRoute, SystemSettingsRoute,
+    AdminMerchantsRoute, ContactsListRoute, DashboardRoute, LoginRoute, SystemSettingsRoute,
+    UsersRoute,
 };
 use pages::NotFoundPage;
 
@@ -33,6 +34,8 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
             </head>
             <body>
                 <App/>
+                <script src="/vendor/flatpickr.min.js"></script>
+                <script src="/vendor/zh.js"></script>
                 <script src="/vendor/flyonui.js"></script>
             </body>
         </html>
@@ -46,6 +49,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Stylesheet id="leptos" href="/pkg/start-axum-workspace.css"/>
+        <Stylesheet href="/vendor/flatpickr.min.css"/>
         <Stylesheet href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
         // sets the document title
@@ -64,11 +68,16 @@ pub fn App() -> impl IntoView {
                         }>
                             <Route path=path!("") view={Lazy::<ContactsListRoute>::new()}/>
                         </ParentRoute>
+                        <ParentRoute path=path!("/users") view=|| view! {
+                            <Outlet/>
+                        }>
+                            <Route path=path!("") view={Lazy::<UsersRoute>::new()}/>
+                        </ParentRoute>
                         <ParentRoute path=path!("/admin") view=|| view! {
                             <Outlet/>
                         }>
-                            <Route path=path!("") view={Lazy::<SystemSettingsRoute>::new()}/>
-                            <Route path=path!("/users") view={Lazy::<AdminUsersRoute>::new()}/>
+                            <Route path=path!("") view={Lazy::<AdminMerchantsRoute>::new()}/>
+                            <Route path=path!("/merchants") view={Lazy::<AdminMerchantsRoute>::new()}/>
                             <Route path=path!("/settings") view={Lazy::<SystemSettingsRoute>::new()}/>
                         </ParentRoute>
                     </ParentRoute>

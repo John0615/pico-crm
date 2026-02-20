@@ -3,5 +3,6 @@
 pub mod prelude;
 
 pub mod contacts;
+pub mod admin_users;
 pub mod merchant;
 pub mod users;
