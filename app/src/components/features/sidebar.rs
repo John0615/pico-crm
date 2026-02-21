@@ -321,6 +321,15 @@ pub fn Sidebar() -> impl IntoView {
                                 </li>
                                 <li>
                                     <a
+                                        href="/admin/analytics"
+                                        class=move || if is_active("/admin/analytics") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--chart-bar] size-5"></span>
+                                        "平台统计"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
                                         href="/admin/settings"
                                         class=move || if is_active("/admin/settings") { "menu-active w-full" } else { "w-full" }
                                     >
@@ -360,6 +369,15 @@ pub fn Sidebar() -> impl IntoView {
                                     >
                                         <span class="icon-[tabler--building-store] size-5"></span>
                                         "商户管理"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="/admin/analytics"
+                                        class=move || if is_active("/admin/analytics") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--chart-bar] size-5"></span>
+                                        "平台统计"
                                     </a>
                                 </li>
                                 <li>

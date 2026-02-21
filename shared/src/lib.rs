@@ -6,6 +6,7 @@ pub mod file;
 pub mod merchant;
 pub mod auth;
 pub mod system_config;
+pub mod analytics;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ListResult<T> {

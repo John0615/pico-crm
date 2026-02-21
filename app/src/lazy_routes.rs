@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_router::{lazy_route, LazyRoute};
 
-use crate::pages::admin::{AdminUsers, AdminMerchants, SystemSettings};
+use crate::pages::admin::{AdminUsers, AdminMerchants, SystemSettings, AdminAnalytics};
 use crate::pages::{ContactsList, Dashboard, Login};
 
 #[derive(Debug)]
@@ -91,5 +91,20 @@ impl LazyRoute for SystemSettingsRoute {
     fn view(this: Self) -> AnyView {
         let _ = this;
         view! { <SystemSettings/> }.into_any()
+    }
+}
+
+#[derive(Debug)]
+pub struct AdminAnalyticsRoute;
+
+#[lazy_route]
+impl LazyRoute for AdminAnalyticsRoute {
+    fn data() -> Self {
+        Self
+    }
+
+    fn view(this: Self) -> AnyView {
+        let _ = this;
+        view! { <AdminAnalytics/> }.into_any()
     }
 }
