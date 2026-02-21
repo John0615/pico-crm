@@ -2,5 +2,8 @@
 
 pub use super::contacts::Entity as Contacts;
 pub use super::admin_users::Entity as AdminUsers;
+pub use super::audit_logs::Entity as AuditLogs;
 pub use super::merchant::Entity as Merchant;
+pub use super::system_config_categories::Entity as SystemConfigCategories;
+pub use super::system_config_items::Entity as SystemConfigItems;
 pub use super::users::Entity as Users;

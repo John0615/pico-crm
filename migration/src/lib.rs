@@ -6,6 +6,8 @@ mod m20250707_013515_create_table_users;
 mod m20260201_000001_create_table_merchants;
 mod m20260201_000002_create_table_admin_users;
 mod m20260201_000003_create_table_audit_logs;
+mod m20260221_000001_create_table_system_config_categories;
+mod m20260221_000002_create_table_system_config_items;
 mod m20260201_000004_create_tenant_tables;
 mod m20260201_000005_add_user_tenant_columns;
 
@@ -36,6 +38,8 @@ impl MigratorTrait for PublicMigrator {
             Box::new(m20260201_000001_create_table_merchants::Migration),
             Box::new(m20260201_000002_create_table_admin_users::Migration),
             Box::new(m20260201_000003_create_table_audit_logs::Migration),
+            Box::new(m20260221_000001_create_table_system_config_categories::Migration),
+            Box::new(m20260221_000002_create_table_system_config_items::Migration),
         ]
     }
 }

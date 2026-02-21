@@ -932,6 +932,7 @@ dependencies = [
  "rust_xlsxwriter",
  "sea-orm",
  "serde",
+ "serde_json",
  "shared",
  "tokio",
  "uuid",
@@ -4765,6 +4766,7 @@ name = "shared"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
 ]
 
 [[package]]
