@@ -14,7 +14,12 @@ pub fn schema_name_from_merchant(prefix: &str, merchant_id: &str) -> Result<Stri
     if merchant_id.is_empty() {
         return Err("merchant_id is empty".to_string());
     }
-    let schema_name = format!("{}{}", prefix, merchant_id);
+    let schema_name = if merchant_id.starts_with(prefix) && is_safe_schema_name(merchant_id) {
+        merchant_id.to_string()
+    } else {
+        let normalized = merchant_id.replace('-', "");
+        format!("{}{}", prefix, normalized)
+    };
     if !is_safe_schema_name(&schema_name) {
         return Err("invalid schema name".to_string());
     }

@@ -96,11 +96,11 @@ pub fn AdminAnalytics() -> impl IntoView {
                 <h1 class="text-2xl font-semibold">"平台统计"</h1>
                 <div class="card bg-base-100 shadow-sm w-full lg:w-auto">
                     <div class="card-body p-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div class="flex flex-col gap-1">
-                                <span class="text-xs text-base-content/60">"时间范围"</span>
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-base-content/60 whitespace-nowrap">"时间范围"</span>
                                 <select
-                                    class="select select-bordered w-full min-w-[140px]"
+                                    class="select select-bordered h-9 min-w-[140px]"
                                     on:change=on_preset_change
                                     prop:value=move || preset.get()
                                 >
@@ -109,10 +109,10 @@ pub fn AdminAnalytics() -> impl IntoView {
                                     <option value="last_30_days">"最近 30 天"</option>
                                 </select>
                             </div>
-                            <div class="flex flex-col gap-1">
-                                <span class="text-xs text-base-content/60">"聚合粒度"</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-base-content/60 whitespace-nowrap">"聚合粒度"</span>
                                 <select
-                                    class="select select-bordered w-full min-w-[140px]"
+                                    class="select select-bordered h-9 min-w-[140px]"
                                     on:change=on_granularity_change
                                     prop:value=move || granularity.get()
                                 >
@@ -121,10 +121,10 @@ pub fn AdminAnalytics() -> impl IntoView {
                                     <option value="month">"按月"</option>
                                 </select>
                             </div>
-                            <div class="flex flex-col gap-1">
-                                <span class="text-xs text-base-content/60">"分布维度"</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-base-content/60 whitespace-nowrap">"分布维度"</span>
                                 <select
-                                    class="select select-bordered w-full min-w-[160px]"
+                                    class="select select-bordered h-9 min-w-[160px]"
                                     on:change=on_dimension_change
                                     prop:value=move || dimension.get()
                                 >

@@ -7,6 +7,7 @@ use crate::{
     },
     infrastructure::entity::users::{Column, Entity},
     infrastructure::mappers::user_mapper::UserMapper,
+    infrastructure::tenant::with_tenant_txn,
 };
 
 use async_trait::async_trait;
@@ -14,11 +15,12 @@ use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
 
 pub struct SeaOrmUserRepository {
     db: DatabaseConnection,
+    schema_name: String,
 }
 
 impl SeaOrmUserRepository {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
+        Self { db, schema_name }
     }
 }
 
@@ -28,16 +30,23 @@ impl UserRepository for SeaOrmUserRepository {
         &self,
         user: User,
     ) -> impl std::future::Future<Output = Result<User, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
         async move {
-            // 转换为Entity
-            let entity = UserMapper::to_active_entity(user);
-            let new_entity = entity
-                .insert(&self.db)
-                .await
-                .map_err(|e| format!("create user database error: {}", e))?;
+            with_tenant_txn(&db, &schema_name, |txn| {
+                Box::pin(async move {
+                    // 转换为Entity
+                    let entity = UserMapper::to_active_entity(user);
+                    let new_entity = entity
+                        .insert(txn)
+                        .await
+                        .map_err(|e| format!("create user database error: {}", e))?;
 
-            let new_user = UserMapper::to_domain(new_entity);
-            Ok(new_user)
+                    let new_user = UserMapper::to_domain(new_entity);
+                    Ok(new_user)
+                })
+            })
+            .await
         }
     }
 
@@ -45,27 +54,34 @@ impl UserRepository for SeaOrmUserRepository {
         &self,
         user: User,
     ) -> impl std::future::Future<Output = Result<User, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
         async move {
-            // 根据 uuid 查询原始数据
-            let uuid = Uuid::parse_str(&user.uuid).expect("解析uuid失败！");
-            let original_user = Entity::find()
-                .filter(Column::Uuid.eq(uuid))
-                .one(&self.db)
-                .await
-                .map_err(|e| format!("查询原始数据失败: {}", e))?
-                .ok_or_else(|| format!("未找到 uuid 为 {} 的用户", user.uuid))?;
+            with_tenant_txn(&db, &schema_name, |txn| {
+                Box::pin(async move {
+                    // 根据 uuid 查询原始数据
+                    let uuid = Uuid::parse_str(&user.uuid).expect("解析uuid失败！");
+                    let original_user = Entity::find()
+                        .filter(Column::Uuid.eq(uuid))
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("查询原始数据失败: {}", e))?
+                        .ok_or_else(|| format!("未找到 uuid 为 {} 的用户", user.uuid))?;
 
-            // 转换为 ActiveModel
-            let active_user = UserMapper::to_update_active_entity(user, original_user);
+                    // 转换为 ActiveModel
+                    let active_user = UserMapper::to_update_active_entity(user, original_user);
 
-            // 执行更新
-            let updated = active_user
-                .update(&self.db)
-                .await
-                .map_err(|e| format!("更新失败: {}", e))?;
-            let updated = UserMapper::to_domain(updated);
+                    // 执行更新
+                    let updated = active_user
+                        .update(txn)
+                        .await
+                        .map_err(|e| format!("更新失败: {}", e))?;
+                    let updated = UserMapper::to_domain(updated);
 
-            Ok(updated)
+                    Ok(updated)
+                })
+            })
+            .await
         }
     }
 
@@ -73,19 +89,26 @@ impl UserRepository for SeaOrmUserRepository {
         &self,
         uuid: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
         async move {
-            let uuid = Uuid::parse_str(&uuid).expect("解析uuid失败！");
-            Entity::delete_by_id(uuid)
-                .exec(&self.db)
-                .await
-                .map_err(|e| format!("删除失败: {}", e))
-                .and_then(|res| {
-                    if res.rows_affected > 0 {
-                        Ok(())
-                    } else {
-                        Err("未找到记录".to_string())
-                    }
+            with_tenant_txn(&db, &schema_name, |txn| {
+                Box::pin(async move {
+                    let uuid = Uuid::parse_str(&uuid).expect("解析uuid失败！");
+                    Entity::delete_by_id(uuid)
+                        .exec(txn)
+                        .await
+                        .map_err(|e| format!("删除失败: {}", e))
+                        .and_then(|res| {
+                            if res.rows_affected > 0 {
+                                Ok(())
+                            } else {
+                                Err("未找到记录".to_string())
+                            }
+                        })
                 })
+            })
+            .await
         }
     }
 
@@ -94,15 +117,24 @@ impl UserRepository for SeaOrmUserRepository {
         &self,
         uuid: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        let uuid = uuid.to_string();
         async move {
-            let uuid = Uuid::parse_str(uuid).map_err(|e| format!("解析uuid失败: {}", e))?;
-            let user = Entity::find()
-                .filter(Column::Uuid.eq(uuid))
-                .one(&self.db)
-                .await
-                .map_err(|e| format!("查询用户失败: {}", e))?;
+            with_tenant_txn(&db, &schema_name, |txn| {
+                let uuid = uuid.clone();
+                Box::pin(async move {
+                    let uuid = Uuid::parse_str(&uuid).map_err(|e| format!("解析uuid失败: {}", e))?;
+                    let user = Entity::find()
+                        .filter(Column::Uuid.eq(uuid))
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("查询用户失败: {}", e))?;
 
-            Ok(user.map(UserMapper::to_domain))
+                    Ok(user.map(UserMapper::to_domain))
+                })
+            })
+            .await
         }
     }
 
@@ -110,14 +142,23 @@ impl UserRepository for SeaOrmUserRepository {
         &self,
         username: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        let username = username.to_string();
         async move {
-            let user = Entity::find()
-                .filter(Column::UserName.eq(username))
-                .one(&self.db)
-                .await
-                .map_err(|e| format!("查询用户失败: {}", e))?;
+            with_tenant_txn(&db, &schema_name, |txn| {
+                let username = username.clone();
+                Box::pin(async move {
+                    let user = Entity::find()
+                        .filter(Column::UserName.eq(username))
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("查询用户失败: {}", e))?;
 
-            Ok(user.map(UserMapper::to_domain))
+                    Ok(user.map(UserMapper::to_domain))
+                })
+            })
+            .await
         }
     }
 
@@ -125,14 +166,23 @@ impl UserRepository for SeaOrmUserRepository {
         &self,
         email: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        let email = email.to_string();
         async move {
-            let user = Entity::find()
-                .filter(Column::Email.eq(email))
-                .one(&self.db)
-                .await
-                .map_err(|e| format!("查询用户失败: {}", e))?;
+            with_tenant_txn(&db, &schema_name, |txn| {
+                let email = email.clone();
+                Box::pin(async move {
+                    let user = Entity::find()
+                        .filter(Column::Email.eq(email))
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("查询用户失败: {}", e))?;
 
-            Ok(user.map(UserMapper::to_domain))
+                    Ok(user.map(UserMapper::to_domain))
+                })
+            })
+            .await
         }
     }
 
@@ -140,14 +190,23 @@ impl UserRepository for SeaOrmUserRepository {
         &self,
         phone_number: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        let phone_number = phone_number.to_string();
         async move {
-            let user = Entity::find()
-                .filter(Column::PhoneNumber.eq(phone_number))
-                .one(&self.db)
-                .await
-                .map_err(|e| format!("查询用户失败: {}", e))?;
+            with_tenant_txn(&db, &schema_name, |txn| {
+                let phone_number = phone_number.clone();
+                Box::pin(async move {
+                    let user = Entity::find()
+                        .filter(Column::PhoneNumber.eq(phone_number))
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("查询用户失败: {}", e))?;
 
-            Ok(user.map(UserMapper::to_domain))
+                    Ok(user.map(UserMapper::to_domain))
+                })
+            })
+            .await
         }
     }
 }

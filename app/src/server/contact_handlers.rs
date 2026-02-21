@@ -16,6 +16,7 @@ mod ssr {
         queries::contact_query_impl::SeaOrmContactQuery,
         repositories::contact_repository_impl::SeaOrmContactRepository,
     };
+    pub use backend::infrastructure::tenant::TenantContext;
 }
 
 // 获取联系人列表
@@ -26,12 +27,15 @@ mod ssr {
 )]
 pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>, ServerFnError> {
     use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
 
     // 认证检查已由中间件统一处理，这里可以安全地获取用户信息
     let _user = use_context::<shared::user::User>();
+    let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
 
     let pool = expect_context::<Database>();
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
+    let contact_query = SeaOrmContactQuery::new(pool.connection.clone(), tenant.schema_name);
     let app_service = ContactQueryService::new(contact_query);
 
     println!("pool {:?}", pool);
@@ -54,9 +58,12 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
 )]
 pub async fn get_contact(uuid: String) -> Result<Option<Contact>, ServerFnError> {
     use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
 
+    let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
     let pool = expect_context::<Database>();
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
+    let contact_query = SeaOrmContactQuery::new(pool.connection.clone(), tenant.schema_name);
     let app_service = ContactQueryService::new(contact_query);
 
     println!("fetch contact uuid: {:?}", uuid);
@@ -77,9 +84,13 @@ pub async fn get_contact(uuid: String) -> Result<Option<Contact>, ServerFnError>
 )]
 pub async fn create_contact(contact: Contact) -> Result<(), ServerFnError> {
     use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
 
+    let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
     let pool = expect_context::<Database>();
-    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
+    let contact_repository =
+        SeaOrmContactRepository::new(pool.connection.clone(), tenant.schema_name);
     let app_service = ContactAppService::new(contact_repository);
 
     println!("Adding contact: {:?}", contact);
@@ -100,9 +111,13 @@ pub async fn create_contact(contact: Contact) -> Result<(), ServerFnError> {
 )]
 pub async fn update_contact(contact: UpdateContact) -> Result<(), ServerFnError> {
     use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
 
+    let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
     let pool = expect_context::<Database>();
-    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
+    let contact_repository =
+        SeaOrmContactRepository::new(pool.connection.clone(), tenant.schema_name);
     let app_service = ContactAppService::new(contact_repository);
 
     println!("editing contact: {:?}", contact);
@@ -123,12 +138,16 @@ pub async fn update_contact(contact: UpdateContact) -> Result<(), ServerFnError>
 )]
 pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
     use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
 
     // 认证检查已由中间件统一处理
     let _user = use_context::<shared::user::User>();
+    let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
 
     let pool = expect_context::<Database>();
-    let contact_repository = SeaOrmContactRepository::new(pool.connection.clone());
+    let contact_repository =
+        SeaOrmContactRepository::new(pool.connection.clone(), tenant.schema_name);
     let app_service = ContactAppService::new(contact_repository);
 
     println!("pool {:?}", pool);
@@ -151,12 +170,15 @@ pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
 )]
 pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnError> {
     use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
 
     // 认证检查已由中间件统一处理
     let _user = use_context::<shared::user::User>();
+    let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
 
     let pool = expect_context::<Database>();
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone());
+    let contact_query = SeaOrmContactQuery::new(pool.connection.clone(), tenant.schema_name);
     let app_service = ContactQueryService::new(contact_query);
 
     println!("pool {:?}", pool);

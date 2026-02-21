@@ -81,7 +81,7 @@ impl JwtAuthProvider {
     }
 
     async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>, String> {
-        let user_query = SeaOrmUserQuery::new(self.db_conn.clone());
+        let user_query = SeaOrmUserQuery::new(self.db_conn.clone(), "public".to_string());
         let user = user_query.get_user(user_name).await?;
         Ok(user)
     }

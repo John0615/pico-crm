@@ -16,6 +16,7 @@ use chrono::Utc;
 use cookie::{Cookie, CookieJar};
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
 use shared::user::User;
+use uuid::Uuid;
 
 fn get_cookie_jar_from_req<B>(req: &Request<B>) -> CookieJar {
     let mut jar = CookieJar::new();
@@ -216,10 +217,14 @@ async fn fetch_merchant_status(
     db: &Database,
     merchant_id: &str,
 ) -> Result<MerchantStatus, StatusCode> {
+    let merchant_uuid = Uuid::parse_str(merchant_id).map_err(|err| {
+        println!("error: invalid merchant uuid: {}", err);
+        StatusCode::UNAUTHORIZED
+    })?;
     let stmt = Statement::from_sql_and_values(
         DatabaseBackend::Postgres,
         "SELECT status, expired_at FROM public.merchant WHERE uuid = $1",
-        vec![merchant_id.to_string().into()],
+        vec![merchant_uuid.into()],
     );
     let row = db
         .connection
