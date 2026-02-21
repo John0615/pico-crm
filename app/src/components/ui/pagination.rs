@@ -97,7 +97,7 @@ pub fn Pagination(#[prop(into)] total_items: Signal<u64>) -> impl IntoView {
     };
 
     view! {
-        <div class="absolute bottom-4 flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
+        <div class="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
             {/* 每页显示数量选择 */}
             <div class="flex items-center gap-2">
                 <span class="text-sm shrink-0">每页</span>

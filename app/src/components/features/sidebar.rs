@@ -47,7 +47,12 @@ pub fn Sidebar() -> impl IntoView {
     let is_merchant_section = move || {
         location
             .pathname
-            .with(|current| current.starts_with("/contacts") || current.starts_with("/users"))
+            .with(|current| {
+                current.starts_with("/contacts")
+                    || current.starts_with("/service-requests")
+                    || current.starts_with("/orders")
+                    || current.starts_with("/users")
+            })
     };
     let admin_dropdown_class = move || {
         let base = "dropdown relative [--adaptive:none] [--strategy:static] [--auto-close:false]";
@@ -150,6 +155,24 @@ pub fn Sidebar() -> impl IntoView {
                                 </li>
                                 <li>
                                     <a
+                                        href="/service-requests"
+                                        class=move || if is_active("/service-requests") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--calendar-event] size-5"></span>
+                                        "预约/需求"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="/orders"
+                                        class=move || if is_active("/orders") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--file-invoice] size-5"></span>
+                                        "订单管理"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
                                         href="/users"
                                         class=move || if is_active("/users") { "menu-active w-full" } else { "w-full" }
                                     >
@@ -183,6 +206,24 @@ pub fn Sidebar() -> impl IntoView {
                                     >
                                         <span class="icon-[tabler--user] size-5"></span>
                                         "交互中心"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="/service-requests"
+                                        class=move || if is_active("/service-requests") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--calendar-event] size-5"></span>
+                                        "预约/需求"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="/orders"
+                                        class=move || if is_active("/orders") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--file-invoice] size-5"></span>
+                                        "订单管理"
                                     </a>
                                 </li>
                                 <li>
@@ -337,6 +378,21 @@ pub fn Sidebar() -> impl IntoView {
                                         "系统设置"
                                     </a>
                                 </li>
+                                <li>
+                                    <a
+                                        href="/admin/maintenance"
+                                        class=move || {
+                                            if is_active("/admin/maintenance") {
+                                                "menu-active w-full"
+                                            } else {
+                                                "w-full"
+                                            }
+                                        }
+                                    >
+                                        <span class="icon-[tabler--tool] size-5"></span>
+                                        "租户维护"
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                         <li class="hidden overlay-minified:block dropdown relative [--adaptive:adaptive] [--strategy:fixed] [--offset:12] [--placement:right-start]">
@@ -387,6 +443,21 @@ pub fn Sidebar() -> impl IntoView {
                                     >
                                         <span class="icon-[tabler--settings] size-5"></span>
                                         "系统设置"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="/admin/maintenance"
+                                        class=move || {
+                                            if is_active("/admin/maintenance") {
+                                                "menu-active w-full"
+                                            } else {
+                                                "w-full"
+                                            }
+                                        }
+                                    >
+                                        <span class="icon-[tabler--tool] size-5"></span>
+                                        "租户维护"
                                     </a>
                                 </li>
                             </ul>

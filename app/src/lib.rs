@@ -11,7 +11,7 @@ use components::layouts::*;
 use components::ui::{message_box::MessageBox, toast::Toast};
 use lazy_routes::{
     AdminAnalyticsRoute, AdminMerchantsRoute, ContactsListRoute, DashboardRoute, LoginRoute,
-    SystemSettingsRoute, UsersRoute,
+    SystemSettingsRoute, TenantMaintenanceRoute, UsersRoute, ServiceRequestsRoute, OrdersRoute,
 };
 use pages::NotFoundPage;
 
@@ -68,6 +68,16 @@ pub fn App() -> impl IntoView {
                         }>
                             <Route path=path!("") view={Lazy::<ContactsListRoute>::new()}/>
                         </ParentRoute>
+                        <ParentRoute path=path!("/service-requests") view=|| view! {
+                            <Outlet/>
+                        }>
+                            <Route path=path!("") view={Lazy::<ServiceRequestsRoute>::new()}/>
+                        </ParentRoute>
+                        <ParentRoute path=path!("/orders") view=|| view! {
+                            <Outlet/>
+                        }>
+                            <Route path=path!("") view={Lazy::<OrdersRoute>::new()}/>
+                        </ParentRoute>
                         <ParentRoute path=path!("/users") view=|| view! {
                             <Outlet/>
                         }>
@@ -80,6 +90,7 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("/merchants") view={Lazy::<AdminMerchantsRoute>::new()}/>
                             <Route path=path!("/analytics") view={Lazy::<AdminAnalyticsRoute>::new()}/>
                             <Route path=path!("/settings") view={Lazy::<SystemSettingsRoute>::new()}/>
+                            <Route path=path!("/maintenance") view={Lazy::<TenantMaintenanceRoute>::new()}/>
                         </ParentRoute>
                     </ParentRoute>
                 </Routes>

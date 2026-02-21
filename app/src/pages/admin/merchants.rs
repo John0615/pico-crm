@@ -326,11 +326,7 @@ pub fn AdminMerchants() -> impl IntoView {
                 {move || {
                     data.with(|d| {
                         d.as_ref().map(|(_, total)| {
-                            view! {
-                                <div class="mt-4">
-                                    <Pagination total_items=*total />
-                                </div>
-                            }
+                            view! { <Pagination total_items=*total /> }
                         })
                     })
                 }}

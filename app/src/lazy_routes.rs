@@ -1,8 +1,10 @@
 use leptos::prelude::*;
 use leptos_router::{lazy_route, LazyRoute};
 
-use crate::pages::admin::{AdminUsers, AdminMerchants, SystemSettings, AdminAnalytics};
-use crate::pages::{ContactsList, Dashboard, Login};
+use crate::pages::admin::{
+    AdminAnalytics, AdminMerchants, AdminUsers, SystemSettings, TenantMaintenance,
+};
+use crate::pages::{ContactsList, Dashboard, Login, ServiceRequestsPage, OrdersPage};
 
 #[derive(Debug)]
 pub struct LoginRoute;
@@ -65,6 +67,36 @@ impl LazyRoute for UsersRoute {
 }
 
 #[derive(Debug)]
+pub struct ServiceRequestsRoute;
+
+#[lazy_route]
+impl LazyRoute for ServiceRequestsRoute {
+    fn data() -> Self {
+        Self
+    }
+
+    fn view(this: Self) -> AnyView {
+        let _ = this;
+        view! { <ServiceRequestsPage/> }.into_any()
+    }
+}
+
+#[derive(Debug)]
+pub struct OrdersRoute;
+
+#[lazy_route]
+impl LazyRoute for OrdersRoute {
+    fn data() -> Self {
+        Self
+    }
+
+    fn view(this: Self) -> AnyView {
+        let _ = this;
+        view! { <OrdersPage/> }.into_any()
+    }
+}
+
+#[derive(Debug)]
 pub struct AdminMerchantsRoute;
 
 #[lazy_route]
@@ -106,5 +138,20 @@ impl LazyRoute for AdminAnalyticsRoute {
     fn view(this: Self) -> AnyView {
         let _ = this;
         view! { <AdminAnalytics/> }.into_any()
+    }
+}
+
+#[derive(Debug)]
+pub struct TenantMaintenanceRoute;
+
+#[lazy_route]
+impl LazyRoute for TenantMaintenanceRoute {
+    fn data() -> Self {
+        Self
+    }
+
+    fn view(this: Self) -> AnyView {
+        let _ = this;
+        view! { <TenantMaintenance/> }.into_any()
     }
 }

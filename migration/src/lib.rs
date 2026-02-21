@@ -8,6 +8,7 @@ mod m20260201_000002_create_table_admin_users;
 mod m20260201_000003_create_table_audit_logs;
 mod m20260221_000001_create_table_system_config_categories;
 mod m20260221_000002_create_table_system_config_items;
+mod m20260221_000003_add_service_requests_and_order_fields;
 mod m20260201_000004_create_tenant_tables;
 mod m20260201_000005_add_user_tenant_columns;
 
@@ -21,6 +22,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250707_013515_create_table_users::Migration),
             Box::new(m20260201_000004_create_tenant_tables::Migration),
             Box::new(m20260201_000005_add_user_tenant_columns::Migration),
+            Box::new(m20260221_000003_add_service_requests_and_order_fields::Migration),
         ]
     }
 }
@@ -54,6 +56,7 @@ impl MigratorTrait for TenantMigrator {
             Box::new(m20250707_013515_create_table_users::Migration),
             Box::new(m20260201_000004_create_tenant_tables::Migration),
             Box::new(m20260201_000005_add_user_tenant_columns::Migration),
+            Box::new(m20260221_000003_add_service_requests_and_order_fields::Migration),
         ]
     }
 }

@@ -1,4 +1,5 @@
 pub mod drawer;
+pub mod date_picker;
 pub mod file_input;
 pub mod form;
 pub mod message_box;

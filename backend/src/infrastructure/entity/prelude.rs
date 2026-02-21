@@ -7,3 +7,5 @@ pub use super::merchant::Entity as Merchant;
 pub use super::system_config_categories::Entity as SystemConfigCategories;
 pub use super::system_config_items::Entity as SystemConfigItems;
 pub use super::users::Entity as Users;
+pub use super::service_requests::Entity as ServiceRequests;
+pub use super::orders::Entity as Orders;
