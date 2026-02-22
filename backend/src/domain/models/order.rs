@@ -114,7 +114,7 @@ impl Order {
             return Err("Contact is required".to_string());
         }
         if let (Some(start), Some(end)) = (self.scheduled_start_at, self.scheduled_end_at) {
-            if end < start {
+            if end <= start {
                 return Err("Scheduled end must be after start".to_string());
             }
         }
@@ -128,7 +128,7 @@ impl Order {
 
     pub fn update_assignment(&mut self, update: OrderAssignmentUpdate) -> Result<(), String> {
         if let (Some(start), Some(end)) = (update.scheduled_start_at, update.scheduled_end_at) {
-            if end < start {
+            if end <= start {
                 return Err("Scheduled end must be after start".to_string());
             }
         }

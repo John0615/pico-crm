@@ -5,3 +5,4 @@ pub mod user_mapper;
 pub mod system_config_mapper;
 pub mod service_request_mapper;
 pub mod order_mapper;
+pub mod schedule_mapper;

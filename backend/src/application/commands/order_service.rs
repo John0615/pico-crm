@@ -89,7 +89,7 @@ where
             dispatch_note: payload.dispatch_note,
         };
         if let (Some(start), Some(end)) = (update.scheduled_start_at, update.scheduled_end_at) {
-            if end < start {
+            if end <= start {
                 return Err("scheduled end must be after start".to_string());
             }
         }

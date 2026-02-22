@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use sea_orm::entity::prelude::*;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 use crate::domain::models::order::{Order, OrderAssignmentUpdate, OrderStatus, SettlementStatus};
+use crate::domain::models::schedule::{ScheduleStatus, validate_time_window};
 use crate::domain::repositories::order::OrderRepository;
-use crate::infrastructure::entity::orders::Entity;
+use crate::infrastructure::entity::orders::{Column, Entity};
 use crate::infrastructure::mappers::order_mapper::OrderMapper;
 use crate::infrastructure::tenant::with_tenant_txn;
 
@@ -33,6 +34,29 @@ impl OrderRepository for SeaOrmOrderRepository {
                         .await
                         .map_err(|e| format!("create order error: {}", e))?;
                     Ok(OrderMapper::to_domain(inserted))
+                })
+            })
+            .await
+        }
+    }
+
+    fn find_order(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<Option<Order>, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        async move {
+            with_tenant_txn(&db, &schema_name, |txn| {
+                let uuid = uuid.clone();
+                Box::pin(async move {
+                    let order_uuid = Uuid::parse_str(&uuid)
+                        .map_err(|e| format!("invalid order uuid: {}", e))?;
+                    let model = Entity::find_by_id(order_uuid)
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("query order error: {}", e))?;
+                    Ok(model.map(OrderMapper::to_domain))
                 })
             })
             .await
@@ -91,6 +115,51 @@ impl OrderRepository for SeaOrmOrderRepository {
                         .await
                         .map_err(|e| format!("query order error: {}", e))?
                         .ok_or_else(|| format!("order {} not found", uuid))?;
+
+                    let current_status = OrderStatus::parse(&original.status)?;
+                    let schedule_status = ScheduleStatus::from_order_status(&current_status);
+                    if !schedule_status.allows_assignment_update() {
+                        return Err(format!(
+                            "schedule assignment can only be updated in planned status (current: {})",
+                            schedule_status.as_str()
+                        ));
+                    }
+
+                    if let (Some(start), Some(end)) = (
+                        update.scheduled_start_at.as_ref(),
+                        update.scheduled_end_at.as_ref(),
+                    ) {
+                        validate_time_window(start.clone(), end.clone())?;
+                    }
+
+                    if let (Some(user_uuid), Some(start), Some(end)) = (
+                        update.assigned_user_uuid.clone(),
+                        update.scheduled_start_at.clone(),
+                        update.scheduled_end_at.clone(),
+                    ) {
+                        let assigned_user = Uuid::parse_str(&user_uuid)
+                            .map_err(|e| format!("invalid assigned user uuid: {}", e))?;
+                        let active_statuses = vec![
+                            OrderStatus::Pending.as_str(),
+                            OrderStatus::Confirmed.as_str(),
+                            OrderStatus::Dispatching.as_str(),
+                            OrderStatus::InService.as_str(),
+                        ];
+                        let conflict = Entity::find()
+                            .filter(Column::AssignedUserUuid.eq(assigned_user))
+                            .filter(Column::Uuid.ne(order_uuid))
+                            .filter(Column::ScheduledStartAt.is_not_null())
+                            .filter(Column::ScheduledEndAt.is_not_null())
+                            .filter(Column::Status.is_in(active_statuses))
+                            .filter(Column::ScheduledStartAt.lt(end))
+                            .filter(Column::ScheduledEndAt.gt(start))
+                            .one(txn)
+                            .await
+                            .map_err(|e| format!("query schedule conflict error: {}", e))?;
+                        if conflict.is_some() {
+                            return Err("schedule time overlaps with existing assignment".to_string());
+                        }
+                    }
 
                     let active = OrderMapper::to_assignment_active_entity(original, update);
                     let updated = active

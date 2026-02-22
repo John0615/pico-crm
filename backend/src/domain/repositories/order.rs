@@ -3,6 +3,11 @@ use crate::domain::models::order::{Order, OrderAssignmentUpdate};
 pub trait OrderRepository: Send + Sync {
     fn create_order(&self, order: Order) -> impl std::future::Future<Output = Result<Order, String>> + Send;
 
+    fn find_order(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<Option<Order>, String>> + Send;
+
     fn update_order_status(
         &self,
         uuid: String,

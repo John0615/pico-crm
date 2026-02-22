@@ -725,7 +725,7 @@ fn to_datetime_local(value: Option<String>) -> String {
 
 fn is_end_before_start(start: &str, end: &str) -> bool {
     match (normalize_datetime_local(start), normalize_datetime_local(end)) {
-        (Some(start), Some(end)) => end < start,
+        (Some(start), Some(end)) => end <= start,
         _ => false,
     }
 }

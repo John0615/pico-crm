@@ -51,6 +51,7 @@ pub fn Sidebar() -> impl IntoView {
                 current.starts_with("/contacts")
                     || current.starts_with("/service-requests")
                     || current.starts_with("/orders")
+                    || current.starts_with("/schedules")
                     || current.starts_with("/users")
             })
     };
@@ -173,6 +174,15 @@ pub fn Sidebar() -> impl IntoView {
                                 </li>
                                 <li>
                                     <a
+                                        href="/schedules"
+                                        class=move || if is_active("/schedules") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--calendar-time] size-5"></span>
+                                        "排班管理"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
                                         href="/users"
                                         class=move || if is_active("/users") { "menu-active w-full" } else { "w-full" }
                                     >
@@ -224,6 +234,15 @@ pub fn Sidebar() -> impl IntoView {
                                     >
                                         <span class="icon-[tabler--file-invoice] size-5"></span>
                                         "订单管理"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="/schedules"
+                                        class=move || if is_active("/schedules") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--calendar-time] size-5"></span>
+                                        "排班管理"
                                     </a>
                                 </li>
                                 <li>

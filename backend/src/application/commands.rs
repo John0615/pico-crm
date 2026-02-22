@@ -10,3 +10,4 @@ pub mod file_service;
 pub mod system_config_service;
 pub mod service_request_service;
 pub mod order_service;
+pub mod schedule_service;
