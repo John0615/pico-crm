@@ -3,6 +3,7 @@ use crate::components::ui::modal::Modal;
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
+use crate::server::contact_handlers::fetch_contacts;
 use crate::server::order_handlers::create_order_from_request;
 use crate::server::service_request_handlers::{
     create_service_request, fetch_service_requests, update_service_request,
@@ -14,7 +15,9 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
+use std::collections::{HashMap, HashSet};
 use shared::order::CreateOrderFromRequest;
+use shared::contact::{Contact, ContactQuery};
 use shared::service_request::{
     CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
     UpdateServiceRequestStatus,
@@ -43,6 +46,37 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     let appointment_start_at = RwSignal::new(String::new());
     let appointment_end_at = RwSignal::new(String::new());
     let notes = RwSignal::new(String::new());
+    let contact_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
+    let pending_contacts: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
+
+    let contacts = Resource::new(
+        move || (),
+        |_| async move {
+            let params = ContactQuery {
+                page: 1,
+                page_size: 100,
+                sort: None,
+                filters: None,
+            };
+            match call_api(fetch_contacts(params)).await {
+                Ok(result) => result.items,
+                Err(err) => {
+                    logging::error!("Error loading contacts: {err}");
+                    Vec::new()
+                }
+            }
+        },
+    );
+
+    Effect::new(move || {
+        if let Some(items) = contacts.get() {
+            let mut map = HashMap::new();
+            for contact in items {
+                map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
+            }
+            contact_labels.set(map);
+        }
+    });
 
     let data = Resource::new(
         move || {
@@ -87,6 +121,54 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         },
     );
 
+    Effect::new(move || {
+        if cfg!(feature = "ssr") {
+            return;
+        }
+        let Some((items, _)) = data.get() else {
+            return;
+        };
+
+        let existing = contact_labels.get();
+        let mut pending = pending_contacts.get();
+        let mut missing_ids: Vec<String> = Vec::new();
+        for request in items {
+            if request.contact_uuid.is_empty() {
+                continue;
+            }
+            if existing.contains_key(&request.contact_uuid) || pending.contains(&request.contact_uuid) {
+                continue;
+            }
+            pending.insert(request.contact_uuid.clone());
+            missing_ids.push(request.contact_uuid);
+        }
+        if missing_ids.is_empty() {
+            return;
+        }
+        pending_contacts.set(pending);
+
+        for contact_id in missing_ids {
+            let contact_labels = contact_labels;
+            let pending_contacts = pending_contacts;
+            spawn_local(async move {
+                let label = match call_api(crate::server::contact_handlers::get_contact(
+                    contact_id.clone(),
+                ))
+                .await
+                {
+                    Ok(Some(contact)) => contact_display_label(&contact),
+                    _ => "未知客户".to_string(),
+                };
+                contact_labels.update(|map| {
+                    map.insert(contact_id.clone(), label);
+                });
+                pending_contacts.update(|set| {
+                    set.remove(&contact_id);
+                });
+            });
+        }
+    });
+
     let open_create_modal = move |_| {
         editing_request.set(None);
         contact_uuid.set(String::new());
@@ -108,6 +190,10 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     };
 
     let submit_request = move |_| {
+        if contact_uuid.get().trim().is_empty() {
+            error("请选择客户".to_string());
+            return;
+        }
         if is_end_before_start(&appointment_start_at.get(), &appointment_end_at.get()) {
             error("预约结束时间必须晚于开始时间".to_string());
             return;
@@ -169,7 +255,12 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         });
     };
 
-    let create_order = move |request_id: String| {
+    let create_order = move |request_id: String, status: String| {
+        if status != "confirmed" {
+            error("请先将需求单状态更新为已确认后再生成订单".to_string());
+            return;
+        }
+
         spawn_local(async move {
             let payload = CreateOrderFromRequest {
                 request_id,
@@ -214,12 +305,37 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                         </select>
                     </div>
                     <div class="flex flex-col gap-1">
-                        <span class="text-xs text-base-content/60">"客户ID"</span>
-                        <input
-                            class="input input-bordered"
-                            placeholder="输入客户UUID"
-                            on:input=move |ev| set_contact_filter.set(event_target_value(&ev))
-                        />
+                        <span class="text-xs text-base-content/60">"客户"</span>
+                        <Transition fallback=move || view! {
+                            <select
+                                class="select select-bordered min-w-[200px]"
+                                prop:value=move || contact_filter.get()
+                                on:change=move |ev| set_contact_filter.set(event_target_value(&ev))
+                            >
+                                <option value="">"全部"</option>
+                            </select>
+                        }>
+                            {move || {
+                                let items = contacts.get().unwrap_or_default();
+                                let options = items
+                                    .into_iter()
+                                    .map(|contact| {
+                                        let label = contact_display_label(&contact);
+                                        view! { <option value={contact.contact_uuid}>{label}</option> }
+                                    })
+                                    .collect::<Vec<_>>();
+                                view! {
+                                    <select
+                                        class="select select-bordered min-w-[200px]"
+                                        prop:value=move || contact_filter.get()
+                                        on:change=move |ev| set_contact_filter.set(event_target_value(&ev))
+                                    >
+                                        <option value="">"全部"</option>
+                                        {options}
+                                    </select>
+                                }
+                            }}
+                        </Transition>
                     </div>
                     <div class="flex flex-col gap-1">
                         <span class="text-xs text-base-content/60">"预约开始"</span>
@@ -232,7 +348,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 </div>
             </div>
 
-            <div class="overflow-x-auto bg-base-100 rounded-lg shadow">
+            <div class="overflow-x-auto overflow-y-auto h-[calc(100vh-260px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data>
                     <Column
                         slot:columns
@@ -245,10 +361,22 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                             view! { <span>{item.as_ref().map(|v| v.service_content.clone()).unwrap_or_default()}</span> }
                         }
                     </Column>
-                    <Column slot:columns prop="contact_uuid".to_string() label="客户ID".to_string()>
+                    <Column slot:columns prop="contact_uuid".to_string() label="客户".to_string()>
                         {
                             let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
-                            view! { <span class="text-xs">{item.as_ref().map(|v| v.contact_uuid.clone()).unwrap_or_default()}</span> }
+                            let contact_id = item.as_ref().map(|v| v.contact_uuid.clone()).unwrap_or_default();
+                            let label = contact_labels
+                                .get()
+                                .get(&contact_id)
+                                .cloned()
+                                .unwrap_or_else(|| {
+                                    if pending_contacts.get().contains(&contact_id) {
+                                        "加载中...".to_string()
+                                    } else {
+                                        "未知客户".to_string()
+                                    }
+                                });
+                            view! { <span class="text-xs">{label}</span> }
                         }
                     </Column>
                     <Column
@@ -292,6 +420,18 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                             {
                                 let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
                                 let request_id = item.as_ref().map(|v| v.uuid.clone()).unwrap_or_default();
+                                let status = item.as_ref().map(|v| v.status.clone()).unwrap_or_default();
+                                let can_create = status == "confirmed";
+                                let create_class = if can_create {
+                                    "btn btn-outline btn-xs"
+                                } else {
+                                    "btn btn-outline btn-xs btn-disabled"
+                                };
+                                let create_title = if can_create {
+                                    "生成订单"
+                                } else {
+                                    "请先将状态改为已确认"
+                                };
                                 let edit_item = item.clone();
                                 view! {
                                     <button class="btn btn-ghost btn-xs" on:click=move |_| {
@@ -301,11 +441,16 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                                     }>
                                         "编辑"
                                     </button>
-                                    <button class="btn btn-outline btn-xs" on:click=move |_| {
-                                        if !request_id.is_empty() {
-                                            create_order(request_id.clone());
+                                    <button
+                                        class=create_class
+                                        title=create_title
+                                        disabled=move || !can_create
+                                        on:click=move |_| {
+                                            if !request_id.is_empty() {
+                                                create_order(request_id.clone(), status.clone());
+                                            }
                                         }
-                                    }>
+                                    >
                                         "生成订单"
                                     </button>
                                 }
@@ -328,13 +473,39 @@ pub fn ServiceRequestsPage() -> impl IntoView {
             <h3 class="text-lg font-semibold mb-4">"需求单"</h3>
             <div class="space-y-3">
                 <label class="form-control w-full">
-                    <div class="label"><span class="label-text">"客户UUID"</span></div>
-                    <input
-                        class="input input-bordered w-full"
-                        prop:value=move || contact_uuid.get()
-                        on:input=move |ev| contact_uuid.set(event_target_value(&ev))
-                        disabled=move || editing_request.with(|value| value.is_some())
-                    />
+                    <div class="label"><span class="label-text">"客户"</span></div>
+                    <Transition fallback=move || view! {
+                        <select
+                            class="select select-bordered w-full"
+                            prop:value=move || contact_uuid.get()
+                            on:change=move |ev| contact_uuid.set(event_target_value(&ev))
+                            disabled=move || editing_request.with(|value| value.is_some())
+                        >
+                            <option value="">"请选择客户"</option>
+                        </select>
+                    }>
+                        {move || {
+                            let items = contacts.get().unwrap_or_default();
+                            let options = items
+                                .into_iter()
+                                .map(|contact| {
+                                    let label = contact_display_label(&contact);
+                                    view! { <option value={contact.contact_uuid}>{label}</option> }
+                                })
+                                .collect::<Vec<_>>();
+                            view! {
+                                <select
+                                    class="select select-bordered w-full"
+                                    prop:value=move || contact_uuid.get()
+                                    on:change=move |ev| contact_uuid.set(event_target_value(&ev))
+                                    disabled=move || editing_request.with(|value| value.is_some())
+                                >
+                                    <option value="">"请选择客户"</option>
+                                    {options}
+                                </select>
+                            }
+                        }}
+                    </Transition>
                 </label>
                 <label class="form-control w-full">
                     <div class="label"><span class="label-text">"服务内容"</span></div>
@@ -397,6 +568,35 @@ impl From<CreateServiceRequest> for RequestPayload {
 impl From<UpdateServiceRequest> for RequestPayload {
     fn from(value: UpdateServiceRequest) -> Self {
         RequestPayload::Update(value)
+    }
+}
+
+fn contact_display_label(contact: &Contact) -> String {
+    let name = contact.user_name.trim();
+    let company = contact.company.trim();
+    let mut label = String::new();
+    if !name.is_empty() {
+        label.push_str(name);
+    }
+    if !company.is_empty() {
+        if !label.is_empty() {
+            label.push_str(" / ");
+        }
+        label.push_str(company);
+    }
+    if label.is_empty() {
+        label = "未命名客户".to_string();
+    }
+    let extra = contact.phone_number.trim();
+    if !extra.is_empty() {
+        format!("{} ({})", label, extra)
+    } else {
+        let email = contact.email.trim();
+        if !email.is_empty() {
+            format!("{} ({})", label, email)
+        } else {
+            label
+        }
     }
 }
 

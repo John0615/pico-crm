@@ -3,19 +3,24 @@ use crate::components::ui::modal::Modal;
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
+use crate::server::contact_handlers::{fetch_contacts, get_contact};
 use crate::server::order_handlers::{
     fetch_orders, update_order_assignment, update_order_settlement, update_order_status,
 };
+use crate::server::user_handlers::{fetch_users, get_user};
 use crate::utils::api::call_api;
 use leptos::logging;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
+use shared::contact::{Contact, ContactQuery};
 use shared::order::{
     Order, OrderQuery, UpdateOrderAssignment, UpdateOrderSettlement, UpdateOrderStatus,
 };
+use shared::user::{User, UserListQuery};
 use shared::ListResult;
+use std::collections::{HashMap, HashSet};
 
 impl Identifiable for Order {
     fn id(&self) -> String {
@@ -41,6 +46,10 @@ pub fn OrdersPage() -> impl IntoView {
     let scheduled_end_at = RwSignal::new(String::new());
     let dispatch_note = RwSignal::new(String::new());
     let detail_order: RwSignal<Option<Order>> = RwSignal::new(None);
+    let contact_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
+    let user_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
+    let pending_contacts: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
+    let pending_users: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
 
     let data = Resource::new(
         move || {
@@ -86,6 +95,157 @@ pub fn OrdersPage() -> impl IntoView {
             (result.items, result.total)
         },
     );
+
+    let contacts = Resource::new(
+        move || (),
+        |_| async move {
+            let params = ContactQuery {
+                page: 1,
+                page_size: 100,
+                sort: None,
+                filters: None,
+            };
+
+            match call_api(fetch_contacts(params)).await {
+                Ok(result) => result.items,
+                Err(err) => {
+                    logging::error!("Error loading contacts: {err}");
+                    Vec::new()
+                }
+            }
+        },
+    );
+
+    let users = Resource::new(
+        move || (),
+        |_| async move {
+            let params = UserListQuery {
+                page: 1,
+                page_size: 200,
+                name: None,
+                role: Some("user".to_string()),
+                status: None,
+            };
+
+            match call_api(fetch_users(params)).await {
+                Ok(result) => result.items,
+                Err(err) => {
+                    logging::error!("Error loading users: {err}");
+                    Vec::new()
+                }
+            }
+        },
+    );
+
+    Effect::new(move || {
+        if let Some(items) = contacts.get() {
+            let mut map = HashMap::new();
+            for contact in items {
+                map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
+            }
+            contact_labels.set(map);
+        }
+    });
+
+    Effect::new(move || {
+        if let Some(items) = users.get() {
+            let mut map = HashMap::new();
+            for user in items {
+                map.insert(user.uuid.clone(), user_display_label(&user));
+            }
+            user_labels.set(map);
+        }
+    });
+
+    Effect::new(move || {
+        if cfg!(feature = "ssr") {
+            return;
+        }
+        let Some((items, _)) = data.get() else {
+            return;
+        };
+
+        let existing = contact_labels.get();
+        let mut pending = pending_contacts.get();
+        let mut missing_ids: Vec<String> = Vec::new();
+        for order in &items {
+            let Some(contact_id) = order.contact_uuid.clone() else { continue };
+            if contact_id.is_empty() {
+                continue;
+            }
+            if existing.contains_key(&contact_id) || pending.contains(&contact_id) {
+                continue;
+            }
+            pending.insert(contact_id.clone());
+            missing_ids.push(contact_id);
+        }
+        if missing_ids.is_empty() {
+            return;
+        }
+        pending_contacts.set(pending);
+
+        for contact_id in missing_ids {
+            let contact_labels = contact_labels;
+            let pending_contacts = pending_contacts;
+            spawn_local(async move {
+                let label = match call_api(get_contact(contact_id.clone())).await {
+                    Ok(Some(contact)) => contact_display_label(&contact),
+                    _ => "未知客户".to_string(),
+                };
+                contact_labels.update(|map| {
+                    map.insert(contact_id.clone(), label);
+                });
+                pending_contacts.update(|set| {
+                    set.remove(&contact_id);
+                });
+            });
+        }
+    });
+
+    Effect::new(move || {
+        if cfg!(feature = "ssr") {
+            return;
+        }
+        let Some((items, _)) = data.get() else {
+            return;
+        };
+
+        let existing = user_labels.get();
+        let mut pending = pending_users.get();
+        let mut missing_ids: Vec<String> = Vec::new();
+        for order in &items {
+            let Some(user_id) = order.assigned_user_uuid.clone() else { continue };
+            if user_id.is_empty() {
+                continue;
+            }
+            if existing.contains_key(&user_id) || pending.contains(&user_id) {
+                continue;
+            }
+            pending.insert(user_id.clone());
+            missing_ids.push(user_id);
+        }
+        if missing_ids.is_empty() {
+            return;
+        }
+        pending_users.set(pending);
+
+        for user_id in missing_ids {
+            let user_labels = user_labels;
+            let pending_users = pending_users;
+            spawn_local(async move {
+                let label = match call_api(get_user(user_id.clone())).await {
+                    Ok(user) => user_display_label(&user),
+                    _ => "未知员工".to_string(),
+                };
+                user_labels.update(|map| {
+                    map.insert(user_id.clone(), label);
+                });
+                pending_users.update(|set| {
+                    set.remove(&user_id);
+                });
+            });
+        }
+    });
 
     let open_assignment = move |order: Order| {
         assignment_order_uuid.set(order.uuid.clone());
@@ -191,12 +351,37 @@ pub fn OrdersPage() -> impl IntoView {
                         />
                     </div>
                     <div class="flex flex-col gap-1">
-                        <span class="text-xs text-base-content/60">"员工ID"</span>
-                        <input
-                            class="input input-bordered"
-                            placeholder="输入员工UUID"
-                            on:input=move |ev| set_user_filter.set(event_target_value(&ev))
-                        />
+                        <span class="text-xs text-base-content/60">"员工"</span>
+                        <Transition fallback=move || view! {
+                            <select
+                                class="select select-bordered min-w-[200px]"
+                                prop:value=move || user_filter.get()
+                                on:change=move |ev| set_user_filter.set(event_target_value(&ev))
+                            >
+                                <option value="">"全部"</option>
+                            </select>
+                        }>
+                            {move || {
+                                let items = users.get().unwrap_or_default();
+                                let options = items
+                                    .into_iter()
+                                    .map(|user| {
+                                        let label = user_display_label(&user);
+                                        view! { <option value={user.uuid}>{label}</option> }
+                                    })
+                                    .collect::<Vec<_>>();
+                                view! {
+                                    <select
+                                        class="select select-bordered min-w-[200px]"
+                                        prop:value=move || user_filter.get()
+                                        on:change=move |ev| set_user_filter.set(event_target_value(&ev))
+                                    >
+                                        <option value="">"全部"</option>
+                                        {options}
+                                    </select>
+                                }
+                            }}
+                        </Transition>
                     </div>
                     <div class="flex flex-col gap-1">
                         <span class="text-xs text-base-content/60">"服务开始"</span>
@@ -209,7 +394,7 @@ pub fn OrdersPage() -> impl IntoView {
                 </div>
             </div>
 
-            <div class="overflow-x-auto bg-base-100 rounded-lg shadow">
+            <div class="overflow-x-auto overflow-y-auto h-[calc(100vh-260px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data>
                     <Column
                         slot:columns
@@ -222,20 +407,54 @@ pub fn OrdersPage() -> impl IntoView {
                             view! { <span class="text-xs">{item.as_ref().map(|v| v.uuid.clone()).unwrap_or_default()}</span> }
                         }
                     </Column>
-                    <Column slot:columns prop="contact_uuid".to_string() label="客户ID".to_string()>
+                    <Column slot:columns prop="contact_uuid".to_string() label="客户".to_string()>
                         {
                             let item: Option<Order> = use_context::<Order>();
-                            view! { <span class="text-xs">{item.as_ref().and_then(|v| v.contact_uuid.clone()).unwrap_or_default()}</span> }
+                            let contact_id = item.as_ref().and_then(|v| v.contact_uuid.clone());
+                            let label = contact_id
+                                .as_ref()
+                                .map(|id| {
+                                    contact_labels
+                                        .get()
+                                        .get(id)
+                                        .cloned()
+                                        .unwrap_or_else(|| {
+                                            if pending_contacts.get().contains(id) {
+                                                "加载中...".to_string()
+                                            } else {
+                                                "未知客户".to_string()
+                                            }
+                                        })
+                                })
+                                .unwrap_or_else(|| "-".to_string());
+                            view! { <span class="text-xs">{label}</span> }
                         }
                     </Column>
                     <Column
                         slot:columns
                         prop="assigned_user_uuid".to_string()
-                        label="员工ID".to_string()
+                        label="员工".to_string()
                     >
                         {
                             let item: Option<Order> = use_context::<Order>();
-                            view! { <span class="text-xs">{item.as_ref().and_then(|v| v.assigned_user_uuid.clone()).unwrap_or_default()}</span> }
+                            let user_id = item.as_ref().and_then(|v| v.assigned_user_uuid.clone());
+                            let label = user_id
+                                .as_ref()
+                                .map(|id| {
+                                    user_labels
+                                        .get()
+                                        .get(id)
+                                        .cloned()
+                                        .unwrap_or_else(|| {
+                                            if pending_users.get().contains(id) {
+                                                "加载中...".to_string()
+                                            } else {
+                                                "未知员工".to_string()
+                                            }
+                                        })
+                                })
+                                .unwrap_or_else(|| "-".to_string());
+                            view! { <span class="text-xs">{label}</span> }
                         }
                     </Column>
                     <Column slot:columns prop="status".to_string() label="状态".to_string()>
@@ -326,12 +545,37 @@ pub fn OrdersPage() -> impl IntoView {
             <h3 class="text-lg font-semibold mb-4">"派工信息"</h3>
             <div class="space-y-3">
                 <label class="form-control w-full">
-                    <div class="label"><span class="label-text">"员工UUID"</span></div>
-                    <input
-                        class="input input-bordered w-full"
-                        prop:value=move || assigned_user_uuid.get()
-                        on:input=move |ev| assigned_user_uuid.set(event_target_value(&ev))
-                    />
+                    <div class="label"><span class="label-text">"员工"</span></div>
+                    <Transition fallback=move || view! {
+                        <select
+                            class="select select-bordered w-full"
+                            prop:value=move || assigned_user_uuid.get()
+                            on:change=move |ev| assigned_user_uuid.set(event_target_value(&ev))
+                        >
+                            <option value="">"未分配"</option>
+                        </select>
+                    }>
+                        {move || {
+                            let items = users.get().unwrap_or_default();
+                            let options = items
+                                .into_iter()
+                                .map(|user| {
+                                    let label = user_display_label(&user);
+                                    view! { <option value={user.uuid}>{label}</option> }
+                                })
+                                .collect::<Vec<_>>();
+                            view! {
+                                <select
+                                    class="select select-bordered w-full"
+                                    prop:value=move || assigned_user_uuid.get()
+                                    on:change=move |ev| assigned_user_uuid.set(event_target_value(&ev))
+                                >
+                                    <option value="">"未分配"</option>
+                                    {options}
+                                </select>
+                            }
+                        }}
+                    </Transition>
                 </label>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <label class="form-control w-full">
@@ -402,6 +646,45 @@ pub fn OrdersPage() -> impl IntoView {
                 </div>
             </div>
         </Modal>
+    }
+}
+
+fn contact_display_label(contact: &Contact) -> String {
+    let name = contact.user_name.trim();
+    let company = contact.company.trim();
+    let mut label = String::new();
+    if !name.is_empty() {
+        label.push_str(name);
+    }
+    if !company.is_empty() {
+        if !label.is_empty() {
+            label.push_str(" / ");
+        }
+        label.push_str(company);
+    }
+    if label.is_empty() {
+        label = "未命名客户".to_string();
+    }
+    let extra = contact.phone_number.trim();
+    if !extra.is_empty() {
+        format!("{} ({})", label, extra)
+    } else {
+        let email = contact.email.trim();
+        if !email.is_empty() {
+            format!("{} ({})", label, email)
+        } else {
+            label
+        }
+    }
+}
+
+fn user_display_label(user: &User) -> String {
+    if let Some(phone) = user.phone_number.clone().filter(|value| !value.is_empty()) {
+        format!("{} ({})", user.user_name, phone)
+    } else if let Some(email) = user.email.clone().filter(|value| !value.is_empty()) {
+        format!("{} ({})", user.user_name, email)
+    } else {
+        user.user_name.clone()
     }
 }
 
