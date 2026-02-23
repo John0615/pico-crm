@@ -5,6 +5,8 @@ use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
 use crate::server::contact_handlers::{fetch_contacts, get_contact};
+use crate::server::order_handlers::fetch_orders;
+use crate::server::service_request_handlers::get_service_request;
 use crate::server::schedule_handlers::{
     cancel_schedule, create_schedule, fetch_schedules, update_schedule, update_schedule_status,
 };
@@ -21,6 +23,7 @@ use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::contact::{Contact, ContactQuery};
+use shared::order::{Order, OrderQuery};
 use shared::schedule::{
     CreateScheduleAssignment, Schedule, ScheduleQuery, UpdateScheduleAssignment, UpdateScheduleStatus,
 };
@@ -45,6 +48,7 @@ pub fn SchedulesPage() -> impl IntoView {
     let date_end = RwSignal::new(String::new());
 
     let show_assignment_modal = RwSignal::new(false);
+    let show_new_modal = RwSignal::new(false);
     let show_detail_modal = RwSignal::new(false);
     let assignment_order_uuid = RwSignal::new(String::new());
     let assignment_is_new = RwSignal::new(true);
@@ -52,6 +56,18 @@ pub fn SchedulesPage() -> impl IntoView {
     let scheduled_start_at = RwSignal::new(String::new());
     let scheduled_end_at = RwSignal::new(String::new());
     let dispatch_note = RwSignal::new(String::new());
+    let new_order_uuid = RwSignal::new(String::new());
+    let new_service_type = RwSignal::new(String::new());
+    let new_duration_minutes = RwSignal::new(0i64);
+    let duration_overridden = RwSignal::new(false);
+    let duration_prefill_order = RwSignal::new(String::new());
+    let expected_start_overridden = RwSignal::new(false);
+    let expected_start_prefill_order = RwSignal::new(String::new());
+    let expected_start_prefill_value = RwSignal::new(String::new());
+    let new_expected_start_at = RwSignal::new(String::new());
+    let new_expected_end_at = RwSignal::new(String::new());
+    let new_assigned_user_uuid = RwSignal::new(String::new());
+    let creating_schedule = RwSignal::new(false);
     let detail_schedule: RwSignal<Option<Schedule>> = RwSignal::new(None);
     let contact_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
     let user_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
@@ -68,6 +84,32 @@ pub fn SchedulesPage() -> impl IntoView {
         let (start, end) = calendar_week_range_strings("", "");
         date_start.set(start);
         date_end.set(end);
+    });
+
+    Effect::new(move |_| {
+        let start = new_expected_start_at.get();
+        let minutes = new_duration_minutes.get();
+        if start.trim().is_empty() || minutes <= 0 {
+            new_expected_end_at.set(String::new());
+            return;
+        }
+        if let Some(end) = add_minutes_to_local(&start, minutes) {
+            new_expected_end_at.set(end);
+        } else {
+            new_expected_end_at.set(String::new());
+        }
+    });
+
+    Effect::new(move |_| {
+        let start = new_expected_start_at.get();
+        if start.trim().is_empty() {
+            expected_start_overridden.set(false);
+            expected_start_prefill_value.set(String::new());
+            return;
+        }
+        if start != expected_start_prefill_value.get() {
+            expected_start_overridden.set(true);
+        }
     });
 
     let current_user = Resource::new(
@@ -202,6 +244,31 @@ pub fn SchedulesPage() -> impl IntoView {
         },
     );
 
+    let available_orders = Resource::new(
+        move || show_new_modal.get(),
+        |open| async move {
+            if !open {
+                return Vec::new();
+            }
+            let params = OrderQuery {
+                page: 1,
+                page_size: 200,
+                status: None,
+                contact_uuid: None,
+                assigned_user_uuid: None,
+                start_date: None,
+                end_date: None,
+            };
+            match call_api(fetch_orders(params)).await {
+                Ok(result) => result.items,
+                Err(err) => {
+                    logging::error!("Error loading orders: {err}");
+                    Vec::new()
+                }
+            }
+        },
+    );
+
     let users = Resource::new(
         move || (),
         |_| async move {
@@ -241,6 +308,80 @@ pub fn SchedulesPage() -> impl IntoView {
             }
             user_labels.set(map);
         }
+    });
+
+    Effect::new(move || {
+        let order_uuid = new_order_uuid.get();
+        if order_uuid.trim().is_empty() {
+            duration_prefill_order.set(String::new());
+            expected_start_prefill_order.set(String::new());
+            return;
+        }
+        if duration_prefill_order.get() != order_uuid {
+            duration_overridden.set(false);
+            duration_prefill_order.set(order_uuid.clone());
+        }
+        if expected_start_prefill_order.get() != order_uuid {
+            expected_start_overridden.set(false);
+            expected_start_prefill_order.set(order_uuid.clone());
+            expected_start_prefill_value.set(String::new());
+        }
+        if duration_overridden.get() {
+            if expected_start_overridden.get() {
+                return;
+            }
+        }
+        let Some(items) = available_orders.get() else {
+            return;
+        };
+        let Some(order) = items.into_iter().find(|order| order.uuid == order_uuid) else {
+            return;
+        };
+        if !duration_overridden.get() {
+            if let Some(minutes) = duration_minutes_between(
+                order.scheduled_start_at.as_deref(),
+                order.scheduled_end_at.as_deref(),
+            ) {
+                new_duration_minutes.set(minutes);
+                return;
+            }
+        }
+        let Some(request_id) = order.request_id.clone() else {
+            return;
+        };
+        let order_uuid_guard = order_uuid.clone();
+        spawn_local(async move {
+            let request = match call_api(get_service_request(request_id.clone())).await {
+                Ok(result) => result,
+                Err(err) => {
+                    logging::error!("Error loading service request: {err}");
+                    return;
+                }
+            };
+            let Some(request) = request else {
+                return;
+            };
+            if !duration_overridden.get() {
+                if let Some(minutes) = duration_minutes_between(
+                    request.appointment_start_at.as_deref(),
+                    request.appointment_end_at.as_deref(),
+                ) {
+                    if new_order_uuid.get() == order_uuid_guard {
+                        new_duration_minutes.set(minutes);
+                    }
+                }
+            }
+            if !expected_start_overridden.get()
+                && new_expected_start_at.get().trim().is_empty()
+                && new_order_uuid.get() == order_uuid_guard
+            {
+                let start_value = to_datetime_local(request.appointment_start_at.clone());
+                if !start_value.trim().is_empty() {
+                    expected_start_prefill_value.set(start_value.clone());
+                    new_expected_start_at.set(start_value);
+                }
+            }
+        });
     });
 
     Effect::new(move || {
@@ -286,6 +427,56 @@ pub fn SchedulesPage() -> impl IntoView {
                 });
             });
         }
+    });
+
+    let conflict_state = Memo::new(move |_| {
+        let user_id = new_assigned_user_uuid.get();
+        let start_raw = new_expected_start_at.get();
+        let duration = new_duration_minutes.get();
+        if user_id.trim().is_empty() || start_raw.trim().is_empty() || duration <= 0 {
+            return ConflictState::Unknown;
+        }
+        let Some(start) = parse_calendar_datetime(&start_raw) else {
+            return ConflictState::Unknown;
+        };
+        let Some(end_raw) = add_minutes_to_local(&start_raw, duration) else {
+            return ConflictState::Unknown;
+        };
+        let Some(end) = parse_calendar_datetime(&end_raw) else {
+            return ConflictState::Unknown;
+        };
+        let Some((items, _)) = data.get() else {
+            return ConflictState::Unknown;
+        };
+        let labels = contact_labels.get();
+        let pending = pending_contacts.get();
+        for schedule in items {
+            let Some(assigned) = schedule.assigned_user_uuid.clone() else { continue };
+            if assigned != user_id {
+                continue;
+            }
+            let Some(existing_start_raw) = schedule.scheduled_start_at.clone() else { continue };
+            let Some(existing_end_raw) = schedule.scheduled_end_at.clone() else { continue };
+            let Some(existing_start) = parse_calendar_datetime(&existing_start_raw) else {
+                continue;
+            };
+            let Some(existing_end) = parse_calendar_datetime(&existing_end_raw) else { continue };
+            if is_overlapping_window_naive(start, end, existing_start, existing_end) {
+                let label = schedule_contact_label(&schedule, &labels, &pending);
+                return ConflictState::Conflict(label);
+            }
+        }
+        ConflictState::Available
+    });
+
+    let can_submit_new = Memo::new(move |_| {
+        !creating_schedule.get()
+            && !new_order_uuid.get().trim().is_empty()
+            && !new_service_type.get().trim().is_empty()
+            && new_duration_minutes.get() > 0
+            && !new_expected_start_at.get().trim().is_empty()
+            && !new_assigned_user_uuid.get().trim().is_empty()
+            && matches!(conflict_state.get(), ConflictState::Available)
     });
 
     Effect::new(move || {
@@ -343,9 +534,132 @@ pub fn SchedulesPage() -> impl IntoView {
         show_assignment_modal.set(true);
     };
 
+    let open_new_schedule = move |_| {
+        new_order_uuid.set(String::new());
+        new_service_type.set(String::new());
+        new_duration_minutes.set(0);
+        duration_overridden.set(false);
+        duration_prefill_order.set(String::new());
+        expected_start_overridden.set(false);
+        expected_start_prefill_order.set(String::new());
+        expected_start_prefill_value.set(String::new());
+        new_expected_start_at.set(String::new());
+        new_expected_end_at.set(String::new());
+        new_assigned_user_uuid.set(String::new());
+        creating_schedule.set(false);
+        show_new_modal.set(true);
+    };
+
     let open_detail = move |schedule: Schedule| {
         detail_schedule.set(Some(schedule));
         show_detail_modal.set(true);
+    };
+
+    let submit_new_schedule = move |_| {
+        if creating_schedule.get() {
+            return;
+        }
+        let order_uuid = new_order_uuid.get();
+        if order_uuid.trim().is_empty() {
+            error("请选择订单".to_string());
+            return;
+        }
+        let service_type = new_service_type.get();
+        if service_type.trim().is_empty() {
+            error("请选择服务类型".to_string());
+            return;
+        }
+        let duration_minutes = new_duration_minutes.get();
+        if duration_minutes <= 0 {
+            error("请选择服务时长".to_string());
+            return;
+        }
+        let start_raw = new_expected_start_at.get();
+        if start_raw.trim().is_empty() {
+            error("请选择期望时间".to_string());
+            return;
+        }
+        let Some(end_raw) = add_minutes_to_local(&start_raw, duration_minutes) else {
+            error("期望时间格式错误".to_string());
+            return;
+        };
+        let assigned_user = new_assigned_user_uuid.get();
+        if assigned_user.trim().is_empty() {
+            error("请选择员工".to_string());
+            return;
+        }
+
+        let conflict = if let Some((items, _)) = data.get() {
+            let start = parse_calendar_datetime(&start_raw);
+            let end = parse_calendar_datetime(&end_raw);
+            if let (Some(start), Some(end)) = (start, end) {
+                let labels = contact_labels.get();
+                let pending = pending_contacts.get();
+                let mut conflict_label: Option<String> = None;
+                for schedule in items {
+                    let Some(assigned) = schedule.assigned_user_uuid.clone() else { continue };
+                    if assigned != assigned_user {
+                        continue;
+                    }
+                    let Some(existing_start_raw) = schedule.scheduled_start_at.clone() else { continue };
+                    let Some(existing_end_raw) = schedule.scheduled_end_at.clone() else { continue };
+                    let Some(existing_start) = parse_calendar_datetime(&existing_start_raw) else {
+                        continue;
+                    };
+                    let Some(existing_end) = parse_calendar_datetime(&existing_end_raw) else {
+                        continue;
+                    };
+                    if is_overlapping_window_naive(start, end, existing_start, existing_end) {
+                        let label = schedule_contact_label(&schedule, &labels, &pending);
+                        conflict_label = Some(label);
+                        break;
+                    }
+                }
+                conflict_label
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(label) = conflict {
+            error(format!("该时段已排客户 {}，请调整员工或时间", label));
+            return;
+        }
+
+        let start_normalized = normalize_datetime_local(&start_raw)
+            .unwrap_or_else(|| start_raw.clone());
+        let end_normalized =
+            normalize_datetime_local(&end_raw).unwrap_or_else(|| end_raw.clone());
+        let duration_label = duration_label(duration_minutes);
+        let dispatch_note = build_dispatch_note(&service_type, &duration_label);
+        creating_schedule.set(true);
+
+        spawn_local(async move {
+            let result: Result<(), String> = async {
+                let schedule_payload = CreateScheduleAssignment {
+                    assigned_user_uuid: assigned_user.clone(),
+                    scheduled_start_at: start_normalized.clone(),
+                    scheduled_end_at: end_normalized.clone(),
+                    dispatch_note: Some(dispatch_note),
+                };
+                let _ = call_api(create_schedule(order_uuid.clone(), schedule_payload)).await?;
+                Ok(())
+            }
+            .await;
+
+            creating_schedule.set(false);
+            match result {
+                Ok(_) => {
+                    success("排班已创建".to_string());
+                    show_new_modal.set(false);
+                    refresh_count.update(|value| *value += 1);
+                }
+                Err(err) => {
+                    error(format!("创建失败: {}", err));
+                }
+            }
+        });
     };
 
     let submit_assignment = move |_| {
@@ -431,31 +745,38 @@ pub fn SchedulesPage() -> impl IntoView {
         <div class="space-y-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <h1 class="text-2xl font-semibold">"排班管理"</h1>
-                <div class="tabs tabs-boxed">
-                    <button
-                        class=move || {
-                            if view_mode.get() == "list" {
-                                "tab tab-active"
-                            } else {
-                                "tab"
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="tabs tabs-boxed">
+                        <button
+                            class=move || {
+                                if view_mode.get() == "list" {
+                                    "tab tab-active"
+                                } else {
+                                    "tab"
+                                }
                             }
-                        }
-                        on:click=move |_| set_view_mode.set("list".to_string())
-                    >
-                        "列表"
-                    </button>
-                    <button
-                        class=move || {
-                            if view_mode.get() == "calendar" {
-                                "tab tab-active"
-                            } else {
-                                "tab"
+                            on:click=move |_| set_view_mode.set("list".to_string())
+                        >
+                            "列表"
+                        </button>
+                        <button
+                            class=move || {
+                                if view_mode.get() == "calendar" {
+                                    "tab tab-active"
+                                } else {
+                                    "tab"
+                                }
                             }
-                        }
-                        on:click=move |_| set_view_mode.set("calendar".to_string())
-                    >
-                        "日历"
-                    </button>
+                            on:click=move |_| set_view_mode.set("calendar".to_string())
+                        >
+                            "日历"
+                        </button>
+                    </div>
+                    <Show when=move || !is_worker.get() fallback=|| ()>
+                        <button class="btn btn-primary btn-sm" on:click=open_new_schedule>
+                            "+ 新增排班"
+                        </button>
+                    </Show>
                 </div>
             </div>
 
@@ -568,7 +889,14 @@ pub fn SchedulesPage() -> impl IntoView {
                                         let calendar_items = build_calendar_items(&items, week_start, week_end);
                                         if calendar_items.is_empty() {
                                             return view! {
-                                                <div class="p-6 text-sm text-base-content/60">"本周暂无排班"</div>
+                                                <div class="p-6 text-sm text-base-content/60 space-y-3">
+                                                    <div>"本周暂无排班"</div>
+                                                    <Show when=move || !is_worker.get() fallback=|| ()>
+                                                        <button class="btn btn-primary btn-sm" on:click=open_new_schedule>
+                                                            "+ 新增排班"
+                                                        </button>
+                                                    </Show>
+                                                </div>
                                             }
                                             .into_view();
                                         }
@@ -708,7 +1036,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                                                                             children=move |item| {
                                                                                                 let schedule = item.schedule.clone();
                                                                                                 let status_label = schedule_status_label(&schedule.schedule_status).to_string();
-                                                                                                let status_class = schedule_status_classes(&schedule.schedule_status);
+                                                                                                let status_class = schedule_card_classes(&schedule);
                                                                                                 let contact_label = contact_labels_for_day
                                                                                                     .with_value(|labels| {
                                                                                                         pending_contacts_for_day
@@ -1014,6 +1342,185 @@ pub fn SchedulesPage() -> impl IntoView {
             </Show>
         </div>
 
+        <Modal show=show_new_modal>
+            <h3 class="text-lg font-semibold mb-4">"新增排班"</h3>
+            <div class="space-y-3">
+                <label class="form-control w-full">
+                    <div class="label"><span class="label-text">"客户（未排班订单）"</span></div>
+                    <Transition fallback=move || view! {
+                        <select class="select select-bordered w-full" disabled=true>
+                            <option value="">"加载中..."</option>
+                        </select>
+                    }>
+                        {move || {
+                            let items = available_orders.get().unwrap_or_default();
+                            let contact_labels_snapshot = contact_labels.get();
+                            let pending_snapshot = pending_contacts.get();
+                            let mut options = Vec::new();
+                            for order in items.into_iter().filter(order_is_schedulable) {
+                                let label = order_option_label(&order, &contact_labels_snapshot, &pending_snapshot);
+                                options.push(view! { <option value={order.uuid.clone()}>{label}</option> });
+                            }
+                            let is_empty = options.is_empty();
+                            view! {
+                                <select
+                                    class="select select-bordered w-full"
+                                    prop:value=move || new_order_uuid.get()
+                                    disabled=is_empty
+                                    on:change=move |ev| new_order_uuid.set(event_target_value(&ev))
+                                >
+                                    <option value="">
+                                        {if is_empty { "暂无可排班订单" } else { "请选择客户" }}
+                                    </option>
+                                    {options}
+                                </select>
+                            }
+                        }}
+                    </Transition>
+                </label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <label class="form-control w-full">
+                        <div class="label"><span class="label-text">"服务类型"</span></div>
+                        {move || {
+                            let options = SERVICE_TYPE_OPTIONS
+                                .iter()
+                                .map(|value| view! { <option value={*value}>{*value}</option> })
+                                .collect::<Vec<_>>();
+                            view! {
+                                <select
+                                    class="select select-bordered w-full"
+                                    prop:value=move || new_service_type.get()
+                                    on:change=move |ev| new_service_type.set(event_target_value(&ev))
+                                >
+                                    <option value="">"请选择服务类型"</option>
+                                    {options}
+                                </select>
+                            }
+                        }}
+                    </label>
+                    <label class="form-control w-full">
+                        <div class="label"><span class="label-text">"服务时长"</span></div>
+                        {move || {
+                            let mut options: Vec<(i64, String)> = DURATION_OPTIONS
+                                .iter()
+                                .map(|(value, label)| (*value, (*label).to_string()))
+                                .collect();
+                            let current = new_duration_minutes.get();
+                            if current > 0 && !options.iter().any(|(value, _)| *value == current) {
+                                options.insert(0, (current, duration_label(current)));
+                            }
+                            let options = options
+                                .into_iter()
+                                .map(|(value, label)| {
+                                    view! { <option value={value.to_string()}>{label}</option> }
+                                })
+                                .collect::<Vec<_>>();
+                            view! {
+                                <select
+                                    class="select select-bordered w-full"
+                                    prop:value=move || {
+                                        let value = new_duration_minutes.get();
+                                        if value <= 0 {
+                                            String::new()
+                                        } else {
+                                            value.to_string()
+                                        }
+                                    }
+                                    on:change=move |ev| {
+                                        let value = event_target_value(&ev);
+                                        let minutes = value.parse::<i64>().unwrap_or(0);
+                                        new_duration_minutes.set(minutes);
+                                        duration_overridden.set(true);
+                                    }
+                                >
+                                    <option value="">"请选择服务时长"</option>
+                                    {options}
+                                </select>
+                            }
+                        }}
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <label class="form-control w-full">
+                        <div class="label"><span class="label-text">"期望时间"</span></div>
+                        <FlyonDateTimePicker
+                            value=new_expected_start_at
+                            class="input input-bordered".to_string()
+                        />
+                    </label>
+                    <label class="form-control w-full">
+                        <div class="label"><span class="label-text">"服务结束"</span></div>
+                        <input
+                            class="input input-bordered w-full"
+                            prop:value=move || new_expected_end_at.get()
+                            placeholder="自动计算"
+                            readonly
+                        />
+                    </label>
+                </div>
+                <label class="form-control w-full">
+                    <div class="label"><span class="label-text">"指派员工"</span></div>
+                    <Transition fallback=move || view! {
+                        <select class="select select-bordered w-full" disabled=true>
+                            <option value="">"加载中..."</option>
+                        </select>
+                    }>
+                        {move || {
+                            let items = users.get().unwrap_or_default();
+                            let options = items
+                                .into_iter()
+                                .map(|user| {
+                                    let label = user_display_label(&user);
+                                    view! { <option value={user.uuid}>{label}</option> }
+                                })
+                                .collect::<Vec<_>>();
+                            view! {
+                                <select
+                                    class="select select-bordered w-full"
+                                    prop:value=move || new_assigned_user_uuid.get()
+                                    on:change=move |ev| new_assigned_user_uuid.set(event_target_value(&ev))
+                                >
+                                    <option value="">"请选择员工"</option>
+                                    {options}
+                                </select>
+                            }
+                        }}
+                    </Transition>
+                </label>
+                <div class="text-sm">
+                    {move || match conflict_state.get() {
+                        ConflictState::Unknown => view! {
+                            <span class="text-base-content/60">"选择员工与时间后自动校验冲突"</span>
+                        }.into_view(),
+                        ConflictState::Available => view! {
+                            <span class="text-success">"可排班"</span>
+                        }.into_view(),
+                        ConflictState::Conflict(label) => view! {
+                            <span class="text-error">{format!("该时段已排客户 {}，是否更换员工 / 时间？", label)}</span>
+                        }.into_view(),
+                    }}
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button class="btn" on:click=move |_| show_new_modal.set(false)>
+                        "取消"
+                    </button>
+                    <button
+                        class=move || {
+                            if can_submit_new.get() {
+                                "btn btn-primary"
+                            } else {
+                                "btn btn-primary btn-disabled"
+                            }
+                        }
+                        disabled=move || !can_submit_new.get()
+                        on:click=submit_new_schedule
+                    >
+                        {move || if creating_schedule.get() { "创建中..." } else { "确认排班" }}
+                    </button>
+                </div>
+            </div>
+        </Modal>
+
         <Modal show=show_assignment_modal>
             <h3 class="text-lg font-semibold mb-4">"排班信息"</h3>
             <div class="space-y-3">
@@ -1121,6 +1628,13 @@ pub fn SchedulesPage() -> impl IntoView {
     }
 }
 
+#[derive(Clone, PartialEq)]
+enum ConflictState {
+    Unknown,
+    Available,
+    Conflict(String),
+}
+
 #[derive(Clone)]
 struct CalendarItem {
     schedule: Schedule,
@@ -1133,6 +1647,15 @@ struct CalendarColumn {
     id: String,
     label: String,
 }
+
+const SERVICE_TYPE_OPTIONS: [&str; 3] = ["保洁", "维修", "家电清洗"];
+const DURATION_OPTIONS: [(i64, &str); 5] = [
+    (60, "1小时"),
+    (90, "1.5小时"),
+    (120, "2小时"),
+    (180, "3小时"),
+    (240, "4小时"),
+];
 
 fn schedule_status_label(status: &str) -> &'static str {
     match status {
@@ -1152,6 +1675,108 @@ fn schedule_status_badge_class(status: &str) -> &'static str {
         "cancelled" => "badge-error",
         _ => "badge-info",
     }
+}
+
+fn order_is_schedulable(order: &Order) -> bool {
+    let status = order.status.as_str();
+    let status_ok = matches!(status, "pending" | "confirmed" | "dispatching");
+    let start_missing = order
+        .scheduled_start_at
+        .as_ref()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true);
+    let end_missing = order
+        .scheduled_end_at
+        .as_ref()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true);
+    status_ok && start_missing && end_missing
+}
+
+fn order_option_label(
+    order: &Order,
+    contact_labels: &HashMap<String, String>,
+    pending_contacts: &HashSet<String>,
+) -> String {
+    let contact_label = order
+        .contact_uuid
+        .as_ref()
+        .map(|id| {
+            contact_labels.get(id).cloned().unwrap_or_else(|| {
+                if pending_contacts.contains(id) {
+                    "加载中...".to_string()
+                } else {
+                    "未知客户".to_string()
+                }
+            })
+        })
+        .unwrap_or_else(|| "未知客户".to_string());
+    let short_id = shorten_uuid(&order.uuid);
+    format!("{} · 订单 {}", contact_label, short_id)
+}
+
+fn shorten_uuid(value: &str) -> String {
+    if value.len() > 8 {
+        value[..8].to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+fn duration_label(minutes: i64) -> String {
+    for (value, label) in DURATION_OPTIONS {
+        if value == minutes {
+            return label.to_string();
+        }
+    }
+    if minutes % 60 == 0 {
+        format!("{}小时", minutes / 60)
+    } else {
+        format!("{}分钟", minutes)
+    }
+}
+
+fn build_dispatch_note(service_type: &str, duration_label: &str) -> String {
+    format!("服务类型: {} | 服务时长: {}", service_type, duration_label)
+}
+
+fn extract_service_type(dispatch_note: Option<&String>) -> Option<String> {
+    let note = dispatch_note?;
+    if note.trim().is_empty() {
+        return None;
+    }
+    let note = note.replace('：', ":");
+    let marker = "服务类型:";
+    let start = note.find(marker)?;
+    let rest = note[start + marker.len()..].trim();
+    let end = rest
+        .find(|c: char| c == '|' || c == ';' || c == '；')
+        .unwrap_or(rest.len());
+    let value = rest[..end].trim();
+    if value.is_empty() {
+        None
+    } else {
+        Some(value.to_string())
+    }
+}
+
+fn service_type_card_classes(service_type: &str) -> Option<&'static str> {
+    match service_type {
+        "保洁" => Some("border-sky-200 bg-sky-50 text-sky-900"),
+        "维修" => Some("border-emerald-200 bg-emerald-50 text-emerald-900"),
+        "家电清洗" => Some("border-amber-200 bg-amber-50 text-amber-900"),
+        _ => None,
+    }
+}
+
+fn schedule_card_classes(schedule: &Schedule) -> &'static str {
+    let service_type = extract_service_type(schedule.dispatch_note.as_ref());
+    if let Some(service_type) = service_type {
+        if let Some(classes) = service_type_card_classes(&service_type) {
+            return classes;
+        }
+    }
+    schedule_status_classes(&schedule.schedule_status)
 }
 
 fn contact_display_label(contact: &Contact) -> String {
@@ -1319,6 +1944,23 @@ fn parse_calendar_datetime(value: &str) -> Option<NaiveDateTime> {
     } else {
         None
     }
+}
+
+fn duration_minutes_between(start: Option<&str>, end: Option<&str>) -> Option<i64> {
+    let start = start.and_then(parse_calendar_datetime)?;
+    let end = end.and_then(parse_calendar_datetime)?;
+    let minutes = end.signed_duration_since(start).num_minutes();
+    if minutes > 0 {
+        Some(minutes)
+    } else {
+        None
+    }
+}
+
+fn add_minutes_to_local(start: &str, minutes: i64) -> Option<String> {
+    let start_time = parse_calendar_datetime(start)?;
+    let end_time = start_time + Duration::minutes(minutes);
+    Some(end_time.format("%Y-%m-%d %H:%M").to_string())
 }
 
 fn format_date(date: NaiveDate) -> String {
@@ -1516,6 +2158,15 @@ fn format_time_range(start: NaiveDateTime, end: NaiveDateTime) -> String {
         end.hour(),
         end.minute()
     )
+}
+
+fn is_overlapping_window_naive(
+    start_a: NaiveDateTime,
+    end_a: NaiveDateTime,
+    start_b: NaiveDateTime,
+    end_b: NaiveDateTime,
+) -> bool {
+    start_a < end_b && end_a > start_b
 }
 
 fn calendar_event_position(

@@ -10,7 +10,7 @@ use leptos_router::{
 use components::layouts::*;
 use components::ui::{message_box::MessageBox, toast::Toast};
 use lazy_routes::{
-    AdminAnalyticsRoute, AdminMerchantsRoute, ContactsListRoute, LoginRoute, SystemSettingsRoute,
+    AdminAnalyticsRoute, AdminMerchantsRoute, ContactsManagementRoute, LoginRoute, SystemSettingsRoute,
     TenantMaintenanceRoute, UsersRoute, ServiceRequestsRoute, OrdersRoute, SchedulesRoute,
 };
 use pages::{Dashboard, NotFoundPage};
@@ -66,7 +66,7 @@ pub fn App() -> impl IntoView {
                         <ParentRoute path=path!("/contacts") view=|| view! {
                             <Outlet/>
                         }>
-                            <Route path=path!("") view={Lazy::<ContactsListRoute>::new()}/>
+                            <Route path=path!("") view={Lazy::<ContactsManagementRoute>::new()}/>
                         </ParentRoute>
                         <ParentRoute path=path!("/service-requests") view=|| view! {
                             <Outlet/>

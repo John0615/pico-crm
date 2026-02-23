@@ -28,7 +28,7 @@ impl Identifiable for Contact {
 }
 
 #[component]
-pub fn ContactsList() -> impl IntoView {
+pub fn ContactsManagement() -> impl IntoView {
     let (sort_ops, set_sort_ops) = signal::<Vec<(String, SortValue)>>(vec![]);
     let (name, set_name) = signal(String::new());
     let (status, set_status) = signal(String::new());

@@ -4,7 +4,7 @@ use leptos_router::{lazy_route, LazyRoute};
 use crate::pages::admin::{
     AdminAnalytics, AdminMerchants, AdminUsers, SystemSettings, TenantMaintenance,
 };
-use crate::pages::{ContactsList, Login, ServiceRequestsPage, OrdersPage, SchedulesPage};
+use crate::pages::{ContactsManagement, Login, ServiceRequestsPage, OrdersPage, SchedulesPage};
 
 #[derive(Debug)]
 pub struct LoginRoute;
@@ -22,17 +22,17 @@ impl LazyRoute for LoginRoute {
 }
 
 #[derive(Debug)]
-pub struct ContactsListRoute;
+pub struct ContactsManagementRoute;
 
 #[lazy_route]
-impl LazyRoute for ContactsListRoute {
+impl LazyRoute for ContactsManagementRoute {
     fn data() -> Self {
         Self
     }
 
     fn view(this: Self) -> AnyView {
         let _ = this;
-        view! { <ContactsList/> }.into_any()
+        view! { <ContactsManagement/> }.into_any()
     }
 }
 
