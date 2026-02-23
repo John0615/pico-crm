@@ -239,28 +239,25 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         });
     };
 
-    let change_status = move |uuid: String, status: String| {
+    let confirm_request = move |uuid: String| {
         spawn_local(async move {
-            let payload = UpdateServiceRequestStatus { status };
+            let payload = UpdateServiceRequestStatus {
+                status: "confirmed".to_string(),
+            };
             let result = call_api(update_service_request_status(uuid, payload)).await;
             match result {
                 Ok(_) => {
-                    success("状态已更新".to_string());
+                    success("需求已确认".to_string());
                     refresh_count.update(|value| *value += 1);
                 }
                 Err(err) => {
-                    error(format!("更新失败: {}", err));
+                    error(format!("确认失败: {}", err));
                 }
             }
         });
     };
 
-    let create_order = move |request_id: String, status: String| {
-        if status != "confirmed" {
-            error("请先将需求单状态更新为已确认后再生成订单".to_string());
-            return;
-        }
-
+    let create_order = move |request_id: String| {
         spawn_local(async move {
             let payload = CreateOrderFromRequest {
                 request_id,
@@ -394,19 +391,11 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                     <Column slot:columns prop="status".to_string() label="状态".to_string()>
                         {
                             let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
-                            let uuid = item.as_ref().map(|v| v.uuid.clone()).unwrap_or_default();
                             let status_value = item.as_ref().map(|v| v.status.clone()).unwrap_or_default();
+                            let label = service_request_status_label(&status_value);
+                            let badge_class = service_request_status_badge_class(&status_value);
                             view! {
-                                <select
-                                    class="select select-bordered select-xs"
-                                    prop:value=move || status_value.clone()
-                                    on:change=move |ev| change_status(uuid.clone(), event_target_value(&ev))
-                                >
-                                    <option value="new">"新建"</option>
-                                    <option value="confirmed">"已确认"</option>
-                                    <option value="converted">"已转订单"</option>
-                                    <option value="cancelled">"已取消"</option>
-                                </select>
+                                <span class=format!("badge {}", badge_class)>{label}</span>
                             }
                         }
                     </Column>
@@ -416,43 +405,56 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                         label="操作".to_string()
                         class="text-right"
                     >
-                        <div class="flex items-center justify-end gap-2">
+                        <div class="flex justify-end gap-1">
                             {
                                 let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
-                                let request_id = item.as_ref().map(|v| v.uuid.clone()).unwrap_or_default();
-                                let status = item.as_ref().map(|v| v.status.clone()).unwrap_or_default();
-                                let can_create = status == "confirmed";
-                                let create_class = if can_create {
-                                    "btn btn-outline btn-xs"
-                                } else {
-                                    "btn btn-outline btn-xs btn-disabled"
-                                };
-                                let create_title = if can_create {
-                                    "生成订单"
-                                } else {
-                                    "请先将状态改为已确认"
-                                };
-                                let edit_item = item.clone();
+                                let request = StoredValue::new(item);
+                                let can_confirm = request
+                                    .with_value(|value| {
+                                        value
+                                            .as_ref()
+                                            .map(|value| value.status == "new")
+                                            .unwrap_or(false)
+                                    });
+                                let can_edit = can_confirm;
+                                let can_create = request
+                                    .with_value(|value| {
+                                        value
+                                            .as_ref()
+                                            .map(|value| value.status == "confirmed")
+                                            .unwrap_or(false)
+                                    });
                                 view! {
-                                    <button class="btn btn-ghost btn-xs" on:click=move |_| {
-                                        if let Some(value) = edit_item.clone() {
-                                            open_edit_modal(value);
-                                        }
-                                    }>
-                                        "编辑"
-                                    </button>
-                                    <button
-                                        class=create_class
-                                        title=create_title
-                                        disabled=move || !can_create
-                                        on:click=move |_| {
-                                            if !request_id.is_empty() {
-                                                create_order(request_id.clone(), status.clone());
+                                    <Show when=move || can_confirm>
+                                        <button class="btn btn-soft btn-primary btn-xs" on:click=move |_| {
+                                            if let Some(value) = request.with_value(|value| value.clone()) {
+                                                confirm_request(value.uuid.clone());
                                             }
-                                        }
-                                    >
-                                        "生成订单"
-                                    </button>
+                                        }>
+                                            "确认"
+                                        </button>
+                                    </Show>
+                                    <Show when=move || can_edit>
+                                        <button class="btn btn-soft btn-warning btn-xs" on:click=move |_| {
+                                            if let Some(value) = request.with_value(|value| value.clone()) {
+                                                open_edit_modal(value);
+                                            }
+                                        }>
+                                            "编辑"
+                                        </button>
+                                    </Show>
+                                    <Show when=move || can_create>
+                                        <button
+                                            class="btn btn-soft btn-success btn-xs"
+                                            on:click=move |_| {
+                                                if let Some(value) = request.with_value(|value| value.clone()) {
+                                                    create_order(value.uuid.clone());
+                                                }
+                                            }
+                                        >
+                                            "生成订单"
+                                        </button>
+                                    </Show>
                                 }
                             }
                         </div>
@@ -639,5 +641,25 @@ fn is_end_before_start(start: &str, end: &str) -> bool {
     match (normalize_datetime_local(start), normalize_datetime_local(end)) {
         (Some(start), Some(end)) => end < start,
         _ => false,
+    }
+}
+
+fn service_request_status_label(status: &str) -> &'static str {
+    match status {
+        "new" => "新建",
+        "confirmed" => "已确认",
+        "converted" => "已转订单",
+        "cancelled" => "已取消",
+        _ => "未知",
+    }
+}
+
+fn service_request_status_badge_class(status: &str) -> &'static str {
+    match status {
+        "new" => "badge-warning",
+        "confirmed" => "badge-info",
+        "converted" => "badge-success",
+        "cancelled" => "badge-error",
+        _ => "badge-info",
     }
 }

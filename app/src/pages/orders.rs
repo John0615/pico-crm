@@ -1,12 +1,10 @@
-use crate::components::ui::date_picker::{FlyonDatePicker, FlyonDateTimePicker};
+use crate::components::ui::date_picker::FlyonDatePicker;
 use crate::components::ui::modal::Modal;
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
 use crate::server::contact_handlers::{fetch_contacts, get_contact};
-use crate::server::order_handlers::{
-    fetch_orders, update_order_assignment, update_order_settlement, update_order_status,
-};
+use crate::server::order_handlers::{fetch_orders, update_order_status};
 use crate::server::user_handlers::{fetch_users, get_user};
 use crate::utils::api::call_api;
 use leptos::logging;
@@ -15,9 +13,7 @@ use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::contact::{Contact, ContactQuery};
-use shared::order::{
-    Order, OrderQuery, UpdateOrderAssignment, UpdateOrderSettlement, UpdateOrderStatus,
-};
+use shared::order::{Order, OrderQuery, UpdateOrderStatus};
 use shared::user::{User, UserListQuery};
 use shared::ListResult;
 use std::collections::{HashMap, HashSet};
@@ -38,13 +34,7 @@ pub fn OrdersPage() -> impl IntoView {
     let date_start = RwSignal::new(String::new());
     let date_end = RwSignal::new(String::new());
 
-    let show_assignment_modal = RwSignal::new(false);
     let show_detail_modal = RwSignal::new(false);
-    let assignment_order_uuid = RwSignal::new(String::new());
-    let assigned_user_uuid = RwSignal::new(String::new());
-    let scheduled_start_at = RwSignal::new(String::new());
-    let scheduled_end_at = RwSignal::new(String::new());
-    let dispatch_note = RwSignal::new(String::new());
     let detail_order: RwSignal<Option<Order>> = RwSignal::new(None);
     let contact_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
     let user_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
@@ -247,73 +237,23 @@ pub fn OrdersPage() -> impl IntoView {
         }
     });
 
-    let open_assignment = move |order: Order| {
-        assignment_order_uuid.set(order.uuid.clone());
-        assigned_user_uuid.set(order.assigned_user_uuid.clone().unwrap_or_default());
-        scheduled_start_at.set(to_datetime_local(order.scheduled_start_at.clone()));
-        scheduled_end_at.set(to_datetime_local(order.scheduled_end_at.clone()));
-        dispatch_note.set(order.dispatch_note.clone().unwrap_or_default());
-        show_assignment_modal.set(true);
-    };
-
     let open_detail = move |order: Order| {
         detail_order.set(Some(order));
         show_detail_modal.set(true);
     };
 
-    let submit_assignment = move |_| {
-        if is_end_before_start(&scheduled_start_at.get(), &scheduled_end_at.get()) {
-            error("结束时间必须晚于开始时间".to_string());
-            return;
-        }
-
-        let uuid = assignment_order_uuid.get();
-        let payload = UpdateOrderAssignment {
-            assigned_user_uuid: normalize_optional(&assigned_user_uuid.get()),
-            scheduled_start_at: normalize_datetime_local(&scheduled_start_at.get()),
-            scheduled_end_at: normalize_datetime_local(&scheduled_end_at.get()),
-            dispatch_note: normalize_optional(&dispatch_note.get()),
-        };
+    let confirm_order = move |uuid: String| {
         spawn_local(async move {
-            let result = call_api(update_order_assignment(uuid, payload)).await;
-            match result {
-                Ok(_) => {
-                    success("派工已更新".to_string());
-                    show_assignment_modal.set(false);
-                    refresh_count.update(|value| *value += 1);
-                }
-                Err(err) => error(format!("更新失败: {}", err)),
-            }
-        });
-    };
-
-    let change_status = move |uuid: String, status: String| {
-        spawn_local(async move {
-            let payload = UpdateOrderStatus { status };
+            let payload = UpdateOrderStatus {
+                status: "confirmed".to_string(),
+            };
             let result = call_api(update_order_status(uuid, payload)).await;
             match result {
                 Ok(_) => {
-                    success("状态已更新".to_string());
+                    success("订单已确认".to_string());
                     refresh_count.update(|value| *value += 1);
                 }
-                Err(err) => error(format!("更新失败: {}", err)),
-            }
-        });
-    };
-
-    let change_settlement = move |uuid: String, settlement: String| {
-        spawn_local(async move {
-            let payload = UpdateOrderSettlement {
-                settlement_status: settlement,
-                settlement_note: None,
-            };
-            let result = call_api(update_order_settlement(uuid, payload)).await;
-            match result {
-                Ok(_) => {
-                    success("结算状态已更新".to_string());
-                    refresh_count.update(|value| *value += 1);
-                }
-                Err(err) => error(format!("更新失败: {}", err)),
+                Err(err) => error(format!("确认失败: {}", err)),
             }
         });
     };
@@ -460,21 +400,11 @@ pub fn OrdersPage() -> impl IntoView {
                     <Column slot:columns prop="status".to_string() label="状态".to_string()>
                         {
                             let item: Option<Order> = use_context::<Order>();
-                            let uuid = item.as_ref().map(|v| v.uuid.clone()).unwrap_or_default();
                             let status_value = item.as_ref().map(|v| v.status.clone()).unwrap_or_default();
+                            let label = order_status_label(&status_value);
+                            let badge_class = order_status_badge_class(&status_value);
                             view! {
-                                <select
-                                    class="select select-bordered select-xs"
-                                    prop:value=move || status_value.clone()
-                                    on:change=move |ev| change_status(uuid.clone(), event_target_value(&ev))
-                                >
-                                    <option value="pending">"待确认"</option>
-                                    <option value="confirmed">"已确认"</option>
-                                    <option value="dispatching">"派工中"</option>
-                                    <option value="in_service">"服务中"</option>
-                                    <option value="completed">"已完成"</option>
-                                    <option value="cancelled">"已取消"</option>
-                                </select>
+                                <span class=format!("badge {}", badge_class)>{label}</span>
                             }
                         }
                     </Column>
@@ -485,17 +415,11 @@ pub fn OrdersPage() -> impl IntoView {
                     >
                         {
                             let item: Option<Order> = use_context::<Order>();
-                            let uuid = item.as_ref().map(|v| v.uuid.clone()).unwrap_or_default();
                             let settlement_value = item.as_ref().map(|v| v.settlement_status.clone()).unwrap_or_default();
+                            let label = settlement_status_label(&settlement_value);
+                            let badge_class = settlement_status_badge_class(&settlement_value);
                             view! {
-                                <select
-                                    class="select select-bordered select-xs"
-                                    prop:value=move || settlement_value.clone()
-                                    on:change=move |ev| change_settlement(uuid.clone(), event_target_value(&ev))
-                                >
-                                    <option value="unsettled">"未结算"</option>
-                                    <option value="settled">"已结算"</option>
-                                </select>
+                                <span class=format!("badge {}", badge_class)>{label}</span>
                             }
                         }
                     </Column>
@@ -505,21 +429,29 @@ pub fn OrdersPage() -> impl IntoView {
                         label="操作".to_string()
                         class="text-right"
                     >
-                        <div class="flex items-center justify-end gap-2">
+                        <div class="flex justify-end gap-1">
                             {
                                 let item: Option<Order> = use_context::<Order>();
-                                let order = item.clone();
-                                let detail = item.clone();
+                                let order = StoredValue::new(item);
+                                let can_confirm = order
+                                    .with_value(|value| {
+                                        value
+                                            .as_ref()
+                                            .map(|value| value.status == "pending")
+                                            .unwrap_or(false)
+                                    });
                                 view! {
+                                    <Show when=move || can_confirm>
+                                        <button class="btn btn-soft btn-primary btn-xs" on:click=move |_| {
+                                            if let Some(value) = order.with_value(|value| value.clone()) {
+                                                confirm_order(value.uuid.clone());
+                                            }
+                                        }>
+                                            "确认"
+                                        </button>
+                                    </Show>
                                     <button class="btn btn-ghost btn-xs" on:click=move |_| {
-                                        if let Some(value) = order.clone() {
-                                            open_assignment(value);
-                                        }
-                                    }>
-                                        "派工"
-                                    </button>
-                                    <button class="btn btn-outline btn-xs" on:click=move |_| {
-                                        if let Some(value) = detail.clone() {
+                                        if let Some(value) = order.with_value(|value| value.clone()) {
                                             open_detail(value);
                                         }
                                     }>
@@ -541,78 +473,6 @@ pub fn OrdersPage() -> impl IntoView {
             </Transition>
         </div>
 
-        <Modal show=show_assignment_modal>
-            <h3 class="text-lg font-semibold mb-4">"派工信息"</h3>
-            <div class="space-y-3">
-                <label class="form-control w-full">
-                    <div class="label"><span class="label-text">"员工"</span></div>
-                    <Transition fallback=move || view! {
-                        <select
-                            class="select select-bordered w-full"
-                            prop:value=move || assigned_user_uuid.get()
-                            on:change=move |ev| assigned_user_uuid.set(event_target_value(&ev))
-                        >
-                            <option value="">"未分配"</option>
-                        </select>
-                    }>
-                        {move || {
-                            let items = users.get().unwrap_or_default();
-                            let options = items
-                                .into_iter()
-                                .map(|user| {
-                                    let label = user_display_label(&user);
-                                    view! { <option value={user.uuid}>{label}</option> }
-                                })
-                                .collect::<Vec<_>>();
-                            view! {
-                                <select
-                                    class="select select-bordered w-full"
-                                    prop:value=move || assigned_user_uuid.get()
-                                    on:change=move |ev| assigned_user_uuid.set(event_target_value(&ev))
-                                >
-                                    <option value="">"未分配"</option>
-                                    {options}
-                                </select>
-                            }
-                        }}
-                    </Transition>
-                </label>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <label class="form-control w-full">
-                        <div class="label"><span class="label-text">"开始时间"</span></div>
-                        <FlyonDateTimePicker
-                            value=scheduled_start_at
-                            class="input input-bordered".to_string()
-                        />
-                    </label>
-                    <label class="form-control w-full">
-                        <div class="label"><span class="label-text">"结束时间"</span></div>
-                        <FlyonDateTimePicker
-                            value=scheduled_end_at
-                            class="input input-bordered".to_string()
-                        />
-                    </label>
-                </div>
-                <label class="form-control w-full">
-                    <div class="label"><span class="label-text">"派工备注"</span></div>
-                    <textarea
-                        class="textarea textarea-bordered w-full"
-                        rows="2"
-                        prop:value=move || dispatch_note.get()
-                        on:input=move |ev| dispatch_note.set(event_target_value(&ev))
-                    ></textarea>
-                </label>
-                <div class="flex justify-end gap-2">
-                    <button class="btn" on:click=move |_| show_assignment_modal.set(false)>
-                        "取消"
-                    </button>
-                    <button class="btn btn-primary" on:click=submit_assignment>
-                        "保存"
-                    </button>
-                </div>
-            </div>
-        </Modal>
-
         <Modal show=show_detail_modal>
             <div class="space-y-4">
                 <h3 class="text-lg font-semibold">"订单详情"</h3>
@@ -624,8 +484,8 @@ pub fn OrdersPage() -> impl IntoView {
                                 {detail_item("需求单ID", display_optional(order.request_id.clone()))}
                                 {detail_item("客户UUID", display_optional(order.contact_uuid.clone()))}
                                 {detail_item("员工UUID", display_optional(order.assigned_user_uuid.clone()))}
-                                {detail_item("状态", order.status.clone())}
-                                {detail_item("结算状态", order.settlement_status.clone())}
+                                {detail_item("状态", order_status_label(&order.status).to_string())}
+                                {detail_item("结算状态", settlement_status_label(&order.settlement_status).to_string())}
                                 {detail_item("服务开始", display_optional(order.scheduled_start_at.clone()))}
                                 {detail_item("服务结束", display_optional(order.scheduled_end_at.clone()))}
                                 {detail_item("派工备注", display_optional(order.dispatch_note.clone()))}
@@ -688,48 +548,6 @@ fn user_display_label(user: &User) -> String {
     }
 }
 
-fn normalize_optional(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
-}
-
-fn normalize_datetime_local(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    let normalized = trimmed.replace('T', " ");
-    if normalized.len() == 16 {
-        Some(format!("{}:00", normalized))
-    } else {
-        Some(normalized)
-    }
-}
-
-fn to_datetime_local(value: Option<String>) -> String {
-    let Some(value) = value else { return String::new() };
-    if value.trim().is_empty() {
-        return String::new();
-    }
-    let replaced = value.replace('T', " ");
-    if replaced.len() >= 16 {
-        replaced[..16].to_string()
-    } else {
-        replaced
-    }
-}
-
-fn is_end_before_start(start: &str, end: &str) -> bool {
-    match (normalize_datetime_local(start), normalize_datetime_local(end)) {
-        (Some(start), Some(end)) => end <= start,
-        _ => false,
-    }
-}
-
 fn display_optional(value: Option<String>) -> String {
     value
         .and_then(|v| {
@@ -749,5 +567,45 @@ fn detail_item(label: &'static str, value: String) -> impl IntoView {
             <span class="text-xs text-base-content/60">{label}</span>
             <span class="text-sm break-all">{value}</span>
         </div>
+    }
+}
+
+fn order_status_label(status: &str) -> &'static str {
+    match status {
+        "pending" => "待确认",
+        "confirmed" => "已确认",
+        "dispatching" => "派工中",
+        "in_service" => "服务中",
+        "completed" => "已完成",
+        "cancelled" => "已取消",
+        _ => "未知",
+    }
+}
+
+fn settlement_status_label(status: &str) -> &'static str {
+    match status {
+        "unsettled" => "未结算",
+        "settled" => "已结算",
+        _ => "未知",
+    }
+}
+
+fn order_status_badge_class(status: &str) -> &'static str {
+    match status {
+        "pending" => "badge-warning",
+        "confirmed" => "badge-info",
+        "dispatching" => "badge-warning",
+        "in_service" => "badge-warning",
+        "completed" => "badge-success",
+        "cancelled" => "badge-error",
+        _ => "badge-info",
+    }
+}
+
+fn settlement_status_badge_class(status: &str) -> &'static str {
+    match status {
+        "unsettled" => "badge-warning",
+        "settled" => "badge-success",
+        _ => "badge-info",
     }
 }

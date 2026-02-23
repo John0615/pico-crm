@@ -829,8 +829,11 @@ pub fn SchedulesPage() -> impl IntoView {
                                 .as_ref()
                                 .map(|v| v.schedule_status.clone())
                                 .unwrap_or_default();
+                            let badge_class = schedule_status_badge_class(&status_value);
                             view! {
-                                <span class="badge badge-outline badge-sm">{schedule_status_label(&status_value)}</span>
+                                <span class=format!("badge {}", badge_class)>
+                                    {schedule_status_label(&status_value)}
+                                </span>
                             }
                         }
                     </Column>
@@ -840,7 +843,7 @@ pub fn SchedulesPage() -> impl IntoView {
                         label="操作".to_string()
                         class="text-right"
                     >
-                        <div class="flex items-center justify-end gap-2">
+                        <div class="flex justify-end gap-1">
                             {
                                 let item: Option<Schedule> = use_context::<Schedule>();
                                 let schedule = StoredValue::new(item);
@@ -888,7 +891,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                             }
                                         >
                                             <button
-                                                class="btn btn-ghost btn-xs"
+                                                class="btn btn-soft btn-primary btn-xs"
                                                 on:click=move |_| {
                                                     if let Some(value) = schedule.with_value(|value| value.clone()) {
                                                         open_assignment(value);
@@ -904,7 +907,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                             }
                                         >
                                             <button
-                                                class="btn btn-outline btn-xs"
+                                                class="btn btn-soft btn-error btn-xs"
                                                 on:click=move |_| {
                                                     if let Some(value) = schedule.with_value(|value| value.clone()) {
                                                         cancel_assignment(value.order_uuid.clone());
@@ -926,7 +929,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                             }
                                         >
                                             <button
-                                                class="btn btn-ghost btn-xs"
+                                                class="btn btn-soft btn-warning btn-xs"
                                                 on:click=move |_| {
                                                     if let Some(value) = schedule.with_value(|value| value.clone()) {
                                                         update_status(value.order_uuid.clone(), "in_service".to_string());
@@ -942,7 +945,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                             }
                                         >
                                             <button
-                                                class="btn btn-ghost btn-xs"
+                                                class="btn btn-soft btn-success btn-xs"
                                                 on:click=move |_| {
                                                     if let Some(value) = schedule.with_value(|value| value.clone()) {
                                                         update_status(value.order_uuid.clone(), "done".to_string());
@@ -954,7 +957,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                         </Show>
                                     </Show>
                                     <button
-                                        class="btn btn-outline btn-xs"
+                                        class="btn btn-ghost btn-xs"
                                         on:click=move |_| {
                                             if let Some(value) = schedule.with_value(|value| value.clone()) {
                                                 open_detail(value);
@@ -1107,6 +1110,16 @@ fn schedule_status_label(status: &str) -> &'static str {
         "done" => "已完成",
         "cancelled" => "已取消",
         _ => "未知",
+    }
+}
+
+fn schedule_status_badge_class(status: &str) -> &'static str {
+    match status {
+        "planned" => "badge-info",
+        "in_service" => "badge-warning",
+        "done" => "badge-success",
+        "cancelled" => "badge-error",
+        _ => "badge-info",
     }
 }
 

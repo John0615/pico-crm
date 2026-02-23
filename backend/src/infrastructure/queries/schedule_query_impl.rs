@@ -38,6 +38,7 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
                 Box::pin(async move {
                     let mut select = Entity::find();
                     let mut condition = Condition::all();
+                    condition = condition.add(Column::Status.ne("pending"));
 
                     if let Some(status) = query.status {
                         if !status.is_empty() {
