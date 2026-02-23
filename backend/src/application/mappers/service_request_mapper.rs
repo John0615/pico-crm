@@ -7,6 +7,7 @@ impl From<DomainServiceRequest> for SharedServiceRequest {
         Self {
             uuid: request.uuid,
             contact_uuid: request.contact_uuid,
+            creator_uuid: request.creator_uuid,
             service_content: request.service_content,
             appointment_start_at: request
                 .appointment_start_at

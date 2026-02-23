@@ -9,6 +9,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
     pub contact_uuid: Uuid,
+    pub creator_uuid: Uuid,
     pub service_content: String,
     pub appointment_start_at: Option<DateTime<Utc>>,
     pub appointment_end_at: Option<DateTime<Utc>>,

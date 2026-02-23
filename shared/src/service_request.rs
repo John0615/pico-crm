@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct ServiceRequest {
     pub uuid: String,
     pub contact_uuid: String,
+    pub creator_uuid: String,
     pub service_content: String,
     pub appointment_start_at: Option<String>,
     pub appointment_end_at: Option<String>,

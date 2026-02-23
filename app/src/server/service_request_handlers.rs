@@ -4,6 +4,7 @@ use shared::service_request::{
     CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
     UpdateServiceRequestStatus,
 };
+use shared::user::User;
 use shared::ListResult;
 
 #[cfg(feature = "ssr")]
@@ -74,13 +75,14 @@ pub async fn create_service_request(
     use axum::Extension;
     use leptos_axum::extract;
 
+    let Extension(current_user): Extension<User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
     let service = ServiceRequestAppService::new(repo);
 
     let result = service
-        .create_service_request(payload)
+        .create_service_request(payload, current_user.uuid)
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)

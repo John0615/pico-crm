@@ -9,6 +9,7 @@ use crate::server::service_request_handlers::{
     create_service_request, fetch_service_requests, update_service_request,
     update_service_request_status,
 };
+use crate::server::user_handlers::get_user;
 use crate::utils::api::call_api;
 use leptos::logging;
 use leptos::prelude::*;
@@ -22,6 +23,7 @@ use shared::service_request::{
     CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
     UpdateServiceRequestStatus,
 };
+use shared::user::User;
 use shared::ListResult;
 
 impl Identifiable for ServiceRequest {
@@ -48,6 +50,8 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     let notes = RwSignal::new(String::new());
     let contact_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
     let pending_contacts: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
+    let user_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
+    let pending_users: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
 
     let contacts = Resource::new(
         move || (),
@@ -173,6 +177,51 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 });
                 pending_contacts.update(|set| {
                     set.remove(&contact_id);
+                });
+            });
+        }
+    });
+
+    Effect::new(move || {
+        if cfg!(feature = "ssr") {
+            return;
+        }
+        let Some((items, _)) = data.get() else {
+            return;
+        };
+
+        let existing = user_labels.get();
+        let mut pending = pending_users.get();
+        let mut missing_ids: Vec<String> = Vec::new();
+        for request in &items {
+            let user_id = request.creator_uuid.clone();
+            if user_id.is_empty() {
+                continue;
+            }
+            if existing.contains_key(&user_id) || pending.contains(&user_id) {
+                continue;
+            }
+            pending.insert(user_id.clone());
+            missing_ids.push(user_id);
+        }
+        if missing_ids.is_empty() {
+            return;
+        }
+        pending_users.set(pending);
+
+        for user_id in missing_ids {
+            let user_labels = user_labels;
+            let pending_users = pending_users;
+            spawn_local(async move {
+                let label = match call_api(get_user(user_id.clone())).await {
+                    Ok(user) => user_display_label(&user),
+                    _ => "未知员工".to_string(),
+                };
+                user_labels.update(|map| {
+                    map.insert(user_id.clone(), label);
+                });
+                pending_users.update(|set| {
+                    set.remove(&user_id);
                 });
             });
         }
@@ -381,6 +430,24 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                                         "加载中...".to_string()
                                     } else {
                                         "未知客户".to_string()
+                                    }
+                                });
+                            view! { <span class="text-xs">{label}</span> }
+                        }
+                    </Column>
+                    <Column slot:columns prop="creator_uuid".to_string() label="创建人".to_string()>
+                        {
+                            let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
+                            let user_id = item.as_ref().map(|v| v.creator_uuid.clone()).unwrap_or_default();
+                            let label = user_labels
+                                .get()
+                                .get(&user_id)
+                                .cloned()
+                                .unwrap_or_else(|| {
+                                    if pending_users.get().contains(&user_id) {
+                                        "加载中...".to_string()
+                                    } else {
+                                        "未知员工".to_string()
                                     }
                                 });
                             view! { <span class="text-xs">{label}</span> }
@@ -609,6 +676,16 @@ fn contact_display_label(contact: &Contact) -> String {
         } else {
             label
         }
+    }
+}
+
+fn user_display_label(user: &User) -> String {
+    if let Some(phone) = user.phone_number.clone().filter(|value| !value.is_empty()) {
+        format!("{} ({})", user.user_name, phone)
+    } else if let Some(email) = user.email.clone().filter(|value| !value.is_empty()) {
+        format!("{} ({})", user.user_name, email)
+    } else {
+        user.user_name.clone()
     }
 }
 
