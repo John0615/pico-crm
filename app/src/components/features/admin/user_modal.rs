@@ -9,7 +9,7 @@ use crate::utils::api::call_api;
 use leptos::prelude::*;
 use shared::user::CreateUserRequest;
 
-// 新建用户模态框
+// 新建员工模态框
 #[component]
 pub fn UserModal<F>(show: RwSignal<bool>, on_finish: F) -> impl IntoView
 where
@@ -176,7 +176,7 @@ where
 
     view! {
         <Modal show=show box_class="max-h-none overflow-visible">
-            <FormContainer title="新建用户">
+            <FormContainer title="新建员工">
                 <DaisyForm
                     initial_fields
                     on_submit=submit

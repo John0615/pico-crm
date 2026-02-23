@@ -150,7 +150,7 @@ pub fn Sidebar() -> impl IntoView {
                                         class=move || if is_active("/contacts") { "menu-active w-full" } else { "w-full" }
                                     >
                                         <span class="icon-[tabler--user] size-5"></span>
-                                        "客户列表"
+                                        "客户管理"
                                     </a>
                                 </li>
                                 <li>
@@ -186,7 +186,7 @@ pub fn Sidebar() -> impl IntoView {
                                         class=move || if is_active("/users") { "menu-active w-full" } else { "w-full" }
                                     >
                                         <span class="icon-[tabler--users] size-5"></span>
-                                        "用户管理"
+                                        "员工管理"
                                     </a>
                                 </li>
                             </ul>
@@ -214,7 +214,7 @@ pub fn Sidebar() -> impl IntoView {
                                         class=move || if is_active("/contacts") { "menu-active w-full" } else { "w-full" }
                                     >
                                         <span class="icon-[tabler--user] size-5"></span>
-                                        "客户列表"
+                                        "客户管理"
                                     </a>
                                 </li>
                                 <li>
@@ -250,7 +250,7 @@ pub fn Sidebar() -> impl IntoView {
                                         class=move || if is_active("/users") { "menu-active w-full" } else { "w-full" }
                                     >
                                         <span class="icon-[tabler--users] size-5"></span>
-                                        "用户管理"
+                                        "员工管理"
                                     </a>
                                 </li>
                             </ul>
@@ -300,7 +300,7 @@ pub fn Sidebar() -> impl IntoView {
                                         class=move || if is_active("/contacts") { "menu-active w-full" } else { "w-full" }
                                     >
                                         <span class="icon-[tabler--user] size-5"></span>
-                                        "客户列表"
+                                        "客户管理"
                                     </a>
                                 </li>
                             </ul>
@@ -328,7 +328,7 @@ pub fn Sidebar() -> impl IntoView {
                                         class=move || if is_active("/contacts") { "menu-active w-full" } else { "w-full" }
                                     >
                                         <span class="icon-[tabler--user] size-5"></span>
-                                        "客户列表"
+                                        "客户管理"
                                     </a>
                                 </li>
                             </ul>

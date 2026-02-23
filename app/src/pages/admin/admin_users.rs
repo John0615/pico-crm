@@ -102,7 +102,7 @@ pub fn AdminUsers() -> impl IntoView {
     let delete_row = move |user_uuid: String| {
         delete_confirm(
             "删除确认",
-            "确定要删除这个用户吗？",
+            "确定要删除这个员工吗？",
             move |result| {
                 if result {
                     let user_uuid_clone = user_uuid.clone();
@@ -149,17 +149,17 @@ pub fn AdminUsers() -> impl IntoView {
     };
 
     view! {
-        <Title text="用户管理 - PicoCRM"/>
+        <Title text="员工管理 - PicoCRM"/>
         <div class="space-y-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h1 class="text-2xl font-semibold">"用户管理"</h1>
+                <h1 class="text-2xl font-semibold">"员工管理"</h1>
                 <button
                     class="btn btn-primary"
                     on:click=move |_| {
                         show_modal.set(true);
                     }
                 >
-                    "新建用户"
+                    "新建员工"
                 </button>
             </div>
             // 搜索和筛选栏
@@ -177,13 +177,13 @@ pub fn AdminUsers() -> impl IntoView {
                             <path d="m21 21-4.3-4.3"></path>
                         </g>
                     </svg>
-                    <input type="search" on:input=search required placeholder="搜索用户..." />
+                    <input type="search" on:input=search required placeholder="搜索员工..." />
                 </label>
                 <div class="flex gap-2 items-center md:flex-nowrap">
                     <select on:change=filter_by_role class="select select-bordered">
                         <option value="">所有角色</option>
                         <option value="admin">管理员</option>
-                        <option value="user">普通用户</option>
+                        <option value="user">普通员工</option>
                     </select>
                     <select on:change=filter_by_status class="select select-bordered">
                         <option value="">所有状态</option>
@@ -193,14 +193,14 @@ pub fn AdminUsers() -> impl IntoView {
                 </div>
             </div>
 
-            // 用户表格
+            // 员工表格
             <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data>
                     <Column
                         slot:columns
                         freeze=true
                         prop="user_name".to_string()
-                        label="用户".to_string()
+                        label="员工".to_string()
                         class="font-bold"
                     >
                         {
@@ -259,10 +259,10 @@ pub fn AdminUsers() -> impl IntoView {
                                     {user.as_ref().map(|u| {
                                         match u.is_admin {
                                             Some(true) => "管理员",
-                                            Some(false) => "普通用户",
-                                            None => "普通用户"
+                                            Some(false) => "普通员工",
+                                            None => "普通员工"
                                         }
-                                    }).unwrap_or("普通用户")}
+                                    }).unwrap_or("普通员工")}
                                 </span>
                             }
                         }

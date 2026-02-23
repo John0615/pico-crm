@@ -10,7 +10,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use shared::user::{CreateUserRequest, User};
 
-// 更新用户模态框
+// 更新员工模态框
 #[component]
 pub fn UpdateUserModal<F>(
     show: RwSignal<bool>,
@@ -26,7 +26,7 @@ where
     // 创建一个信号来存储上传的头像URL
     let avatar_url = RwSignal::new(String::new());
 
-    // 当模态框打开且有uuid时，加载用户数据
+    // 当模态框打开且有uuid时，加载员工数据
     Effect::new(move |_| {
         let show_modal = show.read();
         let uuid = user_uuid.read();
@@ -224,7 +224,7 @@ where
 
     view! {
         <Modal show=show>
-            <FormContainer title="修改用户">
+            <FormContainer title="修改员工">
                 {move || {
                     if *loading.read() {
                         view! {

@@ -220,10 +220,10 @@ pub fn ContactsList() -> impl IntoView {
     };
 
     view! {
-        <Title text="客户列表 - PicoCRM"/>
+        <Title text="客户管理 - PicoCRM"/>
         <div class="space-y-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h1 class="text-2xl font-semibold">"客户列表"</h1>
+                <h1 class="text-2xl font-semibold">"客户管理"</h1>
                 <button
                     class="btn btn-primary"
                     on:click=move |_| {
