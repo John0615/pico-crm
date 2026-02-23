@@ -12,6 +12,7 @@ use js_sys::Math::random;
 use leptos::logging;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::{
     contact::{Contact, ContactFilters, ContactQuery, SortField, SortOption, SortOrder},
@@ -219,8 +220,20 @@ pub fn ContactsList() -> impl IntoView {
     };
 
     view! {
-        <div class="">
-            <div class="flex flex-col md:flex-row gap-4 mb-4">
+        <Title text="客户列表 - PicoCRM"/>
+        <div class="space-y-4">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h1 class="text-2xl font-semibold">"客户列表"</h1>
+                <button
+                    class="btn btn-primary"
+                    on:click=move |_| {
+                        show_modal.set(true);
+                    }
+                >
+                    "新建客户"
+                </button>
+            </div>
+            <div class="flex flex-col md:flex-row gap-4">
                 <label class="input w-full md:w-80 md:flex-none">
                     <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                         <g
@@ -257,31 +270,6 @@ pub fn ContactsList() -> impl IntoView {
                         导出
                     </button>
                 </div>
-            </div>
-            // 添加客户按钮
-            <div class="fixed bottom-8 right-8 z-10">
-                <button
-                    on:click=move |_|{
-                        show_modal.set(true);
-                    }
-                    class="btn btn-circle btn-primary shadow-lg hover:shadow-xl transition-all"
-                    style="width: 56px; height: 56px;"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        class="h-6 w-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 4v16m8-8H4"
-                        />
-                    </svg>
-                </button>
             </div>
             <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
             <UpdateContactModal show=show_update_modal contact_uuid=edit_contact_uuid on_finish=on_contact_modal_finish />

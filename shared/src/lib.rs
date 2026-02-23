@@ -11,6 +11,7 @@ pub mod admin;
 pub mod service_request;
 pub mod order;
 pub mod schedule;
+pub mod merchant_dashboard;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ListResult<T> {

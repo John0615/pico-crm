@@ -80,8 +80,9 @@ pub fn SchedulesPage() -> impl IntoView {
         },
     );
 
-    let is_worker = move || {
-        current_user.with(|value| {
+    let is_worker = RwSignal::new(false);
+    Effect::new(move |_| {
+        let worker = current_user.with(|value| {
             value
                 .as_ref()
                 .map(|user| {
@@ -91,8 +92,9 @@ pub fn SchedulesPage() -> impl IntoView {
                         && user.role != "admin"
                 })
                 .unwrap_or(false)
-        })
-    };
+        });
+        is_worker.set(worker);
+    });
 
     let data = Resource::new(
         move || {
@@ -151,6 +153,34 @@ pub fn SchedulesPage() -> impl IntoView {
             (result.items, result.total)
         },
     );
+
+    Effect::new(move || {
+        let map = query.with(|value| value.clone());
+        if let Some(status) = map.get("status") {
+            if status_filter.get() != status {
+                set_status_filter.set(status);
+            }
+            set_view_mode.set("list".to_string());
+        }
+        if let Some(start) = map.get("start_date") {
+            if date_start.get() != start {
+                date_start.set(start);
+            }
+            set_view_mode.set("list".to_string());
+        }
+        if let Some(end) = map.get("end_date") {
+            if date_end.get() != end {
+                date_end.set(end);
+            }
+            set_view_mode.set("list".to_string());
+        }
+        if map.get("upcoming").is_some() {
+            let (start, end) = upcoming_date_range();
+            date_start.set(start);
+            date_end.set(end);
+            set_view_mode.set("list".to_string());
+        }
+    });
 
     let contacts = Resource::new(
         move || (),
@@ -435,6 +465,7 @@ pub fn SchedulesPage() -> impl IntoView {
                         <span class="text-xs text-base-content/60">"状态"</span>
                         <select
                             class="select select-bordered min-w-[160px]"
+                            prop:value=move || status_filter.get()
                             on:change=move |ev| set_status_filter.set(event_target_value(&ev))
                         >
                             <option value="">"全部"</option>
@@ -444,7 +475,7 @@ pub fn SchedulesPage() -> impl IntoView {
                             <option value="cancelled">"已取消"</option>
                         </select>
                     </div>
-                    <Show when=move || !is_worker() fallback=|| ()>
+                    <Show when=move || !is_worker.get() fallback=|| ()>
                         <div class="flex flex-col gap-1">
                             <span class="text-xs text-base-content/60">"员工"</span>
                             <Transition fallback=move || view! {
@@ -692,7 +723,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                                                                                 let time_label = format_time_range(item.start, item.end);
                                                                                                 let contact_label_title = contact_label.clone();
                                                                                                 let time_label_title = time_label.clone();
-                                                                                                let can_edit = !is_worker() && schedule.schedule_status == "planned";
+                                                                                                let can_edit = !is_worker.get() && schedule.schedule_status == "planned";
                                                                                                 let schedule_for_click = schedule.clone();
                                                                                                 {calendar_event_position(
                                                                                                     item.start,
@@ -882,7 +913,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                 view! {
                                     <Show
                                         when=move || {
-                                            has_schedule && !is_worker()
+                                            has_schedule && !is_worker.get()
                                         }
                                     >
                                         <Show
@@ -920,7 +951,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                     </Show>
                                     <Show
                                         when=move || {
-                                            has_schedule && is_worker()
+                                            has_schedule && is_worker.get()
                                         }
                                     >
                                         <Show
@@ -1255,6 +1286,12 @@ fn today_date() -> NaiveDate {
         )
         .unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap())
     }
+}
+
+fn upcoming_date_range() -> (String, String) {
+    let start = today_date();
+    let end = start + Duration::days(1);
+    (format_date(start), format_date(end))
 }
 
 fn parse_calendar_date(value: &str) -> Option<NaiveDate> {

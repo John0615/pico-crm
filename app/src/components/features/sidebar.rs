@@ -151,7 +151,6 @@ pub fn Sidebar() -> impl IntoView {
                                     >
                                         <span class="icon-[tabler--user] size-5"></span>
                                         "客户列表"
-                                        <span class="badge badge-primary badge-sm ms-2">"12"</span>
                                     </a>
                                 </li>
                                 <li>
@@ -302,7 +301,6 @@ pub fn Sidebar() -> impl IntoView {
                                     >
                                         <span class="icon-[tabler--user] size-5"></span>
                                         "客户列表"
-                                        <span class="badge badge-primary badge-sm ms-2">"12"</span>
                                     </a>
                                 </li>
                             </ul>

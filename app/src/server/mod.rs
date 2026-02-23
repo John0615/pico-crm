@@ -9,6 +9,7 @@ pub mod system_config_handlers;
 pub mod service_request_handlers;
 pub mod order_handlers;
 pub mod schedule_handlers;
+pub mod merchant_dashboard_handlers;
 
 pub use contact_handlers::*;
 pub use admin_merchant_handlers::*;
@@ -21,3 +22,4 @@ pub use system_config_handlers::*;
 pub use service_request_handlers::*;
 pub use order_handlers::*;
 pub use schedule_handlers::*;
+pub use merchant_dashboard_handlers::*;

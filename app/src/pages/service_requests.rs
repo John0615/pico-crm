@@ -122,6 +122,15 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     );
 
     Effect::new(move || {
+        let map = query.with(|value| value.clone());
+        if let Some(status) = map.get("status") {
+            if status_filter.get() != status {
+                set_status_filter.set(status);
+            }
+        }
+    });
+
+    Effect::new(move || {
         if cfg!(feature = "ssr") {
             return;
         }
@@ -292,6 +301,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                         <span class="text-xs text-base-content/60">"状态"</span>
                         <select
                             class="select select-bordered min-w-[160px]"
+                            prop:value=move || status_filter.get()
                             on:change=move |ev| set_status_filter.set(event_target_value(&ev))
                         >
                             <option value="">"全部"</option>

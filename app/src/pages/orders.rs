@@ -86,6 +86,25 @@ pub fn OrdersPage() -> impl IntoView {
         },
     );
 
+    Effect::new(move || {
+        let map = query.with(|value| value.clone());
+        if let Some(status) = map.get("status") {
+            if status_filter.get() != status {
+                set_status_filter.set(status);
+            }
+        }
+        if let Some(start) = map.get("start_date") {
+            if date_start.get() != start {
+                date_start.set(start);
+            }
+        }
+        if let Some(end) = map.get("end_date") {
+            if date_end.get() != end {
+                date_end.set(end);
+            }
+        }
+    });
+
     let contacts = Resource::new(
         move || (),
         |_| async move {
@@ -271,6 +290,7 @@ pub fn OrdersPage() -> impl IntoView {
                         <span class="text-xs text-base-content/60">"状态"</span>
                         <select
                             class="select select-bordered min-w-[160px]"
+                            prop:value=move || status_filter.get()
                             on:change=move |ev| set_status_filter.set(event_target_value(&ev))
                         >
                             <option value="">"全部"</option>
