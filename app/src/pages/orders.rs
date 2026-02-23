@@ -49,7 +49,7 @@ pub fn OrdersPage() -> impl IntoView {
                 user_filter.get(),
                 date_start.get(),
                 date_end.get(),
-                *refresh_count.read(),
+                refresh_count.get(),
                 query.with(|value| value.clone()),
             )
         },

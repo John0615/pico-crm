@@ -85,7 +85,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 contact_filter.get(),
                 date_start.get(),
                 date_end.get(),
-                *refresh_count.read(),
+                refresh_count.get(),
                 query.with(|value| value.clone()),
             )
         },
