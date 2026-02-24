@@ -28,7 +28,7 @@ use shared::ListResult;
 
 impl Identifiable for ServiceRequest {
     fn id(&self) -> String {
-        self.uuid.clone()
+        format!("{}-{}-{}", self.uuid, self.status, self.updated_at)
     }
 }
 

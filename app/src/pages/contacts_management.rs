@@ -8,7 +8,6 @@ use crate::components::ui::{
 use crate::server::contact_handlers::{delete_contact, export_contacts, fetch_contacts};
 use crate::utils::api::call_api;
 use crate::utils::file_download::download_file;
-use js_sys::Math::random;
 use leptos::logging;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -21,9 +20,7 @@ use shared::{
 
 impl Identifiable for Contact {
     fn id(&self) -> String {
-        // self.contact_uuid.clone()
-        let rand_suffix = (random() * 10000.0) as u32;
-        format!("{}-{}", self.contact_uuid, rand_suffix)
+        format!("{}-{}", self.contact_uuid, self.updated_at)
     }
 }
 

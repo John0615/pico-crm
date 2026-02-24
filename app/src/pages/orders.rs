@@ -20,7 +20,7 @@ use std::collections::{HashMap, HashSet};
 
 impl Identifiable for Order {
     fn id(&self) -> String {
-        self.uuid.clone()
+        format!("{}-{}-{}", self.uuid, self.status, self.updated_at)
     }
 }
 

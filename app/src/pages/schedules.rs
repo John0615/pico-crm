@@ -33,7 +33,7 @@ use std::collections::{HashMap, HashSet};
 
 impl Identifiable for Schedule {
     fn id(&self) -> String {
-        self.order_uuid.clone()
+        format!("{}-{}-{}", self.order_uuid, self.schedule_status, self.updated_at)
     }
 }
 
