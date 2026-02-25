@@ -6,3 +6,4 @@ pub mod system_config_repository_impl;
 pub mod audit_log_repository_impl;
 pub mod service_request_repository_impl;
 pub mod order_repository_impl;
+pub mod schedule_repository_impl;

@@ -4,6 +4,7 @@ use shared::schedule::{
     CreateScheduleAssignment, Schedule, ScheduleQuery, UpdateScheduleAssignment,
     UpdateScheduleStatus,
 };
+#[cfg(feature = "ssr")]
 use shared::user::User;
 use shared::ListResult;
 
@@ -14,6 +15,7 @@ mod ssr {
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::queries::schedule_query_impl::SeaOrmScheduleQuery;
     pub use backend::infrastructure::repositories::order_repository_impl::SeaOrmOrderRepository;
+    pub use backend::infrastructure::repositories::schedule_repository_impl::SeaOrmScheduleRepository;
     pub use backend::infrastructure::tenant::TenantContext;
 }
 
@@ -98,8 +100,10 @@ pub async fn create_schedule(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
 
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = ScheduleAppService::new(order_repo);
+    let schema_name = tenant.schema_name.clone();
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), schema_name.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name);
+    let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
         .create_schedule(order_uuid, payload)
@@ -127,8 +131,10 @@ pub async fn update_schedule(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
 
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = ScheduleAppService::new(order_repo);
+    let schema_name = tenant.schema_name.clone();
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), schema_name.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name);
+    let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
         .update_schedule(order_uuid, payload)
@@ -153,8 +159,10 @@ pub async fn cancel_schedule(order_uuid: String) -> Result<Schedule, ServerFnErr
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
 
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = ScheduleAppService::new(order_repo);
+    let schema_name = tenant.schema_name.clone();
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), schema_name.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name);
+    let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
         .cancel_schedule(order_uuid)
@@ -200,8 +208,9 @@ pub async fn update_schedule_status(
         ensure_operator(&current_user)?;
     }
 
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = ScheduleAppService::new(order_repo);
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name);
+    let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
         .update_schedule_status(order_uuid, payload)
@@ -210,6 +219,7 @@ pub async fn update_schedule_status(
     Ok(result)
 }
 
+#[cfg(feature = "ssr")]
 fn ensure_operator(user: &User) -> Result<(), ServerFnError> {
     if user.is_admin.unwrap_or(false) {
         return Err(ServerFnError::new("无权限进行该操作".to_string()));
@@ -220,6 +230,7 @@ fn ensure_operator(user: &User) -> Result<(), ServerFnError> {
     Ok(())
 }
 
+#[cfg(feature = "ssr")]
 fn is_worker(user: &User) -> bool {
     !user.is_admin.unwrap_or(false)
         && user.role != "operator"
@@ -227,7 +238,7 @@ fn is_worker(user: &User) -> bool {
         && user.role != "admin"
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ssr"))]
 mod tests {
     use super::*;
 

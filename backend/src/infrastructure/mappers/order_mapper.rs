@@ -17,7 +17,6 @@ impl OrderMapper {
             uuid: entity.uuid.to_string(),
             request_id: entity.request_id.map(|value| value.to_string()),
             contact_uuid: entity.contact_uuid.map(|value| value.to_string()),
-            assigned_user_uuid: entity.assigned_user_uuid.map(|value| value.to_string()),
             scheduled_start_at: entity.scheduled_start_at.map(parse_date_time_to_string),
             scheduled_end_at: entity.scheduled_end_at.map(parse_date_time_to_string),
             status: entity.status,
@@ -39,7 +38,6 @@ impl OrderMapper {
             uuid: entity.uuid.to_string(),
             request_id: entity.request_id.map(|value| value.to_string()),
             contact_uuid: entity.contact_uuid.map(|value| value.to_string()),
-            assigned_user_uuid: entity.assigned_user_uuid.map(|value| value.to_string()),
             scheduled_start_at: entity.scheduled_start_at,
             scheduled_end_at: entity.scheduled_end_at,
             status,
@@ -62,7 +60,6 @@ impl OrderMapper {
             notes: Set(order.notes),
             request_id: Set(order.request_id.map(|value| Uuid::parse_str(&value).expect("Invalid request UUID"))),
             contact_uuid: Set(order.contact_uuid.map(|value| Uuid::parse_str(&value).expect("Invalid contact UUID"))),
-            assigned_user_uuid: Set(order.assigned_user_uuid.map(|value| Uuid::parse_str(&value).expect("Invalid user UUID"))),
             scheduled_start_at: Set(order.scheduled_start_at),
             scheduled_end_at: Set(order.scheduled_end_at),
             dispatch_note: Set(order.dispatch_note),
@@ -82,9 +79,6 @@ impl OrderMapper {
 
     pub fn to_assignment_active_entity(original: Model, update: OrderAssignmentUpdate) -> ActiveModel {
         let mut active = original.into_active_model();
-        active.assigned_user_uuid = Set(update.assigned_user_uuid.map(|value| {
-            Uuid::parse_str(&value).expect("Invalid assigned user UUID")
-        }));
         active.scheduled_start_at = Set(update.scheduled_start_at);
         active.scheduled_end_at = Set(update.scheduled_end_at);
         active.dispatch_note = Set(update.dispatch_note);

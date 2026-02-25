@@ -4,34 +4,35 @@ use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "orders")]
+#[sea_orm(table_name = "schedules")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
-    pub customer_id: Option<Uuid>,
+    pub order_id: Uuid,
+    pub assigned_user_uuid: Uuid,
+    pub start_at: DateTime<Utc>,
+    pub end_at: DateTime<Utc>,
     pub status: String,
-    pub amount_cents: i64,
     pub notes: Option<String>,
-    pub request_id: Option<Uuid>,
-    pub contact_uuid: Option<Uuid>,
-    pub scheduled_start_at: Option<DateTime<Utc>>,
-    pub scheduled_end_at: Option<DateTime<Utc>>,
-    pub dispatch_note: Option<String>,
-    pub settlement_status: String,
-    pub settlement_note: Option<String>,
     pub inserted_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::schedules::Entity")]
-    Schedules,
+    #[sea_orm(
+        belongs_to = "super::orders::Entity",
+        from = "Column::OrderId",
+        to = "super::orders::Column::Uuid",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    Orders,
 }
 
-impl Related<super::schedules::Entity> for Entity {
+impl Related<super::orders::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Schedules.def()
+        Relation::Orders.def()
     }
 }
 

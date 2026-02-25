@@ -8,7 +8,6 @@ impl From<DomainOrder> for SharedOrder {
             uuid: order.uuid,
             request_id: order.request_id,
             contact_uuid: order.contact_uuid,
-            assigned_user_uuid: order.assigned_user_uuid,
             scheduled_start_at: order
                 .scheduled_start_at
                 .map(parse_utc_time_to_string),

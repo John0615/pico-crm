@@ -6,3 +6,4 @@ pub mod system_config;
 pub mod audit_log;
 pub mod service_request;
 pub mod order;
+pub mod schedule;

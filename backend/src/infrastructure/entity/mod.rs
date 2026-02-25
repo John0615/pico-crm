@@ -11,3 +11,4 @@ pub mod system_config_items;
 pub mod users;
 pub mod service_requests;
 pub mod orders;
+pub mod schedules;

@@ -4,7 +4,8 @@ use shared::merchant::{
     MerchantListQuery, MerchantPagedResult, MerchantSummary, ProvisionMerchantRequest,
     UpdateMerchantRequest,
 };
-use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc, TimeZone};
+#[cfg(feature = "ssr")]
+use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 
 #[server(
     name = FetchMerchants,
@@ -96,6 +97,7 @@ pub async fn update_merchant(
     Ok(merchant.into())
 }
 
+#[cfg(feature = "ssr")]
 fn parse_optional_datetime(
     input: Option<String>,
 ) -> Result<Option<DateTime<Utc>>, ServerFnError> {
@@ -121,6 +123,7 @@ fn parse_optional_datetime(
     Ok(Some(beijing_dt.with_timezone(&Utc)))
 }
 
+#[cfg(feature = "ssr")]
 fn normalize_optional_string(value: Option<String>) -> Option<String> {
     value.and_then(|value| {
         let trimmed = value.trim();

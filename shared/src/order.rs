@@ -5,7 +5,6 @@ pub struct Order {
     pub uuid: String,
     pub request_id: Option<String>,
     pub contact_uuid: Option<String>,
-    pub assigned_user_uuid: Option<String>,
     pub scheduled_start_at: Option<String>,
     pub scheduled_end_at: Option<String>,
     pub status: String,
@@ -49,7 +48,6 @@ pub struct OrderQuery {
     pub page_size: u64,
     pub status: Option<String>,
     pub contact_uuid: Option<String>,
-    pub assigned_user_uuid: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
 }

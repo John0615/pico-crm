@@ -6,7 +6,6 @@ pub struct Order {
     pub uuid: String,
     pub request_id: Option<String>,
     pub contact_uuid: Option<String>,
-    pub assigned_user_uuid: Option<String>,
     pub scheduled_start_at: Option<DateTime<Utc>>,
     pub scheduled_end_at: Option<DateTime<Utc>>,
     pub status: OrderStatus,
@@ -92,7 +91,6 @@ impl Order {
             uuid: Uuid::new_v4().to_string(),
             request_id: Some(request_id),
             contact_uuid: Some(contact_uuid),
-            assigned_user_uuid: None,
             scheduled_start_at: None,
             scheduled_end_at: None,
             status: OrderStatus::Pending,
@@ -132,7 +130,6 @@ impl Order {
                 return Err("Scheduled end must be after start".to_string());
             }
         }
-        self.assigned_user_uuid = update.assigned_user_uuid;
         self.scheduled_start_at = update.scheduled_start_at;
         self.scheduled_end_at = update.scheduled_end_at;
         self.dispatch_note = update.dispatch_note;

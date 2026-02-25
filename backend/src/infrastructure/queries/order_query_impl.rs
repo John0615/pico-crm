@@ -52,14 +52,6 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                         }
                     }
 
-                    if let Some(user_uuid) = query.assigned_user_uuid {
-                        if !user_uuid.is_empty() {
-                            let user_uuid = Uuid::parse_str(&user_uuid)
-                                .map_err(|e| format!("invalid user uuid: {}", e))?;
-                            condition = condition.add(Column::AssignedUserUuid.eq(user_uuid));
-                        }
-                    }
-
                     if let Some(start) = query.start_date.as_deref().and_then(parse_datetime) {
                         condition = condition.add(Column::ScheduledStartAt.gte(start));
                     }

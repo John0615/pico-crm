@@ -1,20 +1,25 @@
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
+use crate::application::utils::parse_utc_time_to_string;
 use crate::domain::models::order::{Order as DomainOrder, OrderAssignmentUpdate};
-use crate::domain::models::schedule::{ScheduleStatus, validate_time_window};
+use crate::domain::models::schedule::{ScheduleAssignment, ScheduleStatus, validate_time_window};
 use crate::domain::repositories::order::OrderRepository;
-use crate::infrastructure::utils::parse_date_time_to_string;
+use crate::domain::repositories::schedule::ScheduleRepository;
 use shared::schedule::{
     CreateScheduleAssignment, Schedule, UpdateScheduleAssignment, UpdateScheduleStatus,
 };
 
-pub struct ScheduleAppService<R: OrderRepository> {
+pub struct ScheduleAppService<R: OrderRepository, S: ScheduleRepository> {
     order_repo: R,
+    schedule_repo: S,
 }
 
-impl<R: OrderRepository> ScheduleAppService<R> {
-    pub fn new(order_repo: R) -> Self {
-        Self { order_repo }
+impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
+    pub fn new(order_repo: R, schedule_repo: S) -> Self {
+        Self {
+            order_repo,
+            schedule_repo,
+        }
     }
 
     pub async fn create_schedule(
@@ -27,14 +32,75 @@ impl<R: OrderRepository> ScheduleAppService<R> {
         let end = parse_required_datetime(&payload.scheduled_end_at, "scheduled_end_at")?;
         validate_time_window(start, end)?;
 
+        let order = self
+            .order_repo
+            .find_order(order_uuid.clone())
+            .await?
+            .ok_or_else(|| format!("order {} not found", order_uuid))?;
+
+        let current_schedule = ScheduleStatus::from_order_status(&order.status);
+        if !current_schedule.allows_assignment_update() {
+            return Err(format!(
+                "schedule assignment can only be updated in planned status (current: {})",
+                current_schedule.as_str()
+            ));
+        }
+
+        if let Some(conflict) = self
+            .schedule_repo
+            .find_conflict(
+                assigned_user_uuid.clone(),
+                start.clone(),
+                end.clone(),
+                Some(order_uuid.clone()),
+            )
+            .await?
+        {
+            return Err(format!(
+                "schedule time overlaps with existing assignment {}",
+                conflict.order_id
+            ));
+        }
+
+        let schedule_status = ScheduleStatus::from_order_status(&order.status);
+        let assignment = ScheduleAssignment {
+            uuid: String::new(),
+            order_id: order_uuid.clone(),
+            assigned_user_uuid: assigned_user_uuid.clone(),
+            start_at: start.clone(),
+            end_at: end.clone(),
+            status: schedule_status,
+            notes: payload.dispatch_note.clone(),
+            inserted_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let existing = self.schedule_repo.find_by_order(order_uuid.clone()).await?;
+        let assignment = if existing.is_some() {
+            self.schedule_repo
+                .update_assignment(
+                    order_uuid.clone(),
+                    assigned_user_uuid.clone(),
+                    start.clone(),
+                    end.clone(),
+                    payload.dispatch_note.clone(),
+                )
+                .await?
+        } else {
+            self.schedule_repo.create_assignment(assignment).await?
+        };
+
         let update = OrderAssignmentUpdate {
-            assigned_user_uuid: Some(assigned_user_uuid),
+            assigned_user_uuid: None,
             scheduled_start_at: Some(start),
             scheduled_end_at: Some(end),
             dispatch_note: payload.dispatch_note,
         };
-        let updated = self.order_repo.update_order_assignment(order_uuid, update).await?;
-        Ok(to_schedule_view(updated))
+        let updated = self
+            .order_repo
+            .update_order_assignment(order_uuid, update)
+            .await?;
+        Ok(build_schedule_view(updated, Some(assignment)))
     }
 
     pub async fn update_schedule(
@@ -53,14 +119,80 @@ impl<R: OrderRepository> ScheduleAppService<R> {
             validate_time_window(start, end)?;
         }
 
+        let order = self
+            .order_repo
+            .find_order(order_uuid.clone())
+            .await?
+            .ok_or_else(|| format!("order {} not found", order_uuid))?;
+        let current_schedule = ScheduleStatus::from_order_status(&order.status);
+        if !current_schedule.allows_assignment_update() {
+            return Err(format!(
+                "schedule assignment can only be updated in planned status (current: {})",
+                current_schedule.as_str()
+            ));
+        }
+
+        let assigned_user_uuid = assigned_user_uuid
+            .clone()
+            .ok_or_else(|| "assigned_user_uuid is required".to_string())?;
+        let start = start.ok_or_else(|| "scheduled_start_at is required".to_string())?;
+        let end = end.ok_or_else(|| "scheduled_end_at is required".to_string())?;
+        if let Some(conflict) = self
+            .schedule_repo
+            .find_conflict(
+                assigned_user_uuid.clone(),
+                start.clone(),
+                end.clone(),
+                Some(order_uuid.clone()),
+            )
+            .await?
+        {
+            return Err(format!(
+                "schedule time overlaps with existing assignment {}",
+                conflict.order_id
+            ));
+        }
+
+        let assignment = match self.schedule_repo.find_by_order(order_uuid.clone()).await? {
+            Some(_) => {
+                self.schedule_repo
+                    .update_assignment(
+                        order_uuid.clone(),
+                        assigned_user_uuid.clone(),
+                        start.clone(),
+                        end.clone(),
+                        payload.dispatch_note.clone(),
+                    )
+                    .await?
+            }
+            None => {
+                let schedule_status = ScheduleStatus::from_order_status(&order.status);
+                let new_assignment = ScheduleAssignment {
+                    uuid: String::new(),
+                    order_id: order_uuid.clone(),
+                    assigned_user_uuid: assigned_user_uuid.clone(),
+                    start_at: start.clone(),
+                    end_at: end.clone(),
+                    status: schedule_status,
+                    notes: payload.dispatch_note.clone(),
+                    inserted_at: Utc::now(),
+                    updated_at: Utc::now(),
+                };
+                self.schedule_repo.create_assignment(new_assignment).await?
+            }
+        };
+
         let update = OrderAssignmentUpdate {
-            assigned_user_uuid,
-            scheduled_start_at: start,
-            scheduled_end_at: end,
+            assigned_user_uuid: None,
+            scheduled_start_at: Some(start),
+            scheduled_end_at: Some(end),
             dispatch_note: payload.dispatch_note,
         };
-        let updated = self.order_repo.update_order_assignment(order_uuid, update).await?;
-        Ok(to_schedule_view(updated))
+        let updated = self
+            .order_repo
+            .update_order_assignment(order_uuid, update)
+            .await?;
+        Ok(build_schedule_view(updated, Some(assignment)))
     }
 
     pub async fn cancel_schedule(&self, order_uuid: String) -> Result<Schedule, String> {
@@ -93,13 +225,35 @@ impl<R: OrderRepository> ScheduleAppService<R> {
 
         let updated = self
             .order_repo
-            .update_order_status(order_uuid, target_order_status.as_str().to_string())
+            .update_order_status(order_uuid.clone(), target_order_status.as_str().to_string())
             .await?;
-        Ok(to_schedule_view(updated))
+        let assignment = self
+            .schedule_repo
+            .update_status(order_uuid.clone(), target_status)
+            .await?;
+        Ok(build_schedule_view(updated, assignment))
     }
 }
 
-fn to_schedule_view(order: DomainOrder) -> Schedule {
+fn build_schedule_view(order: DomainOrder, assignment: Option<ScheduleAssignment>) -> Schedule {
+    let assigned_user_uuid = assignment
+        .as_ref()
+        .map(|value| value.assigned_user_uuid.clone());
+    let scheduled_start_at = assignment
+        .as_ref()
+        .map(|value| parse_utc_time_to_string(value.start_at));
+    let scheduled_end_at = assignment
+        .as_ref()
+        .map(|value| parse_utc_time_to_string(value.end_at));
+    let dispatch_note = assignment.as_ref().and_then(|value| value.notes.clone());
+    let inserted_at = assignment
+        .as_ref()
+        .map(|value| parse_utc_time_to_string(value.inserted_at))
+        .unwrap_or_else(|| parse_utc_time_to_string(order.inserted_at));
+    let updated_at = assignment
+        .as_ref()
+        .map(|value| parse_utc_time_to_string(value.updated_at))
+        .unwrap_or_else(|| parse_utc_time_to_string(order.updated_at));
     Schedule {
         order_uuid: order.uuid,
         order_status: order.status.as_str().to_string(),
@@ -107,13 +261,13 @@ fn to_schedule_view(order: DomainOrder) -> Schedule {
             .as_str()
             .to_string(),
         contact_uuid: order.contact_uuid,
-        assigned_user_uuid: order.assigned_user_uuid,
-        scheduled_start_at: order.scheduled_start_at.map(parse_date_time_to_string),
-        scheduled_end_at: order.scheduled_end_at.map(parse_date_time_to_string),
-        dispatch_note: order.dispatch_note,
+        assigned_user_uuid,
+        scheduled_start_at,
+        scheduled_end_at,
+        dispatch_note,
         notes: order.notes,
-        inserted_at: parse_date_time_to_string(order.inserted_at),
-        updated_at: parse_date_time_to_string(order.updated_at),
+        inserted_at,
+        updated_at,
     }
 }
 

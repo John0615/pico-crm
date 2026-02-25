@@ -14,6 +14,7 @@ mod ssr {
     pub use backend::infrastructure::queries::order_query_impl::SeaOrmOrderQuery;
     pub use backend::infrastructure::queries::service_request_query_impl::SeaOrmServiceRequestQuery;
     pub use backend::infrastructure::repositories::order_repository_impl::SeaOrmOrderRepository;
+    pub use backend::infrastructure::repositories::schedule_repository_impl::SeaOrmScheduleRepository;
     pub use backend::infrastructure::repositories::service_request_repository_impl::SeaOrmServiceRequestRepository;
     pub use backend::infrastructure::tenant::TenantContext;
 }
@@ -77,11 +78,13 @@ pub async fn create_order_from_request(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo);
+    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
         .create_from_request(payload)
@@ -106,11 +109,13 @@ pub async fn update_order_status(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo);
+    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
         .update_status(uuid, payload)
@@ -135,11 +140,13 @@ pub async fn update_order_assignment(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo);
+    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
         .update_assignment(uuid, payload)
@@ -164,11 +171,13 @@ pub async fn update_order_settlement(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo);
+    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
         .update_settlement(uuid, payload)

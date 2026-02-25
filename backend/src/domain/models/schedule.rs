@@ -2,6 +2,19 @@ use chrono::{DateTime, Utc};
 
 use crate::domain::models::order::OrderStatus;
 
+#[derive(Debug, Clone)]
+pub struct ScheduleAssignment {
+    pub uuid: String,
+    pub order_id: String,
+    pub assigned_user_uuid: String,
+    pub start_at: DateTime<Utc>,
+    pub end_at: DateTime<Utc>,
+    pub status: ScheduleStatus,
+    pub notes: Option<String>,
+    pub inserted_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScheduleStatus {
     Planned,

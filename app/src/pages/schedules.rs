@@ -255,7 +255,6 @@ pub fn SchedulesPage() -> impl IntoView {
                 page_size: 200,
                 status: None,
                 contact_uuid: None,
-                assigned_user_uuid: None,
                 start_date: None,
                 end_date: None,
             };

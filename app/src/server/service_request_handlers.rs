@@ -4,6 +4,7 @@ use shared::service_request::{
     CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
     UpdateServiceRequestStatus,
 };
+#[cfg(feature = "ssr")]
 use shared::user::User;
 use shared::ListResult;
 

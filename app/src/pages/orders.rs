@@ -5,7 +5,6 @@ use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
 use crate::server::contact_handlers::{fetch_contacts, get_contact};
 use crate::server::order_handlers::{fetch_orders, update_order_status};
-use crate::server::user_handlers::{fetch_users, get_user};
 use crate::utils::api::call_api;
 use leptos::logging;
 use leptos::prelude::*;
@@ -14,7 +13,6 @@ use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::contact::{Contact, ContactQuery};
 use shared::order::{Order, OrderQuery, UpdateOrderStatus};
-use shared::user::{User, UserListQuery};
 use shared::ListResult;
 use std::collections::{HashMap, HashSet};
 
@@ -30,30 +28,26 @@ pub fn OrdersPage() -> impl IntoView {
     let refresh_count = RwSignal::new(0);
     let (status_filter, set_status_filter) = signal(String::new());
     let (contact_filter, set_contact_filter) = signal(String::new());
-    let (user_filter, set_user_filter) = signal(String::new());
     let date_start = RwSignal::new(String::new());
     let date_end = RwSignal::new(String::new());
 
     let show_detail_modal = RwSignal::new(false);
     let detail_order: RwSignal<Option<Order>> = RwSignal::new(None);
     let contact_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
-    let user_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
     let pending_contacts: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
-    let pending_users: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
 
     let data = Resource::new(
         move || {
             (
                 status_filter.get(),
                 contact_filter.get(),
-                user_filter.get(),
                 date_start.get(),
                 date_end.get(),
                 refresh_count.get(),
                 query.with(|value| value.clone()),
             )
         },
-        |(status, contact, user, start, end, _, query)| async move {
+        |(status, contact, start, end, _, query)| async move {
             let page = query
                 .get("page")
                 .unwrap_or_default()
@@ -70,7 +64,6 @@ pub fn OrdersPage() -> impl IntoView {
                 page_size,
                 status: (!status.is_empty()).then_some(status),
                 contact_uuid: (!contact.is_empty()).then_some(contact),
-                assigned_user_uuid: (!user.is_empty()).then_some(user),
                 start_date: (!start.is_empty()).then_some(start),
                 end_date: (!end.is_empty()).then_some(end),
             };
@@ -125,27 +118,6 @@ pub fn OrdersPage() -> impl IntoView {
         },
     );
 
-    let users = Resource::new(
-        move || (),
-        |_| async move {
-            let params = UserListQuery {
-                page: 1,
-                page_size: 200,
-                name: None,
-                role: Some("user".to_string()),
-                status: None,
-            };
-
-            match call_api(fetch_users(params)).await {
-                Ok(result) => result.items,
-                Err(err) => {
-                    logging::error!("Error loading users: {err}");
-                    Vec::new()
-                }
-            }
-        },
-    );
-
     Effect::new(move || {
         if let Some(items) = contacts.get() {
             let mut map = HashMap::new();
@@ -153,16 +125,6 @@ pub fn OrdersPage() -> impl IntoView {
                 map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
             }
             contact_labels.set(map);
-        }
-    });
-
-    Effect::new(move || {
-        if let Some(items) = users.get() {
-            let mut map = HashMap::new();
-            for user in items {
-                map.insert(user.uuid.clone(), user_display_label(&user));
-            }
-            user_labels.set(map);
         }
     });
 
@@ -206,51 +168,6 @@ pub fn OrdersPage() -> impl IntoView {
                 });
                 pending_contacts.update(|set| {
                     set.remove(&contact_id);
-                });
-            });
-        }
-    });
-
-    Effect::new(move || {
-        if cfg!(feature = "ssr") {
-            return;
-        }
-        let Some((items, _)) = data.get() else {
-            return;
-        };
-
-        let existing = user_labels.get();
-        let mut pending = pending_users.get();
-        let mut missing_ids: Vec<String> = Vec::new();
-        for order in &items {
-            let Some(user_id) = order.assigned_user_uuid.clone() else { continue };
-            if user_id.is_empty() {
-                continue;
-            }
-            if existing.contains_key(&user_id) || pending.contains(&user_id) {
-                continue;
-            }
-            pending.insert(user_id.clone());
-            missing_ids.push(user_id);
-        }
-        if missing_ids.is_empty() {
-            return;
-        }
-        pending_users.set(pending);
-
-        for user_id in missing_ids {
-            let user_labels = user_labels;
-            let pending_users = pending_users;
-            spawn_local(async move {
-                let label = match call_api(get_user(user_id.clone())).await {
-                    Ok(user) => user_display_label(&user),
-                    _ => "未知员工".to_string(),
-                };
-                user_labels.update(|map| {
-                    map.insert(user_id.clone(), label);
-                });
-                pending_users.update(|set| {
-                    set.remove(&user_id);
                 });
             });
         }
@@ -311,39 +228,6 @@ pub fn OrdersPage() -> impl IntoView {
                         />
                     </div>
                     <div class="flex flex-col gap-1">
-                        <span class="text-xs text-base-content/60">"员工"</span>
-                        <Transition fallback=move || view! {
-                            <select
-                                class="select select-bordered min-w-[200px]"
-                                prop:value=move || user_filter.get()
-                                on:change=move |ev| set_user_filter.set(event_target_value(&ev))
-                            >
-                                <option value="">"全部"</option>
-                            </select>
-                        }>
-                            {move || {
-                                let items = users.get().unwrap_or_default();
-                                let options = items
-                                    .into_iter()
-                                    .map(|user| {
-                                        let label = user_display_label(&user);
-                                        view! { <option value={user.uuid}>{label}</option> }
-                                    })
-                                    .collect::<Vec<_>>();
-                                view! {
-                                    <select
-                                        class="select select-bordered min-w-[200px]"
-                                        prop:value=move || user_filter.get()
-                                        on:change=move |ev| set_user_filter.set(event_target_value(&ev))
-                                    >
-                                        <option value="">"全部"</option>
-                                        {options}
-                                    </select>
-                                }
-                            }}
-                        </Transition>
-                    </div>
-                    <div class="flex flex-col gap-1">
                         <span class="text-xs text-base-content/60">"服务开始"</span>
                         <FlyonDatePicker value=date_start class="input input-bordered".to_string() />
                     </div>
@@ -383,33 +267,6 @@ pub fn OrdersPage() -> impl IntoView {
                                                 "加载中...".to_string()
                                             } else {
                                                 "未知客户".to_string()
-                                            }
-                                        })
-                                })
-                                .unwrap_or_else(|| "-".to_string());
-                            view! { <span class="text-xs">{label}</span> }
-                        }
-                    </Column>
-                    <Column
-                        slot:columns
-                        prop="assigned_user_uuid".to_string()
-                        label="员工".to_string()
-                    >
-                        {
-                            let item: Option<Order> = use_context::<Order>();
-                            let user_id = item.as_ref().and_then(|v| v.assigned_user_uuid.clone());
-                            let label = user_id
-                                .as_ref()
-                                .map(|id| {
-                                    user_labels
-                                        .get()
-                                        .get(id)
-                                        .cloned()
-                                        .unwrap_or_else(|| {
-                                            if pending_users.get().contains(id) {
-                                                "加载中...".to_string()
-                                            } else {
-                                                "未知员工".to_string()
                                             }
                                         })
                                 })
@@ -503,7 +360,6 @@ pub fn OrdersPage() -> impl IntoView {
                                 {detail_item("订单ID", order.uuid.clone())}
                                 {detail_item("需求单ID", display_optional(order.request_id.clone()))}
                                 {detail_item("客户UUID", display_optional(order.contact_uuid.clone()))}
-                                {detail_item("员工UUID", display_optional(order.assigned_user_uuid.clone()))}
                                 {detail_item("状态", order_status_label(&order.status).to_string())}
                                 {detail_item("结算状态", settlement_status_label(&order.settlement_status).to_string())}
                                 {detail_item("服务开始", display_optional(order.scheduled_start_at.clone()))}
@@ -555,16 +411,6 @@ fn contact_display_label(contact: &Contact) -> String {
         } else {
             label
         }
-    }
-}
-
-fn user_display_label(user: &User) -> String {
-    if let Some(phone) = user.phone_number.clone().filter(|value| !value.is_empty()) {
-        format!("{} ({})", user.user_name, phone)
-    } else if let Some(email) = user.email.clone().filter(|value| !value.is_empty()) {
-        format!("{} ({})", user.user_name, email)
-    } else {
-        user.user_name.clone()
     }
 }
 

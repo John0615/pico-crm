@@ -7,7 +7,8 @@ use sea_orm::entity::prelude::*;
 
 use crate::domain::models::schedule::ScheduleStatus;
 use crate::domain::queries::schedule::ScheduleQuery as DomainScheduleQuery;
-use crate::infrastructure::entity::orders::{Column, Entity};
+use crate::infrastructure::entity::orders::{Column as OrderColumn, Entity as OrderEntity};
+use crate::infrastructure::entity::schedules::{Column as ScheduleColumn, Entity as ScheduleEntity};
 use crate::infrastructure::mappers::schedule_mapper::ScheduleMapper;
 use crate::infrastructure::tenant::with_tenant_txn;
 use shared::schedule::Schedule as SharedSchedule;
@@ -36,16 +37,16 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
         async move {
             with_tenant_txn(&db, &schema_name, |txn| {
                 Box::pin(async move {
-                    let mut select = Entity::find();
+                    let mut select = OrderEntity::find().find_also_related(ScheduleEntity);
                     let mut condition = Condition::all();
-                    condition = condition.add(Column::Status.ne("pending"));
+                    condition = condition.add(OrderColumn::Status.ne("pending"));
 
                     if let Some(status) = query.status {
                         if !status.is_empty() {
                             let schedule_status = ScheduleStatus::parse(&status)?;
                             let mut status_condition = Condition::any();
                             for value in schedule_status.order_statuses() {
-                                status_condition = status_condition.add(Column::Status.eq(*value));
+                                status_condition = status_condition.add(OrderColumn::Status.eq(*value));
                             }
                             condition = condition.add(status_condition);
                         }
@@ -55,15 +56,15 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
                         if !user_uuid.is_empty() {
                             let user_uuid = Uuid::parse_str(&user_uuid)
                                 .map_err(|e| format!("invalid user uuid: {}", e))?;
-                            condition = condition.add(Column::AssignedUserUuid.eq(user_uuid));
+                            condition = condition.add(ScheduleColumn::AssignedUserUuid.eq(user_uuid));
                         }
                     }
 
                     if let Some(start) = query.start_date.as_deref().and_then(parse_datetime) {
-                        condition = condition.add(Column::ScheduledStartAt.gte(start));
+                        condition = condition.add(ScheduleColumn::StartAt.gte(start));
                     }
                     if let Some(end) = query.end_date.as_deref().and_then(parse_datetime) {
-                        condition = condition.add(Column::ScheduledStartAt.lte(end));
+                        condition = condition.add(ScheduleColumn::StartAt.lte(end));
                     }
 
                     select = select.filter(condition);
@@ -75,8 +76,8 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
                         .map_err(|e| format!("query schedules count error: {}", e))?;
 
                     let models = select
-                        .order_by_desc(Column::ScheduledStartAt)
-                        .order_by_desc(Column::InsertedAt)
+                        .order_by_desc(ScheduleColumn::StartAt)
+                        .order_by_desc(OrderColumn::InsertedAt)
                         .offset(Some((query.page - 1) * query.page_size))
                         .limit(Some(query.page_size))
                         .all(txn)
@@ -85,7 +86,7 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
 
                     let items = models
                         .into_iter()
-                        .map(ScheduleMapper::to_view)
+                        .map(|(order, schedule)| ScheduleMapper::to_view(order, schedule))
                         .collect();
 
                     Ok((items, total))
@@ -106,11 +107,13 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
                 Box::pin(async move {
                     let order_uuid = Uuid::parse_str(&uuid)
                         .map_err(|e| format!("invalid schedule uuid: {}", e))?;
-                    let model = Entity::find_by_id(order_uuid)
+                    let model = OrderEntity::find()
+                        .filter(OrderColumn::Uuid.eq(order_uuid))
+                        .find_also_related(ScheduleEntity)
                         .one(txn)
                         .await
                         .map_err(|e| format!("query schedule error: {}", e))?;
-                    Ok(model.map(ScheduleMapper::to_view))
+                    Ok(model.map(|(order, schedule)| ScheduleMapper::to_view(order, schedule)))
                 })
             })
             .await
