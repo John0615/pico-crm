@@ -63,7 +63,7 @@ pub fn OrdersPage() -> impl IntoView {
                 page,
                 page_size,
                 status: (!status.is_empty()).then_some(status),
-                contact_uuid: (!contact.is_empty()).then_some(contact),
+                customer_uuid: (!contact.is_empty()).then_some(contact),
                 start_date: (!start.is_empty()).then_some(start),
                 end_date: (!end.is_empty()).then_some(end),
             };
@@ -140,7 +140,7 @@ pub fn OrdersPage() -> impl IntoView {
         let mut pending = pending_contacts.get();
         let mut missing_ids: Vec<String> = Vec::new();
         for order in &items {
-            let Some(contact_id) = order.contact_uuid.clone() else { continue };
+            let Some(contact_id) = order.customer_uuid.clone() else { continue };
             if contact_id.is_empty() {
                 continue;
             }
@@ -251,10 +251,11 @@ pub fn OrdersPage() -> impl IntoView {
                             view! { <span class="text-xs">{item.as_ref().map(|v| v.uuid.clone()).unwrap_or_default()}</span> }
                         }
                     </Column>
-                    <Column slot:columns prop="contact_uuid".to_string() label="客户".to_string()>
+                    <Column slot:columns prop="customer_uuid".to_string() label="客户".to_string()>
                         {
                             let item: Option<Order> = use_context::<Order>();
-                            let contact_id = item.as_ref().and_then(|v| v.contact_uuid.clone());
+                            let contact_id = item.as_ref().and_then(|v| v.customer_uuid.clone());
+                            let fallback = item.as_ref().and_then(|v| v.customer_name.clone());
                             let label = contact_id
                                 .as_ref()
                                 .map(|id| {
@@ -262,6 +263,7 @@ pub fn OrdersPage() -> impl IntoView {
                                         .get()
                                         .get(id)
                                         .cloned()
+                                        .or(fallback.clone())
                                         .unwrap_or_else(|| {
                                             if pending_contacts.get().contains(id) {
                                                 "加载中...".to_string()
@@ -355,11 +357,17 @@ pub fn OrdersPage() -> impl IntoView {
                 <h3 class="text-lg font-semibold">"订单详情"</h3>
                 {move || {
                     if let Some(order) = detail_order.get() {
+                        let customer_name = order
+                            .customer_name
+                            .clone()
+                            .filter(|value| !value.trim().is_empty())
+                            .unwrap_or_else(|| "未知客户".to_string());
                         view! {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {detail_item("订单ID", order.uuid.clone())}
                                 {detail_item("需求单ID", display_optional(order.request_id.clone()))}
-                                {detail_item("客户UUID", display_optional(order.contact_uuid.clone()))}
+                                {detail_item("客户", customer_name)}
+                                {detail_item("客户UUID", display_optional(order.customer_uuid.clone()))}
                                 {detail_item("状态", order_status_label(&order.status).to_string())}
                                 {detail_item("结算状态", settlement_status_label(&order.settlement_status).to_string())}
                                 {detail_item("服务开始", display_optional(order.scheduled_start_at.clone()))}

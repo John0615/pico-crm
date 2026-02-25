@@ -79,7 +79,7 @@ impl MerchantDashboardQueryService {
                     };
 
                     let contacts_map =
-                        count_by_bucket(txn, "contacts", "inserted_at", start, end, &granularity, None)
+                        count_by_bucket(txn, "customers", "inserted_at", start, end, &granularity, None)
                             .await?;
                     let requests_map = count_by_bucket(
                         txn,

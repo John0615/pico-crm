@@ -4,9 +4,10 @@ use sea_orm::entity::prelude::*;
 use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "contacts")]
+#[sea_orm(table_name = "customers")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
+    #[sea_orm(column_name = "uuid")]
     pub contact_uuid: Uuid,
     pub user_name: String,
     pub company: String,

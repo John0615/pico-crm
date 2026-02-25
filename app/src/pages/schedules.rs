@@ -254,7 +254,7 @@ pub fn SchedulesPage() -> impl IntoView {
                 page: 1,
                 page_size: 200,
                 status: None,
-                contact_uuid: None,
+                customer_uuid: None,
                 start_date: None,
                 end_date: None,
             };
@@ -395,7 +395,7 @@ pub fn SchedulesPage() -> impl IntoView {
         let mut pending = pending_contacts.get();
         let mut missing_ids: Vec<String> = Vec::new();
         for schedule in &items {
-            let Some(contact_id) = schedule.contact_uuid.clone() else { continue };
+            let Some(contact_id) = schedule.customer_uuid.clone() else { continue };
             if contact_id.is_empty() {
                 continue;
             }
@@ -1120,10 +1120,10 @@ pub fn SchedulesPage() -> impl IntoView {
                             view! { <span class="text-xs">{item.as_ref().map(|v| v.order_uuid.clone()).unwrap_or_default()}</span> }
                         }
                     </Column>
-                    <Column slot:columns prop="contact_uuid".to_string() label="客户".to_string()>
+                    <Column slot:columns prop="customer_uuid".to_string() label="客户".to_string()>
                         {
                             let item: Option<Schedule> = use_context::<Schedule>();
-                            let contact_id = item.as_ref().and_then(|v| v.contact_uuid.clone());
+                            let contact_id = item.as_ref().and_then(|v| v.customer_uuid.clone());
                             let label = contact_id
                                 .as_ref()
                                 .map(|id| {
@@ -1600,7 +1600,7 @@ pub fn SchedulesPage() -> impl IntoView {
                         view! {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {detail_item("订单ID", schedule.order_uuid.clone())}
-                                {detail_item("客户UUID", display_optional(schedule.contact_uuid.clone()))}
+                                {detail_item("客户UUID", display_optional(schedule.customer_uuid.clone()))}
                                 {detail_item("员工UUID", display_optional(schedule.assigned_user_uuid.clone()))}
                                 {detail_item("排班状态", schedule.schedule_status.clone())}
                                 {detail_item("订单状态", schedule.order_status.clone())}
@@ -1698,7 +1698,7 @@ fn order_option_label(
     pending_contacts: &HashSet<String>,
 ) -> String {
     let contact_label = order
-        .contact_uuid
+        .customer_uuid
         .as_ref()
         .map(|id| {
             contact_labels.get(id).cloned().unwrap_or_else(|| {
@@ -2131,7 +2131,7 @@ fn schedule_contact_label(
     contact_labels: &HashMap<String, String>,
     pending_contacts: &HashSet<String>,
 ) -> String {
-    let Some(contact_id) = schedule.contact_uuid.clone() else {
+    let Some(contact_id) = schedule.customer_uuid.clone() else {
         return "未关联客户".to_string();
     };
     if contact_id.is_empty() {

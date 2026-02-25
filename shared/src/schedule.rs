@@ -5,7 +5,7 @@ pub struct Schedule {
     pub order_uuid: String,
     pub order_status: String,
     pub schedule_status: String,
-    pub contact_uuid: Option<String>,
+    pub customer_uuid: Option<String>,
     pub assigned_user_uuid: Option<String>,
     pub scheduled_start_at: Option<String>,
     pub scheduled_end_at: Option<String>,

@@ -260,7 +260,7 @@ fn build_schedule_view(order: DomainOrder, assignment: Option<ScheduleAssignment
         schedule_status: ScheduleStatus::from_order_status(&order.status)
             .as_str()
             .to_string(),
-        contact_uuid: order.contact_uuid,
+        customer_uuid: order.customer_uuid,
         assigned_user_uuid,
         scheduled_start_at,
         scheduled_end_at,

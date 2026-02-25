@@ -58,7 +58,7 @@ where
 
         let order = DomainOrder::new_from_request(
             payload.request_id.clone(),
-            request.contact_uuid.clone(),
+            request.customer_uuid.clone(),
             payload.notes,
         );
         order.verify()?;

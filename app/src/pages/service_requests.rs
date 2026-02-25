@@ -43,7 +43,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
 
     let show_modal = RwSignal::new(false);
     let editing_request: RwSignal<Option<ServiceRequest>> = RwSignal::new(None);
-    let contact_uuid = RwSignal::new(String::new());
+    let customer_uuid = RwSignal::new(String::new());
     let service_content = RwSignal::new(String::new());
     let appointment_start_at = RwSignal::new(String::new());
     let appointment_end_at = RwSignal::new(String::new());
@@ -139,7 +139,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 page,
                 page_size,
                 status: (!status.is_empty()).then_some(status),
-                contact_uuid: (!contact.is_empty()).then_some(contact),
+                customer_uuid: (!contact.is_empty()).then_some(contact),
                 start_date: (!start.is_empty()).then_some(start),
                 end_date: (!end.is_empty()).then_some(end),
             };
@@ -176,14 +176,16 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         let mut pending = pending_contacts.get();
         let mut missing_ids: Vec<String> = Vec::new();
         for request in items {
-            if request.contact_uuid.is_empty() {
+            if request.customer_uuid.is_empty() {
                 continue;
             }
-            if existing.contains_key(&request.contact_uuid) || pending.contains(&request.contact_uuid) {
+            if existing.contains_key(&request.customer_uuid)
+                || pending.contains(&request.customer_uuid)
+            {
                 continue;
             }
-            pending.insert(request.contact_uuid.clone());
-            missing_ids.push(request.contact_uuid);
+            pending.insert(request.customer_uuid.clone());
+            missing_ids.push(request.customer_uuid);
         }
         if missing_ids.is_empty() {
             return;
@@ -259,7 +261,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
 
     let open_create_modal = move |_| {
         editing_request.set(None);
-        contact_uuid.set(String::new());
+        customer_uuid.set(String::new());
         service_content.set(String::new());
         appointment_start_at.set(String::new());
         appointment_end_at.set(String::new());
@@ -268,7 +270,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     };
 
     let open_edit_modal = move |request: ServiceRequest| {
-        contact_uuid.set(request.contact_uuid.clone());
+        customer_uuid.set(request.customer_uuid.clone());
         service_content.set(request.service_content.clone());
         appointment_start_at.set(to_datetime_local(request.appointment_start_at.clone()));
         appointment_end_at.set(to_datetime_local(request.appointment_end_at.clone()));
@@ -278,7 +280,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     };
 
     let submit_request = move |_| {
-        if contact_uuid.get().trim().is_empty() {
+        if customer_uuid.get().trim().is_empty() {
             error("请选择客户".to_string());
             return;
         }
@@ -299,7 +301,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
             .into()
         } else {
             CreateServiceRequest {
-                contact_uuid: contact_uuid.get(),
+                customer_uuid: customer_uuid.get(),
                 service_content: service_content.get(),
                 appointment_start_at: normalize_datetime_local(&appointment_start_at.get()),
                 appointment_end_at: normalize_datetime_local(&appointment_end_at.get()),
@@ -447,10 +449,13 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                             view! { <span>{item.as_ref().map(|v| v.service_content.clone()).unwrap_or_default()}</span> }
                         }
                     </Column>
-                    <Column slot:columns prop="contact_uuid".to_string() label="客户".to_string()>
+                    <Column slot:columns prop="customer_uuid".to_string() label="客户".to_string()>
                         {
                             let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
-                            let contact_id = item.as_ref().map(|v| v.contact_uuid.clone()).unwrap_or_default();
+                            let contact_id = item
+                                .as_ref()
+                                .map(|v| v.customer_uuid.clone())
+                                .unwrap_or_default();
                             let fallback = item
                                 .as_ref()
                                 .and_then(|value| value.contact_name.clone());
@@ -594,8 +599,8 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                     <Transition fallback=move || view! {
                         <select
                             class="select select-bordered w-full"
-                            prop:value=move || contact_uuid.get()
-                            on:change=move |ev| contact_uuid.set(event_target_value(&ev))
+                            prop:value=move || customer_uuid.get()
+                            on:change=move |ev| customer_uuid.set(event_target_value(&ev))
                             disabled=move || editing_request.with(|value| value.is_some())
                         >
                             <option value="">"请选择客户"</option>
@@ -613,8 +618,8 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                             view! {
                                 <select
                                     class="select select-bordered w-full"
-                                    prop:value=move || contact_uuid.get()
-                                    on:change=move |ev| contact_uuid.set(event_target_value(&ev))
+                                    prop:value=move || customer_uuid.get()
+                                    on:change=move |ev| customer_uuid.set(event_target_value(&ev))
                                     disabled=move || editing_request.with(|value| value.is_some())
                                 >
                                     <option value="">"请选择客户"</option>

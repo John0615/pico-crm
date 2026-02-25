@@ -4,8 +4,10 @@ use sea_orm::{
     QueryOrder, QuerySelect,
 };
 use sea_orm::entity::prelude::*;
+use std::collections::{HashMap, HashSet};
 
 use crate::domain::queries::order::OrderQuery as DomainOrderQuery;
+use crate::infrastructure::entity::contacts::{Column as ContactColumn, Entity as ContactEntity};
 use crate::infrastructure::entity::orders::{Column, Entity};
 use crate::infrastructure::mappers::order_mapper::OrderMapper;
 use crate::infrastructure::tenant::with_tenant_txn;
@@ -44,11 +46,11 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                         }
                     }
 
-                    if let Some(contact_uuid) = query.contact_uuid {
-                        if !contact_uuid.is_empty() {
-                            let contact_uuid = Uuid::parse_str(&contact_uuid)
-                                .map_err(|e| format!("invalid contact uuid: {}", e))?;
-                            condition = condition.add(Column::ContactUuid.eq(contact_uuid));
+                    if let Some(customer_uuid) = query.customer_uuid {
+                        if !customer_uuid.is_empty() {
+                            let customer_uuid = Uuid::parse_str(&customer_uuid)
+                                .map_err(|e| format!("invalid customer uuid: {}", e))?;
+                            condition = condition.add(Column::CustomerUuid.eq(customer_uuid));
                         }
                     }
 
@@ -75,7 +77,34 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                         .await
                         .map_err(|e| format!("query orders error: {}", e))?;
 
-                    let items = models.into_iter().map(OrderMapper::to_view).collect();
+                    let customer_ids: HashSet<Uuid> = models
+                        .iter()
+                        .filter_map(|model| model.customer_uuid)
+                        .collect();
+
+                    let mut customer_map: HashMap<Uuid, String> = HashMap::new();
+                    if !customer_ids.is_empty() {
+                        let customers = ContactEntity::find()
+                            .filter(ContactColumn::ContactUuid.is_in(customer_ids.clone()))
+                            .all(txn)
+                            .await
+                            .map_err(|e| format!("query customers error: {}", e))?;
+                        for customer in customers {
+                            customer_map.insert(customer.contact_uuid, customer.user_name);
+                        }
+                    }
+
+                    let items = models
+                        .into_iter()
+                        .map(|model| {
+                            let customer_uuid = model.customer_uuid;
+                            let mut view = OrderMapper::to_view(model);
+                            if let Some(customer_uuid) = customer_uuid {
+                                view.customer_name = customer_map.get(&customer_uuid).cloned();
+                            }
+                            view
+                        })
+                        .collect();
 
                     Ok((items, total))
                 })
@@ -99,7 +128,23 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                         .one(txn)
                         .await
                         .map_err(|e| format!("query order error: {}", e))?;
-                    Ok(model.map(OrderMapper::to_view))
+                    let Some(model) = model else {
+                        return Ok(None);
+                    };
+
+                    let customer_name = match model.customer_uuid {
+                        Some(customer_uuid) => ContactEntity::find()
+                            .filter(ContactColumn::ContactUuid.eq(customer_uuid))
+                            .one(txn)
+                            .await
+                            .map_err(|e| format!("query customer error: {}", e))?
+                            .map(|customer| customer.user_name),
+                        None => None,
+                    };
+
+                    let mut view = OrderMapper::to_view(model);
+                    view.customer_name = customer_name;
+                    Ok(Some(view))
                 })
             })
             .await

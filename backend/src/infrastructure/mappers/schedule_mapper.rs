@@ -39,7 +39,7 @@ impl ScheduleMapper {
             order_uuid: order.uuid.to_string(),
             order_status,
             schedule_status,
-            contact_uuid: order.contact_uuid.map(|value| value.to_string()),
+            customer_uuid: order.customer_uuid.map(|value| value.to_string()),
             assigned_user_uuid,
             scheduled_start_at,
             scheduled_end_at,

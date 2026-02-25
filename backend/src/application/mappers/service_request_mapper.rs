@@ -6,7 +6,7 @@ impl From<DomainServiceRequest> for SharedServiceRequest {
     fn from(request: DomainServiceRequest) -> Self {
         Self {
             uuid: request.uuid,
-            contact_uuid: request.contact_uuid,
+            customer_uuid: request.customer_uuid,
             creator_uuid: request.creator_uuid,
             contact_name: None,
             creator_name: None,

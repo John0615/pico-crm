@@ -47,11 +47,11 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                         }
                     }
 
-                    if let Some(contact_uuid) = query.contact_uuid {
-                        if !contact_uuid.is_empty() {
-                            let contact_uuid = Uuid::parse_str(&contact_uuid)
-                                .map_err(|e| format!("invalid contact uuid: {}", e))?;
-                            condition = condition.add(Column::ContactUuid.eq(contact_uuid));
+                    if let Some(customer_uuid) = query.customer_uuid {
+                        if !customer_uuid.is_empty() {
+                            let customer_uuid = Uuid::parse_str(&customer_uuid)
+                                .map_err(|e| format!("invalid customer uuid: {}", e))?;
+                            condition = condition.add(Column::CustomerUuid.eq(customer_uuid));
                         }
                     }
 
@@ -78,15 +78,15 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                         .await
                         .map_err(|e| format!("query service requests error: {}", e))?;
 
-                    let contact_ids: HashSet<Uuid> =
-                        models.iter().map(|model| model.contact_uuid).collect();
+                    let customer_ids: HashSet<Uuid> =
+                        models.iter().map(|model| model.customer_uuid).collect();
                     let user_ids: HashSet<Uuid> =
                         models.iter().map(|model| model.creator_uuid).collect();
 
                     let mut contact_map: HashMap<Uuid, String> = HashMap::new();
-                    if !contact_ids.is_empty() {
+                    if !customer_ids.is_empty() {
                         let contacts = ContactEntity::find()
-                            .filter(ContactColumn::ContactUuid.is_in(contact_ids.clone()))
+                            .filter(ContactColumn::ContactUuid.is_in(customer_ids.clone()))
                             .all(txn)
                             .await
                             .map_err(|e| format!("query contacts error: {}", e))?;
@@ -110,10 +110,10 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                     let items = models
                         .into_iter()
                         .map(|model| {
-                            let contact_uuid = model.contact_uuid;
+                            let customer_uuid = model.customer_uuid;
                             let creator_uuid = model.creator_uuid;
                             let mut view = ServiceRequestMapper::to_view(model);
-                            view.contact_name = contact_map.get(&contact_uuid).cloned();
+                            view.contact_name = contact_map.get(&customer_uuid).cloned();
                             view.creator_name = user_map.get(&creator_uuid).cloned();
                             view
                         })
@@ -146,7 +146,7 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                     };
 
                     let contact_name = ContactEntity::find()
-                        .filter(ContactColumn::ContactUuid.eq(model.contact_uuid))
+                        .filter(ContactColumn::ContactUuid.eq(model.customer_uuid))
                         .one(txn)
                         .await
                         .map_err(|e| format!("query contact error: {}", e))?

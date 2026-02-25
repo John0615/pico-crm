@@ -16,7 +16,8 @@ impl OrderMapper {
         SharedOrder {
             uuid: entity.uuid.to_string(),
             request_id: entity.request_id.map(|value| value.to_string()),
-            contact_uuid: entity.contact_uuid.map(|value| value.to_string()),
+            customer_uuid: entity.customer_uuid.map(|value| value.to_string()),
+            customer_name: None,
             scheduled_start_at: entity.scheduled_start_at.map(parse_date_time_to_string),
             scheduled_end_at: entity.scheduled_end_at.map(parse_date_time_to_string),
             status: entity.status,
@@ -37,7 +38,7 @@ impl OrderMapper {
         Order {
             uuid: entity.uuid.to_string(),
             request_id: entity.request_id.map(|value| value.to_string()),
-            contact_uuid: entity.contact_uuid.map(|value| value.to_string()),
+            customer_uuid: entity.customer_uuid.map(|value| value.to_string()),
             scheduled_start_at: entity.scheduled_start_at,
             scheduled_end_at: entity.scheduled_end_at,
             status,
@@ -54,12 +55,13 @@ impl OrderMapper {
     pub fn to_active_entity(order: Order) -> ActiveModel {
         ActiveModel {
             uuid: Set(Uuid::parse_str(&order.uuid).expect("Invalid UUID")),
-            customer_id: Set(None),
+            customer_uuid: Set(order.customer_uuid.as_ref().map(|value| {
+                Uuid::parse_str(value).expect("Invalid customer UUID")
+            })),
             status: Set(order.status.as_str().to_string()),
             amount_cents: Set(order.amount_cents),
             notes: Set(order.notes),
             request_id: Set(order.request_id.map(|value| Uuid::parse_str(&value).expect("Invalid request UUID"))),
-            contact_uuid: Set(order.contact_uuid.map(|value| Uuid::parse_str(&value).expect("Invalid contact UUID"))),
             scheduled_start_at: Set(order.scheduled_start_at),
             scheduled_end_at: Set(order.scheduled_end_at),
             dispatch_note: Set(order.dispatch_note),

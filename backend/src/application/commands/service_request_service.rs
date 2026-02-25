@@ -25,7 +25,7 @@ impl<R: ServiceRequestRepository> ServiceRequestAppService<R> {
         let appointment_start_at = parse_datetime(request.appointment_start_at.as_deref());
         let appointment_end_at = parse_datetime(request.appointment_end_at.as_deref());
         let service_request = DomainServiceRequest::new(
-            request.contact_uuid,
+            request.customer_uuid,
             creator_uuid,
             request.service_content,
             appointment_start_at,

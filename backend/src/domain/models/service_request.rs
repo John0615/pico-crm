@@ -4,7 +4,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct ServiceRequest {
     pub uuid: String,
-    pub contact_uuid: String,
+    pub customer_uuid: String,
     pub creator_uuid: String,
     pub service_content: String,
     pub appointment_start_at: Option<DateTime<Utc>>,
@@ -95,7 +95,7 @@ impl ServiceRequestSource {
 
 impl ServiceRequest {
     pub fn new(
-        contact_uuid: String,
+        customer_uuid: String,
         creator_uuid: String,
         service_content: String,
         appointment_start_at: Option<DateTime<Utc>>,
@@ -105,7 +105,7 @@ impl ServiceRequest {
         let now = Utc::now();
         let request = Self {
             uuid: Uuid::new_v4().to_string(),
-            contact_uuid,
+            customer_uuid,
             creator_uuid,
             service_content,
             appointment_start_at,
@@ -121,8 +121,8 @@ impl ServiceRequest {
     }
 
     pub fn verify(&self) -> Result<(), String> {
-        if self.contact_uuid.trim().is_empty() {
-            return Err("Contact is required".to_string());
+        if self.customer_uuid.trim().is_empty() {
+            return Err("Customer is required".to_string());
         }
         if self.creator_uuid.trim().is_empty() {
             return Err("Creator is required".to_string());

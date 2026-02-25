@@ -5,7 +5,7 @@ use uuid::Uuid;
 pub struct Order {
     pub uuid: String,
     pub request_id: Option<String>,
-    pub contact_uuid: Option<String>,
+    pub customer_uuid: Option<String>,
     pub scheduled_start_at: Option<DateTime<Utc>>,
     pub scheduled_end_at: Option<DateTime<Utc>>,
     pub status: OrderStatus,
@@ -85,12 +85,12 @@ impl SettlementStatus {
 }
 
 impl Order {
-    pub fn new_from_request(request_id: String, contact_uuid: String, notes: Option<String>) -> Self {
+    pub fn new_from_request(request_id: String, customer_uuid: String, notes: Option<String>) -> Self {
         let now = Utc::now();
         Self {
             uuid: Uuid::new_v4().to_string(),
             request_id: Some(request_id),
-            contact_uuid: Some(contact_uuid),
+            customer_uuid: Some(customer_uuid),
             scheduled_start_at: None,
             scheduled_end_at: None,
             status: OrderStatus::Pending,
@@ -108,8 +108,8 @@ impl Order {
         if self.request_id.as_ref().map(|v| v.trim().is_empty()).unwrap_or(true) {
             return Err("Request id is required".to_string());
         }
-        if self.contact_uuid.as_ref().map(|v| v.trim().is_empty()).unwrap_or(true) {
-            return Err("Contact is required".to_string());
+        if self.customer_uuid.as_ref().map(|v| v.trim().is_empty()).unwrap_or(true) {
+            return Err("Customer is required".to_string());
         }
         if let (Some(start), Some(end)) = (self.scheduled_start_at, self.scheduled_end_at) {
             if end <= start {

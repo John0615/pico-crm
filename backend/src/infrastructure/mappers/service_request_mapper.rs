@@ -15,7 +15,7 @@ impl ServiceRequestMapper {
     pub fn to_view(entity: Model) -> SharedServiceRequest {
         SharedServiceRequest {
             uuid: entity.uuid.to_string(),
-            contact_uuid: entity.contact_uuid.to_string(),
+            customer_uuid: entity.customer_uuid.to_string(),
             creator_uuid: entity.creator_uuid.to_string(),
             contact_name: None,
             creator_name: None,
@@ -39,7 +39,7 @@ impl ServiceRequestMapper {
             .unwrap_or(ServiceRequestSource::SalesManual);
         ServiceRequest {
             uuid: entity.uuid.to_string(),
-            contact_uuid: entity.contact_uuid.to_string(),
+            customer_uuid: entity.customer_uuid.to_string(),
             creator_uuid: entity.creator_uuid.to_string(),
             service_content: entity.service_content,
             appointment_start_at: entity.appointment_start_at,
@@ -55,7 +55,9 @@ impl ServiceRequestMapper {
     pub fn to_active_entity(request: ServiceRequest) -> ActiveModel {
         ActiveModel {
             uuid: Set(Uuid::parse_str(&request.uuid).expect("Invalid UUID")),
-            contact_uuid: Set(Uuid::parse_str(&request.contact_uuid).expect("Invalid contact UUID")),
+            customer_uuid: Set(
+                Uuid::parse_str(&request.customer_uuid).expect("Invalid customer UUID"),
+            ),
             creator_uuid: Set(Uuid::parse_str(&request.creator_uuid).expect("Invalid creator UUID")),
             service_content: Set(request.service_content),
             appointment_start_at: Set(request.appointment_start_at),
