@@ -17,6 +17,8 @@ impl ServiceRequestMapper {
             uuid: entity.uuid.to_string(),
             contact_uuid: entity.contact_uuid.to_string(),
             creator_uuid: entity.creator_uuid.to_string(),
+            contact_name: None,
+            creator_name: None,
             service_content: entity.service_content,
             appointment_start_at: entity
                 .appointment_start_at

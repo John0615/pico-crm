@@ -9,7 +9,7 @@ use crate::server::service_request_handlers::{
     create_service_request, fetch_service_requests, update_service_request,
     update_service_request_status,
 };
-use crate::server::user_handlers::get_user;
+use crate::server::user_handlers::{fetch_users, get_user};
 use crate::utils::api::call_api;
 use leptos::logging;
 use leptos::prelude::*;
@@ -23,7 +23,7 @@ use shared::service_request::{
     CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
     UpdateServiceRequestStatus,
 };
-use shared::user::User;
+use shared::user::{User, UserListQuery};
 use shared::ListResult;
 
 impl Identifiable for ServiceRequest {
@@ -72,6 +72,26 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         },
     );
 
+    let users = Resource::new(
+        move || (),
+        |_| async move {
+            let params = UserListQuery {
+                page: 1,
+                page_size: 200,
+                name: None,
+                role: None,
+                status: None,
+            };
+            match call_api(fetch_users(params)).await {
+                Ok(result) => result.items,
+                Err(err) => {
+                    logging::error!("Error loading users: {err}");
+                    Vec::new()
+                }
+            }
+        },
+    );
+
     Effect::new(move || {
         if let Some(items) = contacts.get() {
             let mut map = HashMap::new();
@@ -79,6 +99,16 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
             }
             contact_labels.set(map);
+        }
+    });
+
+    Effect::new(move || {
+        if let Some(items) = users.get() {
+            let mut map = HashMap::new();
+            for user in items {
+                map.insert(user.uuid.clone(), user_display_label(&user));
+            }
+            user_labels.set(map);
         }
     });
 
@@ -421,10 +451,14 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                         {
                             let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
                             let contact_id = item.as_ref().map(|v| v.contact_uuid.clone()).unwrap_or_default();
+                            let fallback = item
+                                .as_ref()
+                                .and_then(|value| value.contact_name.clone());
                             let label = contact_labels
                                 .get()
                                 .get(&contact_id)
                                 .cloned()
+                                .or(fallback)
                                 .unwrap_or_else(|| {
                                     if pending_contacts.get().contains(&contact_id) {
                                         "加载中...".to_string()
@@ -439,10 +473,14 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                         {
                             let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
                             let user_id = item.as_ref().map(|v| v.creator_uuid.clone()).unwrap_or_default();
+                            let fallback = item
+                                .as_ref()
+                                .and_then(|value| value.creator_name.clone());
                             let label = user_labels
                                 .get()
                                 .get(&user_id)
                                 .cloned()
+                                .or(fallback)
                                 .unwrap_or_else(|| {
                                     if pending_users.get().contains(&user_id) {
                                         "加载中...".to_string()

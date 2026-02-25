@@ -4,9 +4,12 @@ use sea_orm::{
     QueryOrder, QuerySelect,
 };
 use sea_orm::entity::prelude::*;
+use std::collections::{HashMap, HashSet};
 
 use crate::domain::queries::service_request::ServiceRequestQuery as DomainServiceRequestQuery;
+use crate::infrastructure::entity::contacts::{Column as ContactColumn, Entity as ContactEntity};
 use crate::infrastructure::entity::service_requests::{Column, Entity};
+use crate::infrastructure::entity::users::{Column as UserColumn, Entity as UserEntity};
 use crate::infrastructure::mappers::service_request_mapper::ServiceRequestMapper;
 use crate::infrastructure::tenant::with_tenant_txn;
 use shared::service_request::ServiceRequest as SharedServiceRequest;
@@ -75,9 +78,45 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                         .await
                         .map_err(|e| format!("query service requests error: {}", e))?;
 
+                    let contact_ids: HashSet<Uuid> =
+                        models.iter().map(|model| model.contact_uuid).collect();
+                    let user_ids: HashSet<Uuid> =
+                        models.iter().map(|model| model.creator_uuid).collect();
+
+                    let mut contact_map: HashMap<Uuid, String> = HashMap::new();
+                    if !contact_ids.is_empty() {
+                        let contacts = ContactEntity::find()
+                            .filter(ContactColumn::ContactUuid.is_in(contact_ids.clone()))
+                            .all(txn)
+                            .await
+                            .map_err(|e| format!("query contacts error: {}", e))?;
+                        for contact in contacts {
+                            contact_map.insert(contact.contact_uuid, contact.user_name);
+                        }
+                    }
+
+                    let mut user_map: HashMap<Uuid, String> = HashMap::new();
+                    if !user_ids.is_empty() {
+                        let users = UserEntity::find()
+                            .filter(UserColumn::Uuid.is_in(user_ids.clone()))
+                            .all(txn)
+                            .await
+                            .map_err(|e| format!("query users error: {}", e))?;
+                        for user in users {
+                            user_map.insert(user.uuid, user.user_name);
+                        }
+                    }
+
                     let items = models
                         .into_iter()
-                        .map(ServiceRequestMapper::to_view)
+                        .map(|model| {
+                            let contact_uuid = model.contact_uuid;
+                            let creator_uuid = model.creator_uuid;
+                            let mut view = ServiceRequestMapper::to_view(model);
+                            view.contact_name = contact_map.get(&contact_uuid).cloned();
+                            view.creator_name = user_map.get(&creator_uuid).cloned();
+                            view
+                        })
                         .collect();
 
                     Ok((items, total))
@@ -102,7 +141,28 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                         .one(txn)
                         .await
                         .map_err(|e| format!("query service request error: {}", e))?;
-                    Ok(model.map(ServiceRequestMapper::to_view))
+                    let Some(model) = model else {
+                        return Ok(None);
+                    };
+
+                    let contact_name = ContactEntity::find()
+                        .filter(ContactColumn::ContactUuid.eq(model.contact_uuid))
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("query contact error: {}", e))?
+                        .map(|contact| contact.user_name);
+
+                    let creator_name = UserEntity::find()
+                        .filter(UserColumn::Uuid.eq(model.creator_uuid))
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("query user error: {}", e))?
+                        .map(|user| user.user_name);
+
+                    let mut view = ServiceRequestMapper::to_view(model);
+                    view.contact_name = contact_name;
+                    view.creator_name = creator_name;
+                    Ok(Some(view))
                 })
             })
             .await
