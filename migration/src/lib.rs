@@ -16,6 +16,7 @@ mod m20260225_000001_fill_orders_customer_from_contact;
 mod m20260225_000002_rename_orders_customer_uuid;
 mod m20260225_000003_rename_service_requests_customer_uuid;
 mod m20260225_000004_backfill_orders_customer_uuid_from_requests;
+mod m20260225_000005_drop_customer_extra_fields;
 mod m20260201_000004_create_tenant_tables;
 mod m20260201_000005_add_user_tenant_columns;
 
@@ -37,6 +38,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260225_000002_rename_orders_customer_uuid::Migration),
             Box::new(m20260225_000003_rename_service_requests_customer_uuid::Migration),
             Box::new(m20260225_000004_backfill_orders_customer_uuid_from_requests::Migration),
+            Box::new(m20260225_000005_drop_customer_extra_fields::Migration),
         ]
     }
 }
@@ -78,6 +80,7 @@ impl MigratorTrait for TenantMigrator {
             Box::new(m20260225_000002_rename_orders_customer_uuid::Migration),
             Box::new(m20260225_000003_rename_service_requests_customer_uuid::Migration),
             Box::new(m20260225_000004_backfill_orders_customer_uuid_from_requests::Migration),
+            Box::new(m20260225_000005_drop_customer_extra_fields::Migration),
         ]
     }
 }

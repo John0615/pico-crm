@@ -4,10 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct Contact {
     pub contact_uuid: String,
     pub user_name: String,
-    pub company: String,
-    pub position: String,
     pub phone_number: String,
-    pub email: String,
     pub last_contact: String,
     pub value_level: i32,
     pub status: i32,
@@ -19,10 +16,7 @@ pub struct Contact {
 pub struct UpdateContact {
     pub contact_uuid: String,
     pub user_name: String,
-    pub company: String,
-    pub position: String,
     pub phone_number: String,
-    pub email: String,
     pub value_level: i32,
     pub status: i32,
 }
@@ -53,7 +47,6 @@ pub struct SortOption {
 pub struct ContactFilters {
     pub user_name: Option<String>,
     pub status: Option<String>,
-    pub email: Option<String>,
     pub phone_number: Option<String>,
 }
 

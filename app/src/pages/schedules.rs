@@ -876,7 +876,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                 }>
                                     {move || {
                                         let Some((items, total)) = data.get() else {
-                                            return view! { <div class="p-6 text-sm text-base-content/60">"加载中..."</div> }.into_view();
+                                            return view! { <div class="p-6 text-sm text-base-content/60">"加载中..."</div> }.into_any();
                                         };
                                         let days = (0..7)
                                             .map(|offset| week_start + Duration::days(offset as i64))
@@ -896,8 +896,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                                         </button>
                                                     </Show>
                                                 </div>
-                                            }
-                                            .into_view();
+                                            }.into_any();
                                         }
                                         let (start_hour, end_hour) = calendar_time_bounds(&calendar_items);
                                         let columns_store = StoredValue::new(calendar_columns(
@@ -1095,8 +1094,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                                     }
                                                 />
                                             </div>
-                                        }
-                                        .into_view()
+                                        }.into_any()
                                     }}
                                 </Transition>
                             </div>
@@ -1487,16 +1485,13 @@ pub fn SchedulesPage() -> impl IntoView {
                     </Transition>
                 </label>
                 <div class="text-sm">
-                    {move || match conflict_state.get() {
-                        ConflictState::Unknown => view! {
-                            <span class="text-base-content/60">"选择员工与时间后自动校验冲突"</span>
-                        }.into_view(),
-                        ConflictState::Available => view! {
-                            <span class="text-success">"可排班"</span>
-                        }.into_view(),
-                        ConflictState::Conflict(label) => view! {
-                            <span class="text-error">{format!("该时段已排客户 {}，是否更换员工 / 时间？", label)}</span>
-                        }.into_view(),
+                    {move || {
+                        let (class, text) = match conflict_state.get() {
+                            ConflictState::Unknown => ("text-base-content/60", "选择员工与时间后自动校验冲突".to_string()),
+                            ConflictState::Available => ("text-success", "可排班".to_string()),
+                            ConflictState::Conflict(label) => ("text-error", format!("该时段已排客户 {}，是否更换员工 / 时间？", label)),
+                        };
+                        view! { <span class=class>{text}</span> }
                     }}
                 </div>
                 <div class="flex justify-end gap-2">
@@ -1611,10 +1606,9 @@ pub fn SchedulesPage() -> impl IntoView {
                                 {detail_item("创建时间", schedule.inserted_at.clone())}
                                 {detail_item("更新时间", schedule.updated_at.clone())}
                             </div>
-                        }
-                        .into_view()
+                        }.into_any()
                     } else {
-                        view! { <div class="text-sm text-base-content/60">"暂无详情"</div> }.into_view()
+                        view! { <div class="text-sm text-base-content/60">"暂无详情"</div> }.into_any()
                     }
                 }}
                 <div class="flex justify-end gap-2">
@@ -1780,16 +1774,9 @@ fn schedule_card_classes(schedule: &Schedule) -> &'static str {
 
 fn contact_display_label(contact: &Contact) -> String {
     let name = contact.user_name.trim();
-    let company = contact.company.trim();
     let mut label = String::new();
     if !name.is_empty() {
         label.push_str(name);
-    }
-    if !company.is_empty() {
-        if !label.is_empty() {
-            label.push_str(" / ");
-        }
-        label.push_str(company);
     }
     if label.is_empty() {
         label = "未命名客户".to_string();
@@ -1798,12 +1785,7 @@ fn contact_display_label(contact: &Contact) -> String {
     if !extra.is_empty() {
         format!("{} ({})", label, extra)
     } else {
-        let email = contact.email.trim();
-        if !email.is_empty() {
-            format!("{} ({})", label, email)
-        } else {
-            label
-        }
+        label
     }
 }
 

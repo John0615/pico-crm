@@ -10,10 +10,7 @@ pub struct Model {
     #[sea_orm(column_name = "uuid")]
     pub contact_uuid: Uuid,
     pub user_name: String,
-    pub company: String,
-    pub position: String,
     pub phone_number: String,
-    pub email: String,
     pub last_contact: DateTime<Utc>,
     pub value_level: i32,
     pub creator_uuid: Uuid,

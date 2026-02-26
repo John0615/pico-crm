@@ -378,9 +378,9 @@ pub fn OrdersPage() -> impl IntoView {
                                 {detail_item("创建时间", order.inserted_at.clone())}
                                 {detail_item("更新时间", order.updated_at.clone())}
                             </div>
-                        }.into_view()
+                        }.into_any()
                     } else {
-                        view! { <div class="text-sm text-base-content/60">"暂无详情"</div> }.into_view()
+                        view! { <div class="text-sm text-base-content/60">"暂无详情"</div> }.into_any()
                     }
                 }}
                 <div class="flex justify-end gap-2">
@@ -395,16 +395,9 @@ pub fn OrdersPage() -> impl IntoView {
 
 fn contact_display_label(contact: &Contact) -> String {
     let name = contact.user_name.trim();
-    let company = contact.company.trim();
     let mut label = String::new();
     if !name.is_empty() {
         label.push_str(name);
-    }
-    if !company.is_empty() {
-        if !label.is_empty() {
-            label.push_str(" / ");
-        }
-        label.push_str(company);
     }
     if label.is_empty() {
         label = "未命名客户".to_string();
@@ -413,12 +406,7 @@ fn contact_display_label(contact: &Contact) -> String {
     if !extra.is_empty() {
         format!("{} ({})", label, extra)
     } else {
-        let email = contact.email.trim();
-        if !email.is_empty() {
-            format!("{} ({})", label, email)
-        } else {
-            label
-        }
+        label
     }
 }
 

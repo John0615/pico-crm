@@ -26,16 +26,6 @@ impl ContactSpecification {
     }
 
     fn validate_filters(filters: &ContactFilters) -> Result<(), ValidationError> {
-        // 邮箱格式校验
-        if let Some(email) = &filters.email {
-            if !Self::is_valid_email(email) {
-                return Err(ValidationError::invalid_format(
-                    "email",
-                    "必须包含@符号且长度≤254",
-                ));
-            }
-        }
-
         // 电话格式校验
         if let Some(phone) = &filters.phone {
             if !Self::is_valid_phone(phone) {
@@ -68,11 +58,6 @@ impl ContactSpecification {
         Ok(())
     }
 
-    fn is_valid_email(email: &str) -> bool {
-        // 简化的校验逻辑
-        email.contains('@') && email.len() <= 254
-    }
-
     fn is_valid_phone(phone: &str) -> bool {
         // 简化的国际电话校验
         phone.starts_with('+') && phone.len() >= 8
@@ -84,7 +69,6 @@ impl ContactSpecification {
 pub struct ContactFilters {
     pub name: Option<String>,
     pub status: Option<CustomerStatus>,
-    pub email: Option<String>,
     pub phone: Option<String>,
 }
 

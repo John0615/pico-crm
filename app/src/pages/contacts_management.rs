@@ -84,7 +84,6 @@ pub fn ContactsManagement() -> impl IntoView {
             let filters = ContactFilters {
                 user_name: (!name.is_empty()).then_some(name),
                 status: (!status.is_empty()).then_some(status),
-                email: None,
                 phone_number: None,
             };
             // logging::error!("Fetching contacts with filters: {:?} ", filters);
@@ -188,7 +187,6 @@ pub fn ContactsManagement() -> impl IntoView {
         let filters = ContactFilters {
             user_name: (!name_value.is_empty()).then_some(name_value),
             status: (!status_value.is_empty()).then_some(status_value),
-            email: None,
             phone_number: None,
         };
 
@@ -291,36 +289,6 @@ pub fn ContactsManagement() -> impl IntoView {
                     </Column>
                     <Column
                         slot:columns
-                        label="公司".to_string()
-                        prop="company".to_string()
-                        class=""
-                    >
-                        {
-                            let user: Option<Contact> = use_context::<Contact>();
-                            view! {
-                                <span>
-                                    {user.map(|u| u.company).unwrap_or("".to_string())}
-                                </span>
-                            }
-                        }
-                    </Column>
-                    <Column
-                        slot:columns
-                        label="职位".to_string()
-                        prop="position".to_string()
-                        class=""
-                    >
-                        {
-                            let user: Option<Contact> = use_context::<Contact>();
-                            view! {
-                                <span>
-                                    {user.map(|u| u.position).unwrap_or("".to_string())}
-                                </span>
-                            }
-                        }
-                    </Column>
-                    <Column
-                        slot:columns
                         label="电话".to_string()
                         prop="phone_number".to_string()
                         class=""
@@ -330,21 +298,6 @@ pub fn ContactsManagement() -> impl IntoView {
                             view! {
                                 <span>
                                     {user.map(|u| u.phone_number).unwrap_or("".to_string())}
-                                </span>
-                            }
-                        }
-                    </Column>
-                    <Column
-                        slot:columns
-                        label="邮箱".to_string()
-                        prop="email".to_string()
-                        class=""
-                    >
-                        {
-                            let user: Option<Contact> = use_context::<Contact>();
-                            view! {
-                                <span>
-                                    {user.map(|u| u.email).unwrap_or("".to_string())}
                                 </span>
                             }
                         }

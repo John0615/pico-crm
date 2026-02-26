@@ -52,9 +52,6 @@ impl ContactQuery for SeaOrmContactQuery {
                         };
                         query = query.filter(Column::Status.eq(status_num));
                     }
-                    if let Some(email) = spec.filters.email {
-                        query = query.filter(Column::Email.contains(email));
-                    }
                     if let Some(phone) = spec.filters.phone {
                         query = query.filter(Column::PhoneNumber.eq(phone));
                     }
@@ -130,9 +127,6 @@ impl ContactQuery for SeaOrmContactQuery {
                             CustomerStatus::Churned => 3,
                         };
                         query = query.filter(Column::Status.eq(status_num));
-                    }
-                    if let Some(email) = spec.filters.email {
-                        query = query.filter(Column::Email.contains(email));
                     }
                     if let Some(phone) = spec.filters.phone {
                         query = query.filter(Column::PhoneNumber.eq(phone));

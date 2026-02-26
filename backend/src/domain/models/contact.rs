@@ -5,9 +5,6 @@ use uuid::Uuid;
 pub struct Contact {
     pub uuid: String,
     pub name: String,
-    pub company: String,
-    pub position: String,
-    pub email: String,
     pub phone: String,
     pub last_contact: DateTime<Utc>,
     pub value: CustomerValue,
@@ -39,10 +36,7 @@ pub struct Contact {
 pub struct UpdateContact {
     pub uuid: String,
     pub name: String,
-    pub company: String,
-    pub position: String,
     pub phone: String,
-    pub email: String,
     pub value: CustomerValue,
     pub status: CustomerStatus,
 }
@@ -65,9 +59,6 @@ pub enum CustomerValue {
 impl Contact {
     pub fn new(
         name: String,
-        company: String,
-        position: String,
-        email: String,
         phone: String,
         value: CustomerValue,
         status: CustomerStatus,
@@ -76,9 +67,6 @@ impl Contact {
         Self {
             uuid: Uuid::new_v4().to_string(),
             name,
-            company,
-            position,
-            email,
             phone,
             last_contact: now,
             value,
@@ -90,17 +78,14 @@ impl Contact {
 
     pub fn from_shared_data(
         name: String,
-        company: String,
-        position: String,
-        email: String,
         phone: String,
         value_level: i32,
         status: i32,
     ) -> Result<Self, String> {
         let value = Self::parse_customer_value(value_level)?;
         let status = Self::parse_customer_status(status)?;
-        
-        Ok(Self::new(name, company, position, email, phone, value, status))
+
+        Ok(Self::new(name, phone, value, status))
     }
 
     pub fn parse_customer_value(value_level: i32) -> Result<CustomerValue, String> {
@@ -124,8 +109,6 @@ impl Contact {
     pub fn verify(&self) -> Result<(), String> {
         if self.name.is_empty() {
             Err("Name cannot be empty".to_string())
-        } else if self.email.is_empty() {
-            Err("Email cannot be empty".to_string())
         } else if self.phone.is_empty() {
             Err("Phone cannot be empty".to_string())
         } else {
@@ -142,7 +125,7 @@ impl Contact {
     }
 
     pub fn email(&self) -> &str {
-        &self.email
+        ""
     }
 
     pub fn phone(&self) -> &str {

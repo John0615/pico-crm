@@ -55,26 +55,6 @@ where
                     }))),
                 },
                 FormField {
-                    name: "company".to_string(),
-                    label: "公司名称".to_string(),
-                    field_type: FieldType::Text,
-                    required: true,
-                    value: ArcRwSignal::new(init_contact.company.clone()),
-                    placeholder: Some("输入公司名称".into()),
-                    error_message: ArcRwSignal::new(None),
-                    validation: Some(ValidationRule::MinLength(2)),
-                },
-                FormField {
-                    name: "position".to_string(),
-                    label: "职位".to_string(),
-                    field_type: FieldType::Text,
-                    required: true,
-                    value: ArcRwSignal::new(init_contact.position.clone()),
-                    placeholder: Some("输入职位".into()),
-                    error_message: ArcRwSignal::new(None),
-                    validation: None,
-                },
-                FormField {
                     name: "phone".to_string(),
                     label: "联系电话".to_string(),
                     field_type: FieldType::Text,
@@ -83,16 +63,6 @@ where
                     placeholder: Some("输入联系电话".into()),
                     error_message: ArcRwSignal::new(None),
                     validation: Some(ValidationRule::CnMobile),
-                },
-                FormField {
-                    name: "email".to_string(),
-                    label: "电子邮箱".to_string(),
-                    field_type: FieldType::Email,
-                    required: true,
-                    value: ArcRwSignal::new(init_contact.email.clone()),
-                    placeholder: Some("输入电子邮箱".to_string()),
-                    error_message: ArcRwSignal::new(None),
-                    validation: Some(ValidationRule::Email),
                 },
                 FormField {
                     name: "value_level".to_string(),
@@ -131,24 +101,18 @@ where
     let submit = move |fields: Vec<FormField>| async move {
         let uuid = contact_uuid.with_untracked(|value| value.clone());
         let user_name = fields[0].value.with_untracked(|value| value.clone());
-        let company = fields[1].value.with_untracked(|value| value.clone());
-        let position = fields[2].value.with_untracked(|value| value.clone());
-        let phone_number = fields[3].value.with_untracked(|value| value.clone());
-        let email = fields[4].value.with_untracked(|value| value.clone());
-        let value_level = fields[5]
+        let phone_number = fields[1].value.with_untracked(|value| value.clone());
+        let value_level = fields[2]
             .value
             .with_untracked(|value| value.parse::<i32>().unwrap_or(1));
-        let status = fields[6]
+        let status = fields[3]
             .value
             .with_untracked(|value| value.parse::<i32>().unwrap_or(1));
 
         let contact = UpdateContact {
             contact_uuid: uuid,
             user_name,
-            company,
-            position,
             phone_number,
-            email,
             value_level,
             status,
         };

@@ -695,16 +695,9 @@ impl From<UpdateServiceRequest> for RequestPayload {
 
 fn contact_display_label(contact: &Contact) -> String {
     let name = contact.user_name.trim();
-    let company = contact.company.trim();
     let mut label = String::new();
     if !name.is_empty() {
         label.push_str(name);
-    }
-    if !company.is_empty() {
-        if !label.is_empty() {
-            label.push_str(" / ");
-        }
-        label.push_str(company);
     }
     if label.is_empty() {
         label = "未命名客户".to_string();
@@ -713,12 +706,7 @@ fn contact_display_label(contact: &Contact) -> String {
     if !extra.is_empty() {
         format!("{} ({})", label, extra)
     } else {
-        let email = contact.email.trim();
-        if !email.is_empty() {
-            format!("{} ({})", label, email)
-        } else {
-            label
-        }
+        label
     }
 }
 

@@ -87,25 +87,16 @@ impl<R: CQuery<Result = Contact>> ContactAppService<R> {
             .set_column_width(0, 20)
             .map_err(|e| e.to_string())?; // 姓名列
         worksheet
-            .set_column_width(1, 20)
-            .map_err(|e| e.to_string())?; // 公司列
-        worksheet
-            .set_column_width(2, 20)
-            .map_err(|e| e.to_string())?; // 职位列
-        worksheet
-            .set_column_width(3, 15)
+            .set_column_width(1, 15)
             .map_err(|e| e.to_string())?; // 电话列
         worksheet
-            .set_column_width(4, 25)
-            .map_err(|e| e.to_string())?; // 邮箱列
-        worksheet
-            .set_column_width(5, 10)
+            .set_column_width(2, 10)
             .map_err(|e| e.to_string())?; // 状态列
         worksheet
-            .set_column_width(6, 20)
+            .set_column_width(3, 20)
             .map_err(|e| e.to_string())?; // 最后联系
         worksheet
-            .set_column_width(7, 15)
+            .set_column_width(4, 15)
             .map_err(|e| e.to_string())?; // 客户价值
 
         // 写入表头
@@ -113,25 +104,16 @@ impl<R: CQuery<Result = Contact>> ContactAppService<R> {
             .write_string_with_format(0, 0, "姓名", &header_format)
             .map_err(|e| e.to_string())?;
         worksheet
-            .write_string_with_format(0, 1, "公司", &header_format)
+            .write_string_with_format(0, 1, "电话", &header_format)
             .map_err(|e| e.to_string())?;
         worksheet
-            .write_string_with_format(0, 2, "职位", &header_format)
+            .write_string_with_format(0, 2, "状态", &header_format)
             .map_err(|e| e.to_string())?;
         worksheet
-            .write_string_with_format(0, 3, "电话", &header_format)
+            .write_string_with_format(0, 3, "最后联系", &header_format)
             .map_err(|e| e.to_string())?;
         worksheet
-            .write_string_with_format(0, 4, "邮箱", &header_format)
-            .map_err(|e| e.to_string())?;
-        worksheet
-            .write_string_with_format(0, 5, "状态", &header_format)
-            .map_err(|e| e.to_string())?;
-        worksheet
-            .write_string_with_format(0, 6, "最后联系", &header_format)
-            .map_err(|e| e.to_string())?;
-        worksheet
-            .write_string_with_format(0, 7, "客户价值", &header_format)
+            .write_string_with_format(0, 4, "客户价值", &header_format)
             .map_err(|e| e.to_string())?;
 
         // 写入联系人数据
@@ -155,37 +137,25 @@ impl<R: CQuery<Result = Contact>> ContactAppService<R> {
                 .map_err(|e| e.to_string())?;
 
             worksheet
-                .write_string_with_format(row, 1, &contact.company, &content_format)
+                .write_string_with_format(row, 1, &contact.phone_number, &content_format)
                 .map_err(|e| e.to_string())?;
 
             worksheet
-                .write_string_with_format(row, 2, &contact.position, &content_format)
+                .write_string_with_format(row, 2, status, &content_format)
                 .map_err(|e| e.to_string())?;
 
             worksheet
-                .write_string_with_format(row, 3, &contact.phone_number, &content_format)
+                .write_string_with_format(row, 3, &contact.last_contact, &content_format)
                 .map_err(|e| e.to_string())?;
 
             worksheet
-                .write_string_with_format(row, 4, &contact.email, &content_format)
-                .map_err(|e| e.to_string())?;
-
-            worksheet
-                .write_string_with_format(row, 5, status, &content_format)
-                .map_err(|e| e.to_string())?;
-
-            worksheet
-                .write_string_with_format(row, 6, &contact.last_contact, &content_format)
-                .map_err(|e| e.to_string())?;
-
-            worksheet
-                .write_string_with_format(row, 7, value_level, &content_format)
+                .write_string_with_format(row, 4, value_level, &content_format)
                 .map_err(|e| e.to_string())?;
         }
 
         // 添加自动筛选
         worksheet
-            .autofilter(0, 0, contacts.len() as u32, 3)
+            .autofilter(0, 0, contacts.len() as u32, 2)
             .map_err(|e| e.to_string())?;
 
         // 保存到内存缓冲区

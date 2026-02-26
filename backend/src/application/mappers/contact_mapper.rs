@@ -28,10 +28,7 @@ impl From<SharedUpdateContact> for DomainUpdateContact {
         Self {
             uuid: contact.contact_uuid,
             name: contact.user_name,
-            company: contact.company,
-            position: contact.position,
             phone: contact.phone_number,
-            email: contact.email,
             value,
             status,
         }
@@ -53,10 +50,7 @@ impl From<DomainContact> for Contact {
         Self {
             contact_uuid: contact.uuid,
             user_name: contact.name,
-            company: contact.company,
-            position: contact.position,
             phone_number: contact.phone,
-            email: contact.email,
             value_level: value_level as i32,
             status: status as i32,
             last_contact: parse_utc_time_to_string(contact.last_contact),
@@ -93,7 +87,6 @@ impl From<SharedContactFilters> for ContactFilters {
         Self {
             name: filters.user_name,
             status: status,
-            email: filters.email,
             phone: filters.phone_number,
         }
     }

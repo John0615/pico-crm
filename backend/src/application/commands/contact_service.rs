@@ -14,9 +14,6 @@ impl<R: ContactRepository> ContactAppService<R> {
     pub async fn create_contact(&self, contact: Contact) -> Result<(), String> {
         let domain_contact = DomainContact::from_shared_data(
             contact.user_name,
-            contact.company,
-            contact.position,
-            contact.email,
             contact.phone_number,
             contact.value_level,
             contact.status,
