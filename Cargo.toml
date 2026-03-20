@@ -2,11 +2,30 @@
 resolver = "2"
 members = ["app", "frontend", "server", "migration", "backend", "shared"]
 
-# need to be applied only to wasm build
+# Release profile: optimized for wasm size
 [profile.release]
 codegen-units = 1
 lto = true
 opt-level = 'z'
+
+# Dev profile: reduce wasm size and target disk usage in development
+[profile.dev]
+# Reduce debug info to save disk space (2 = full, 1 = line tables only, 0 = none)
+debug = 1
+# Disable incremental compilation for wasm builds (saves disk, wasm doesn't benefit)
+incremental = true
+
+# Wasm-specific dev optimization: balance between build speed and wasm file size
+[profile.dev.package."*"]
+# Keep dependencies optimized even in dev to reduce wasm size
+opt-level = 1
+
+# Frontend (wasm) crate: apply size optimization in dev
+[profile.dev.package.frontend]
+opt-level = 's'
+
+[profile.dev.package.app]
+opt-level = 's'
 
 [workspace.dependencies]
 leptos = { version = "0.8.10" }
