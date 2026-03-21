@@ -1,30 +1,5 @@
-# ============================================================
-# Cargo workspace-level configuration
-# ============================================================
-
-[build]
-# Use mold linker on macOS (lld/zld equivalent) for faster incremental linking.
-# On macOS the default linker is ld (slow); switching to lld can speed up
-# link times significantly. Requires: `brew install llvm` (provides lld).
-# Uncomment the line below if you have lld installed:
-# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-
-# ============================================================
-# Target-specific flags
-# ============================================================
-
-# Native host target (server binary) — faster debug builds
-[target.aarch64-apple-darwin]
-rustflags = [
-    # Use the faster Apple linker (available on macOS 13+, Xcode 15+)
-    "-C", "link-arg=-fuse-ld=/usr/bin/ld",
-]
-
-# WASM target — strip debug info from the wasm binary in dev
-# This is the single biggest lever for reducing dev wasm file size.
 [target.wasm32-unknown-unknown]
 rustflags = [
-    # Strip DWARF debug sections from the wasm output.
-    # Saves 50-80% of wasm size in dev without affecting runtime behaviour.
-    "-C", "debuginfo=0",
+    "-C",
+    "panic=abort",
 ]

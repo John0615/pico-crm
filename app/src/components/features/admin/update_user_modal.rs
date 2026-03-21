@@ -202,7 +202,11 @@ where
             } else {
                 Some(phone_number)
             },
-            avatar_url: if avatar.is_empty() { None } else { Some(avatar) },
+            avatar_url: if avatar.is_empty() {
+                None
+            } else {
+                Some(avatar)
+            },
             merchant_uuid: None,
             role: None,
         };

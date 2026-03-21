@@ -7,12 +7,13 @@ members = ["app", "frontend", "server", "migration", "backend", "shared"]
 codegen-units = 1
 lto = true
 opt-level = 'z'
+strip = "symbols"
 
 # Dev profile: reduce wasm size and target disk usage in development
 [profile.dev]
 # Reduce debug info to save disk space (2 = full, 1 = line tables only, 0 = none)
-debug = 1
-# Disable incremental compilation for wasm builds (saves disk, wasm doesn't benefit)
+debug = 0
+# Keep incremental compilation for faster rebuilds during development
 incremental = true
 
 # Wasm-specific dev optimization: balance between build speed and wasm file size
@@ -23,14 +24,18 @@ opt-level = 1
 # Frontend (wasm) crate: apply size optimization in dev
 [profile.dev.package.frontend]
 opt-level = 's'
+codegen-units = 1
+strip = "debuginfo"
 
 [profile.dev.package.app]
 opt-level = 's'
+codegen-units = 1
+strip = "debuginfo"
 
 [workspace.dependencies]
-leptos = { version = "0.8.10" }
-leptos_meta = { version = "0.8.5" }
-leptos_router = { version = "0.8.11" }
+leptos = { version = "0.8.10", default-features = false }
+leptos_meta = { version = "0.8.5", default-features = false }
+leptos_router = { version = "0.8.11", default-features = false }
 leptos_axum = { version = "0.8.6" }
 reactive_stores = "0.2.2"
 
