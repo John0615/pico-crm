@@ -20,22 +20,16 @@ pub fn Sidebar() -> impl IntoView {
     );
     let user_info = move || {
         user_data.with(|value| {
-            value
-                .as_ref()
-                .map(|user| {
-                    let is_admin = user.is_admin.unwrap_or(false) || user.role == "admin";
-                    let role = user.role.clone();
-                    (is_admin, role)
-                })
+            value.as_ref().map(|user| {
+                let is_admin = user.is_admin.unwrap_or(false) || user.role == "admin";
+                let role = user.role.clone();
+                (is_admin, role)
+            })
         })
     };
     let show_admin_menu = move || matches!(user_info(), Some((true, _)));
-    let show_merchant_menu = move || {
-        matches!(user_info(), Some((false, role)) if role == "operator" || role == "merchant")
-    };
-    let show_staff_menu = move || {
-        matches!(user_info(), Some((false, role)) if role != "operator" && role != "merchant" && role != "admin")
-    };
+    let show_merchant_menu = move || matches!(user_info(), Some((false, role)) if role == "operator" || role == "merchant");
+    let show_staff_menu = move || matches!(user_info(), Some((false, role)) if role != "operator" && role != "merchant" && role != "admin");
 
     // 判断当前路径是否匹配菜单项
     let is_active = move |path: &str| location.pathname.with(|current| current == path);
@@ -45,15 +39,13 @@ pub fn Sidebar() -> impl IntoView {
             .with(|current| current.starts_with("/admin"))
     };
     let is_merchant_section = move || {
-        location
-            .pathname
-            .with(|current| {
-                current.starts_with("/contacts")
-                    || current.starts_with("/service-requests")
-                    || current.starts_with("/orders")
-                    || current.starts_with("/schedules")
-                    || current.starts_with("/users")
-            })
+        location.pathname.with(|current| {
+            current.starts_with("/contacts")
+                || current.starts_with("/service-requests")
+                || current.starts_with("/orders")
+                || current.starts_with("/schedules")
+                || current.starts_with("/users")
+        })
     };
     let admin_dropdown_class = move || {
         let base = "dropdown relative [--adaptive:none] [--strategy:static] [--auto-close:false]";

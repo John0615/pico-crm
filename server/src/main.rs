@@ -1,7 +1,11 @@
+#![recursion_limit = "256"]
+
 use crate::middlewares::auth_middleware::global_api_auth_middleware;
 use app::*;
 use axum::{middleware::from_fn_with_state, Router};
 use backend::infrastructure::db::Database;
+use backend::infrastructure::event_store::service_request::initialize;
+use backend::infrastructure::projections::crm::service_request_projection::spawn_service_request_listener;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, LeptosRoutes};
@@ -22,6 +26,10 @@ async fn main() {
     println!("db_url: {:?}", db_url);
     let db = Database::new().await;
     PublicMigrator::up(db.get_connection(), None).await.unwrap();
+    initialize().await.unwrap();
+    spawn_service_request_listener(db.connection.clone())
+        .await
+        .unwrap();
     // Tenant 迁移在商户开通时执行，并通过 search_path 定向到租户 schema
 
     let conf = get_configuration(None).unwrap();

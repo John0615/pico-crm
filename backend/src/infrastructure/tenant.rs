@@ -58,7 +58,11 @@ pub async fn with_tenant_txn<T, F>(
     f: F,
 ) -> Result<T, String>
 where
-    F: for<'a> FnOnce(&'a DatabaseTransaction) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, String>> + Send + 'a>>,
+    F: for<'a> FnOnce(
+        &'a DatabaseTransaction,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<T, String>> + Send + 'a>,
+    >,
 {
     if !is_safe_schema_name(schema_name) {
         return Err("invalid schema name".to_string());

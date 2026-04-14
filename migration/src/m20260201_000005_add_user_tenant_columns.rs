@@ -10,11 +10,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Users::Table)
-                    .add_column(
-                        ColumnDef::new(Users::MerchantUuid)
-                            .uuid()
-                            .null(),
-                    )
+                    .add_column(ColumnDef::new(Users::MerchantUuid).uuid().null())
                     .add_column(
                         ColumnDef::new(Users::Role)
                             .string()

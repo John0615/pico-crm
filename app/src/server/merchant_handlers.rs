@@ -10,15 +10,15 @@ use shared::merchant::{ProvisionMerchantRequest, ProvisionMerchantResponse};
 pub async fn provision_merchant(
     request: ProvisionMerchantRequest,
 ) -> Result<ProvisionMerchantResponse, ServerFnError> {
-    use backend::application::commands::merchant_service::MerchantProvisioningService;
+    use backend::application::commands::platform::merchant_service::MerchantProvisioningService;
     use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::merchant_repository_impl::SeaOrmMerchantRepository;
+    use backend::infrastructure::repositories::platform::merchant_repository_impl::SeaOrmMerchantRepository;
 
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
     let repository = SeaOrmMerchantRepository::new(db.clone());
-    let service = MerchantProvisioningService::new(repository, db)
-        .map_err(|e| ServerFnError::new(e))?;
+    let service =
+        MerchantProvisioningService::new(repository, db).map_err(|e| ServerFnError::new(e))?;
 
     let merchant = service
         .provision(request)

@@ -15,10 +15,10 @@ pub struct AppConfig {
 impl AppConfig {
     pub fn from_env() -> Result<Self, String> {
         let app_env = env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
-        let database_url = env::var("DATABASE_URL")
-            .map_err(|_| "DATABASE_URL is not set".to_string())?;
-        let tenant_schema_prefix = env::var("TENANT_SCHEMA_PREFIX")
-            .unwrap_or_else(|_| "merchant_".to_string());
+        let database_url =
+            env::var("DATABASE_URL").map_err(|_| "DATABASE_URL is not set".to_string())?;
+        let tenant_schema_prefix =
+            env::var("TENANT_SCHEMA_PREFIX").unwrap_or_else(|_| "merchant_".to_string());
 
         let upload_bucket = env::var("UPLOAD_BUCKET").ok();
         let upload_region = env::var("UPLOAD_REGION").ok();

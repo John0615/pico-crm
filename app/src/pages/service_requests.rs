@@ -16,15 +16,16 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
-use std::collections::{HashMap, HashSet};
-use shared::order::CreateOrderFromRequest;
 use shared::contact::{Contact, ContactQuery};
+use shared::order::CreateOrderFromRequest;
 use shared::service_request::{
     CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
     UpdateServiceRequestStatus,
 };
 use shared::user::{User, UserListQuery};
 use shared::ListResult;
+use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 
 impl Identifiable for ServiceRequest {
     fn id(&self) -> String {
@@ -96,7 +97,10 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         if let Some(items) = contacts.get() {
             let mut map = HashMap::new();
             for contact in items {
-                map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
+                map.insert(
+                    contact.contact_uuid.clone(),
+                    contact_display_label(&contact),
+                );
             }
             contact_labels.set(map);
         }
@@ -144,13 +148,15 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 end_date: (!end.is_empty()).then_some(end),
             };
 
-            let result = call_api(fetch_service_requests(params)).await.unwrap_or_else(|e| {
-                logging::error!("Error loading service requests: {e}");
-                ListResult {
-                    items: Vec::new(),
-                    total: 0,
-                }
-            });
+            let result = call_api(fetch_service_requests(params))
+                .await
+                .unwrap_or_else(|e| {
+                    logging::error!("Error loading service requests: {e}");
+                    ListResult {
+                        items: Vec::new(),
+                        total: 0,
+                    }
+                });
             (result.items, result.total)
         },
     );
@@ -279,6 +285,14 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         show_modal.set(true);
     };
 
+    let refresh_after_command = move || {
+        refresh_count.update(|value| *value += 1);
+        set_timeout(
+            move || refresh_count.update(|value| *value += 1),
+            Duration::from_millis(300),
+        );
+    };
+
     let submit_request = move |_| {
         if customer_uuid.get().trim().is_empty() {
             error("请选择客户".to_string());
@@ -320,7 +334,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 Ok(_) => {
                     success("保存成功".to_string());
                     show_modal.set(false);
-                    refresh_count.update(|value| *value += 1);
+                    refresh_after_command();
                 }
                 Err(err) => {
                     error(format!("保存失败: {}", err));
@@ -338,7 +352,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
             match result {
                 Ok(_) => {
                     success("需求已确认".to_string());
-                    refresh_count.update(|value| *value += 1);
+                    refresh_after_command();
                 }
                 Err(err) => {
                     error(format!("确认失败: {}", err));
@@ -357,7 +371,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
             match result {
                 Ok(_) => {
                     success("订单已生成".to_string());
-                    refresh_count.update(|value| *value += 1);
+                    refresh_after_command();
                 }
                 Err(err) => {
                     error(format!("生成订单失败: {}", err));
@@ -743,7 +757,9 @@ fn normalize_datetime_local(value: &str) -> Option<String> {
 }
 
 fn to_datetime_local(value: Option<String>) -> String {
-    let Some(value) = value else { return String::new() };
+    let Some(value) = value else {
+        return String::new();
+    };
     if value.trim().is_empty() {
         return String::new();
     }
@@ -756,7 +772,10 @@ fn to_datetime_local(value: Option<String>) -> String {
 }
 
 fn is_end_before_start(start: &str, end: &str) -> bool {
-    match (normalize_datetime_local(start), normalize_datetime_local(end)) {
+    match (
+        normalize_datetime_local(start),
+        normalize_datetime_local(end),
+    ) {
         (Some(start), Some(end)) => end < start,
         _ => false,
     }

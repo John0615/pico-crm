@@ -8,14 +8,14 @@ use shared::ListResult;
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    pub use backend::application::commands::order_service::OrderAppService;
-    pub use backend::application::queries::order_service::OrderQueryService;
+    pub use backend::application::commands::crm::order_service::OrderAppService;
+    pub use backend::application::queries::crm::order_service::OrderQueryService;
     pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::queries::order_query_impl::SeaOrmOrderQuery;
-    pub use backend::infrastructure::queries::service_request_query_impl::SeaOrmServiceRequestQuery;
-    pub use backend::infrastructure::repositories::order_repository_impl::SeaOrmOrderRepository;
-    pub use backend::infrastructure::repositories::schedule_repository_impl::SeaOrmScheduleRepository;
-    pub use backend::infrastructure::repositories::service_request_repository_impl::SeaOrmServiceRequestRepository;
+    pub use backend::infrastructure::queries::crm::order_query_impl::SeaOrmOrderQuery;
+    pub use backend::infrastructure::queries::crm::service_request_query_impl::SeaOrmServiceRequestQuery;
+    pub use backend::infrastructure::repositories::crm::order_repository_impl::SeaOrmOrderRepository;
+    pub use backend::infrastructure::repositories::crm::schedule_repository_impl::SeaOrmScheduleRepository;
+    pub use backend::infrastructure::repositories::crm::service_request_repository_impl::SeaOrmServiceRequestRepository;
     pub use backend::infrastructure::tenant::TenantContext;
 }
 
@@ -77,7 +77,8 @@ pub async fn create_order_from_request(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let schedule_repo =
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
@@ -108,7 +109,8 @@ pub async fn update_order_status(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let schedule_repo =
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
@@ -139,7 +141,8 @@ pub async fn update_order_assignment(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let schedule_repo =
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
@@ -170,7 +173,8 @@ pub async fn update_order_settlement(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let schedule_repo =
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =

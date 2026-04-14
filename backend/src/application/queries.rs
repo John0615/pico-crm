@@ -1,9 +1,3 @@
-pub mod contact_service;
-pub mod merchant_service;
-pub mod user_service;
-pub mod system_config_service;
-pub mod analytics_service;
-pub mod merchant_dashboard_service;
-pub mod service_request_service;
-pub mod order_service;
-pub mod schedule_service;
+pub mod crm;
+pub mod identity;
+pub mod platform;

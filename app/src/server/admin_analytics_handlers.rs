@@ -12,7 +12,7 @@ use shared::analytics::{
 pub async fn fetch_admin_analytics_overview(
     query: AnalyticsQuery,
 ) -> Result<AnalyticsOverviewResponse, ServerFnError> {
-    use backend::application::queries::analytics_service::AnalyticsQueryService;
+    use backend::application::queries::platform::analytics_service::AnalyticsQueryService;
     use backend::infrastructure::db::Database;
 
     let pool = expect_context::<Database>();
@@ -31,7 +31,7 @@ pub async fn fetch_admin_analytics_overview(
 pub async fn fetch_admin_analytics_trends(
     query: AnalyticsQuery,
 ) -> Result<AnalyticsTrendResponse, ServerFnError> {
-    use backend::application::queries::analytics_service::AnalyticsQueryService;
+    use backend::application::queries::platform::analytics_service::AnalyticsQueryService;
     use backend::infrastructure::db::Database;
 
     let pool = expect_context::<Database>();
@@ -50,7 +50,7 @@ pub async fn fetch_admin_analytics_trends(
 pub async fn fetch_admin_analytics_breakdown(
     query: AnalyticsQuery,
 ) -> Result<AnalyticsBreakdownResponse, ServerFnError> {
-    use backend::application::queries::analytics_service::AnalyticsQueryService;
+    use backend::application::queries::platform::analytics_service::AnalyticsQueryService;
     use backend::infrastructure::db::Database;
 
     let pool = expect_context::<Database>();

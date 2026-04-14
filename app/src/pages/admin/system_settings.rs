@@ -8,7 +8,9 @@ use serde_json::Value;
 
 use crate::components::ui::toast::{error, success};
 use crate::utils::api::call_api;
-use shared::system_config::{SystemConfigItemDto, SystemConfigUpdateItem, SystemConfigUpdateRequest};
+use shared::system_config::{
+    SystemConfigItemDto, SystemConfigUpdateItem, SystemConfigUpdateRequest,
+};
 
 pub use crate::server::system_config_handlers::{fetch_system_config, update_system_config};
 
@@ -48,14 +50,12 @@ pub fn SystemSettings() -> impl IntoView {
         }
     });
 
-    let has_changes = Memo::new(move |_| {
-        draft_values.with(|draft| original_values.with(|orig| draft != orig))
-    });
+    let has_changes =
+        Memo::new(move |_| draft_values.with(|draft| original_values.with(|orig| draft != orig)));
 
     let on_save = move |_| {
-        let updates = draft_values.with(|draft| {
-            original_values.with(|orig| build_updates(draft, orig))
-        });
+        let updates =
+            draft_values.with(|draft| original_values.with(|orig| build_updates(draft, orig)));
         if updates.is_empty() {
             return;
         }

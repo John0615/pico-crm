@@ -1,4 +1,4 @@
-use sea_orm_migration::{prelude::*};
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -11,25 +11,34 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Contacts::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(Contacts::ContactUuid).uuid().not_null().default(Expr::cust("gen_random_uuid()")))
+                    .col(
+                        ColumnDef::new(Contacts::ContactUuid)
+                            .uuid()
+                            .not_null()
+                            .default(Expr::cust("gen_random_uuid()")),
+                    )
                     .col(ColumnDef::new(Contacts::UserName).string().not_null())
                     .col(ColumnDef::new(Contacts::Company).string().not_null())
                     .col(ColumnDef::new(Contacts::Position).string().not_null())
                     .col(ColumnDef::new(Contacts::PhoneNumber).string().not_null())
                     .col(ColumnDef::new(Contacts::Email).string().not_null())
-                    .col(ColumnDef::new(Contacts::LastContact).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Contacts::LastContact)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Contacts::ValueLevel).integer().not_null())
                     .col(ColumnDef::new(Contacts::CreatorUuid).uuid().not_null())
                     .col(ColumnDef::new(Contacts::Status).integer().not_null())
                     .col(
                         ColumnDef::new(Contacts::InsertedAt)
-                        .timestamp_with_time_zone()
-                        .not_null()
+                            .timestamp_with_time_zone()
+                            .not_null(),
                     )
                     .col(
                         ColumnDef::new(Contacts::UpdatedAt)
-                        .timestamp_with_time_zone()
-                        .not_null()
+                            .timestamp_with_time_zone()
+                            .not_null(),
                     )
                     .primary_key(
                         Index::create()

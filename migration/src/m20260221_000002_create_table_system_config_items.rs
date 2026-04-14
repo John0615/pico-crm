@@ -36,12 +36,12 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .unique_key(),
                     )
+                    .col(ColumnDef::new(SystemConfigItem::Label).string().not_null())
                     .col(
-                        ColumnDef::new(SystemConfigItem::Label)
+                        ColumnDef::new(SystemConfigItem::Description)
                             .string()
-                            .not_null(),
+                            .null(),
                     )
-                    .col(ColumnDef::new(SystemConfigItem::Description).string().null())
                     .col(
                         ColumnDef::new(SystemConfigItem::ValueType)
                             .string()
@@ -54,8 +54,16 @@ impl MigrationTrait for Migration {
                             .not_null(),
                     )
                     .col(ColumnDef::new(SystemConfigItem::Value).json_binary().null())
-                    .col(ColumnDef::new(SystemConfigItem::Validation).json_binary().null())
-                    .col(ColumnDef::new(SystemConfigItem::UiSchema).json_binary().null())
+                    .col(
+                        ColumnDef::new(SystemConfigItem::Validation)
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(SystemConfigItem::UiSchema)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(SystemConfigItem::IsRequired)
                             .boolean()
@@ -100,7 +108,10 @@ impl MigrationTrait for Migration {
                                 SystemConfigItem::CategoryCode,
                             )
                             .to(
-                                (Alias::new(PUBLIC_SCHEMA), Alias::new(SYSTEM_CONFIG_CATEGORIES)),
+                                (
+                                    Alias::new(PUBLIC_SCHEMA),
+                                    Alias::new(SYSTEM_CONFIG_CATEGORIES),
+                                ),
                                 SystemConfigCategory::Code,
                             ),
                     )
@@ -202,7 +213,10 @@ ON CONFLICT (code) DO NOTHING;
 "#;
     manager
         .get_connection()
-        .execute(Statement::from_string(DatabaseBackend::Postgres, categories))
+        .execute(Statement::from_string(
+            DatabaseBackend::Postgres,
+            categories,
+        ))
         .await?;
 
     let items = r##"

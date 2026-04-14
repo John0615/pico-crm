@@ -1,0 +1,8 @@
+use super::model::AuditLogCreate;
+
+pub trait AuditLogRepository: Send + Sync {
+    fn create_log(
+        &self,
+        log: AuditLogCreate,
+    ) -> impl std::future::Future<Output = Result<(), String>> + Send;
+}

@@ -10,8 +10,8 @@ use leptos_router::{
 use components::layouts::*;
 use components::ui::{message_box::MessageBox, toast::Toast};
 use lazy_routes::{
-    AdminAnalyticsRoute, AdminMerchantsRoute, ContactsManagementRoute, LoginRoute, SystemSettingsRoute,
-    TenantMaintenanceRoute, UsersRoute, ServiceRequestsRoute, OrdersRoute, SchedulesRoute,
+    AdminAnalyticsRoute, AdminMerchantsRoute, ContactsManagementRoute, LoginRoute, OrdersRoute,
+    SchedulesRoute, ServiceRequestsRoute, SystemSettingsRoute, TenantMaintenanceRoute, UsersRoute,
 };
 use pages::{Dashboard, NotFoundPage};
 

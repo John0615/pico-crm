@@ -109,12 +109,7 @@ fn render_dashboard(payload: MerchantDashboardResponse) -> AnyView {
     let todos = payload.todos.clone();
     let meta = payload.meta.clone();
 
-    let trend_rows = trend
-        .iter()
-        .rev()
-        .take(7)
-        .cloned()
-        .collect::<Vec<_>>();
+    let trend_rows = trend.iter().rev().take(7).cloned().collect::<Vec<_>>();
     let has_trend = !trend_rows.is_empty();
     let has_todos = !todos.is_empty();
 

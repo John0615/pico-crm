@@ -43,8 +43,16 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default("active"),
                     )
-                    .col(ColumnDef::new(Merchant::TrialEndAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(Merchant::ExpiredAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(Merchant::TrialEndAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Merchant::ExpiredAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(Merchant::CreatedAt)
                             .timestamp_with_time_zone()

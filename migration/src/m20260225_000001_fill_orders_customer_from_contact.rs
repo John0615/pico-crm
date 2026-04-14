@@ -212,7 +212,12 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Customers::Name).string().not_null())
                     .col(ColumnDef::new(Customers::PhoneNumber).string().null())
-                    .col(ColumnDef::new(Customers::Status).string().not_null().default("active"))
+                    .col(
+                        ColumnDef::new(Customers::Status)
+                            .string()
+                            .not_null()
+                            .default("active"),
+                    )
                     .col(ColumnDef::new(Customers::Notes).text().null())
                     .col(
                         ColumnDef::new(Customers::InsertedAt)

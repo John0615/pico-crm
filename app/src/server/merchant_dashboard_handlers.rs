@@ -4,7 +4,7 @@ use shared::merchant_dashboard::{MerchantDashboardQuery, MerchantDashboardRespon
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    pub use backend::application::queries::merchant_dashboard_service::MerchantDashboardQueryService;
+    pub use backend::application::queries::platform::merchant_dashboard_service::MerchantDashboardQueryService;
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::tenant::TenantContext;
 }

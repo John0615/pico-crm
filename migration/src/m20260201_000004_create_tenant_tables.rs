@@ -55,9 +55,17 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(CustomerFollowups::CustomerId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(CustomerFollowups::CustomerId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(CustomerFollowups::Content).text().not_null())
-                    .col(ColumnDef::new(CustomerFollowups::FollowUpAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(CustomerFollowups::FollowUpAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(CustomerFollowups::InsertedAt)
                             .timestamp_with_time_zone()
@@ -181,8 +189,16 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Schedules::OrderId).uuid().not_null())
                     .col(ColumnDef::new(Schedules::EmployeeId).uuid().not_null())
-                    .col(ColumnDef::new(Schedules::StartAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Schedules::EndAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Schedules::StartAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Schedules::EndAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(Schedules::Status)
                             .string()

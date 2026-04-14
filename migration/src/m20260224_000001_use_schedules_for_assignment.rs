@@ -61,7 +61,8 @@ impl MigrationTrait for Migration {
               AND NOT EXISTS (
                   SELECT 1 FROM schedules s WHERE s.order_id = o.uuid
               );
-            "#.to_string(),
+            "#
+            .to_string(),
         );
         manager.get_connection().execute(stmt).await?;
 
@@ -111,7 +112,9 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Orders::Table)
-                    .add_column_if_not_exists(ColumnDef::new(Orders::AssignedUserUuid).uuid().null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(Orders::AssignedUserUuid).uuid().null(),
+                    )
                     .to_owned(),
             )
             .await?;

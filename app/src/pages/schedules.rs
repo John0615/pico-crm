@@ -6,15 +6,15 @@ use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
 use crate::server::contact_handlers::{fetch_contacts, get_contact};
 use crate::server::order_handlers::fetch_orders;
-use crate::server::service_request_handlers::get_service_request;
 use crate::server::schedule_handlers::{
     cancel_schedule, create_schedule, fetch_schedules, update_schedule, update_schedule_status,
 };
+use crate::server::service_request_handlers::get_service_request;
 use crate::server::user_handlers::{fetch_users, get_user};
 use crate::utils::api::call_api;
-use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, Timelike, Weekday};
 #[cfg(feature = "ssr")]
 use chrono::Utc;
+use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, Timelike, Weekday};
 #[cfg(not(feature = "ssr"))]
 use js_sys::Date as JsDate;
 use leptos::logging;
@@ -25,7 +25,8 @@ use leptos_router::hooks::use_query_map;
 use shared::contact::{Contact, ContactQuery};
 use shared::order::{Order, OrderQuery};
 use shared::schedule::{
-    CreateScheduleAssignment, Schedule, ScheduleQuery, UpdateScheduleAssignment, UpdateScheduleStatus,
+    CreateScheduleAssignment, Schedule, ScheduleQuery, UpdateScheduleAssignment,
+    UpdateScheduleStatus,
 };
 use shared::user::{User, UserListQuery};
 use shared::ListResult;
@@ -33,7 +34,10 @@ use std::collections::{HashMap, HashSet};
 
 impl Identifiable for Schedule {
     fn id(&self) -> String {
-        format!("{}-{}-{}", self.order_uuid, self.schedule_status, self.updated_at)
+        format!(
+            "{}-{}-{}",
+            self.order_uuid, self.schedule_status, self.updated_at
+        )
     }
 }
 
@@ -293,7 +297,10 @@ pub fn SchedulesPage() -> impl IntoView {
         if let Some(items) = contacts.get() {
             let mut map = HashMap::new();
             for contact in items {
-                map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
+                map.insert(
+                    contact.contact_uuid.clone(),
+                    contact_display_label(&contact),
+                );
             }
             contact_labels.set(map);
         }
@@ -395,7 +402,9 @@ pub fn SchedulesPage() -> impl IntoView {
         let mut pending = pending_contacts.get();
         let mut missing_ids: Vec<String> = Vec::new();
         for schedule in &items {
-            let Some(contact_id) = schedule.customer_uuid.clone() else { continue };
+            let Some(contact_id) = schedule.customer_uuid.clone() else {
+                continue;
+            };
             if contact_id.is_empty() {
                 continue;
             }
@@ -450,16 +459,24 @@ pub fn SchedulesPage() -> impl IntoView {
         let labels = contact_labels.get();
         let pending = pending_contacts.get();
         for schedule in items {
-            let Some(assigned) = schedule.assigned_user_uuid.clone() else { continue };
+            let Some(assigned) = schedule.assigned_user_uuid.clone() else {
+                continue;
+            };
             if assigned != user_id {
                 continue;
             }
-            let Some(existing_start_raw) = schedule.scheduled_start_at.clone() else { continue };
-            let Some(existing_end_raw) = schedule.scheduled_end_at.clone() else { continue };
+            let Some(existing_start_raw) = schedule.scheduled_start_at.clone() else {
+                continue;
+            };
+            let Some(existing_end_raw) = schedule.scheduled_end_at.clone() else {
+                continue;
+            };
             let Some(existing_start) = parse_calendar_datetime(&existing_start_raw) else {
                 continue;
             };
-            let Some(existing_end) = parse_calendar_datetime(&existing_end_raw) else { continue };
+            let Some(existing_end) = parse_calendar_datetime(&existing_end_raw) else {
+                continue;
+            };
             if is_overlapping_window_naive(start, end, existing_start, existing_end) {
                 let label = schedule_contact_label(&schedule, &labels, &pending);
                 return ConflictState::Conflict(label);
@@ -490,7 +507,9 @@ pub fn SchedulesPage() -> impl IntoView {
         let mut pending = pending_users.get();
         let mut missing_ids: Vec<String> = Vec::new();
         for schedule in &items {
-            let Some(user_id) = schedule.assigned_user_uuid.clone() else { continue };
+            let Some(user_id) = schedule.assigned_user_uuid.clone() else {
+                continue;
+            };
             if user_id.is_empty() {
                 continue;
             }
@@ -596,12 +615,18 @@ pub fn SchedulesPage() -> impl IntoView {
                 let pending = pending_contacts.get();
                 let mut conflict_label: Option<String> = None;
                 for schedule in items {
-                    let Some(assigned) = schedule.assigned_user_uuid.clone() else { continue };
+                    let Some(assigned) = schedule.assigned_user_uuid.clone() else {
+                        continue;
+                    };
                     if assigned != assigned_user {
                         continue;
                     }
-                    let Some(existing_start_raw) = schedule.scheduled_start_at.clone() else { continue };
-                    let Some(existing_end_raw) = schedule.scheduled_end_at.clone() else { continue };
+                    let Some(existing_start_raw) = schedule.scheduled_start_at.clone() else {
+                        continue;
+                    };
+                    let Some(existing_end_raw) = schedule.scheduled_end_at.clone() else {
+                        continue;
+                    };
                     let Some(existing_start) = parse_calendar_datetime(&existing_start_raw) else {
                         continue;
                     };
@@ -626,10 +651,9 @@ pub fn SchedulesPage() -> impl IntoView {
             return;
         }
 
-        let start_normalized = normalize_datetime_local(&start_raw)
-            .unwrap_or_else(|| start_raw.clone());
-        let end_normalized =
-            normalize_datetime_local(&end_raw).unwrap_or_else(|| end_raw.clone());
+        let start_normalized =
+            normalize_datetime_local(&start_raw).unwrap_or_else(|| start_raw.clone());
+        let end_normalized = normalize_datetime_local(&end_raw).unwrap_or_else(|| end_raw.clone());
         let duration_label = duration_label(duration_minutes);
         let dispatch_note = build_dispatch_note(&service_type, &duration_label);
         creating_schedule.set(true);
@@ -686,14 +710,8 @@ pub fn SchedulesPage() -> impl IntoView {
         spawn_local(async move {
             let result = if is_new {
                 let create = CreateScheduleAssignment {
-                    assigned_user_uuid: payload
-                        .assigned_user_uuid
-                        .clone()
-                        .unwrap_or_default(),
-                    scheduled_start_at: payload
-                        .scheduled_start_at
-                        .clone()
-                        .unwrap_or_default(),
+                    assigned_user_uuid: payload.assigned_user_uuid.clone().unwrap_or_default(),
+                    scheduled_start_at: payload.scheduled_start_at.clone().unwrap_or_default(),
                     scheduled_end_at: payload.scheduled_end_at.clone().unwrap_or_default(),
                     dispatch_note: payload.dispatch_note.clone(),
                 };
@@ -1822,7 +1840,9 @@ fn normalize_datetime_local(value: &str) -> Option<String> {
 }
 
 fn to_datetime_local(value: Option<String>) -> String {
-    let Some(value) = value else { return String::new() };
+    let Some(value) = value else {
+        return String::new();
+    };
     if value.trim().is_empty() {
         return String::new();
     }
@@ -1835,7 +1855,10 @@ fn to_datetime_local(value: Option<String>) -> String {
 }
 
 fn is_end_before_start(start: &str, end: &str) -> bool {
-    match (normalize_datetime_local(start), normalize_datetime_local(end)) {
+    match (
+        normalize_datetime_local(start),
+        normalize_datetime_local(end),
+    ) {
         (Some(start), Some(end)) => end <= start,
         _ => false,
     }
@@ -1983,13 +2006,25 @@ fn weekday_label(date: NaiveDate) -> &'static str {
     }
 }
 
-fn build_calendar_items(items: &[Schedule], week_start: NaiveDate, week_end: NaiveDate) -> Vec<CalendarItem> {
+fn build_calendar_items(
+    items: &[Schedule],
+    week_start: NaiveDate,
+    week_end: NaiveDate,
+) -> Vec<CalendarItem> {
     let mut result = Vec::new();
     for schedule in items {
-        let Some(start_raw) = schedule.scheduled_start_at.as_ref() else { continue };
-        let Some(end_raw) = schedule.scheduled_end_at.as_ref() else { continue };
-        let Some(start) = parse_calendar_datetime(start_raw) else { continue };
-        let Some(mut end) = parse_calendar_datetime(end_raw) else { continue };
+        let Some(start_raw) = schedule.scheduled_start_at.as_ref() else {
+            continue;
+        };
+        let Some(end_raw) = schedule.scheduled_end_at.as_ref() else {
+            continue;
+        };
+        let Some(start) = parse_calendar_datetime(start_raw) else {
+            continue;
+        };
+        let Some(mut end) = parse_calendar_datetime(end_raw) else {
+            continue;
+        };
         if end <= start {
             continue;
         }
@@ -2020,11 +2055,7 @@ fn calendar_time_bounds(items: &[CalendarItem]) -> (u32, u32) {
         .map(|item| item.start.hour())
         .min()
         .unwrap_or(8);
-    let max_hour = items
-        .iter()
-        .map(|item| item.end.hour())
-        .max()
-        .unwrap_or(20);
+    let max_hour = items.iter().map(|item| item.end.hour()).max().unwrap_or(20);
     let start_hour = std::cmp::min(8, min_hour.saturating_sub(1));
     let mut end_hour = std::cmp::max(20, (max_hour + 1).min(24));
     if end_hour <= start_hour {
@@ -2041,7 +2072,12 @@ fn calendar_columns(
     let mut user_ids: HashSet<String> = HashSet::new();
     let mut has_unassigned = false;
     for item in items {
-        if let Some(user_id) = item.schedule.assigned_user_uuid.clone().filter(|id| !id.is_empty()) {
+        if let Some(user_id) = item
+            .schedule
+            .assigned_user_uuid
+            .clone()
+            .filter(|id| !id.is_empty())
+        {
             user_ids.insert(user_id);
         } else {
             has_unassigned = true;
@@ -2056,10 +2092,7 @@ fn calendar_columns(
     let mut columns = user_ids
         .into_iter()
         .map(|id| {
-            let label = user_labels
-                .get(&id)
-                .cloned()
-                .unwrap_or_else(|| id.clone());
+            let label = user_labels.get(&id).cloned().unwrap_or_else(|| id.clone());
             CalendarColumn { id, label }
         })
         .collect::<Vec<_>>();
@@ -2119,16 +2152,13 @@ fn schedule_contact_label(
     if contact_id.is_empty() {
         return "未关联客户".to_string();
     }
-    contact_labels
-        .get(&contact_id)
-        .cloned()
-        .unwrap_or_else(|| {
-            if pending_contacts.contains(&contact_id) {
-                "加载中...".to_string()
-            } else {
-                "未知客户".to_string()
-            }
-        })
+    contact_labels.get(&contact_id).cloned().unwrap_or_else(|| {
+        if pending_contacts.contains(&contact_id) {
+            "加载中...".to_string()
+        } else {
+            "未知客户".to_string()
+        }
+    })
 }
 
 fn format_time_range(start: NaiveDateTime, end: NaiveDateTime) -> String {
@@ -2161,10 +2191,8 @@ fn calendar_event_position(
     if total_minutes == 0 {
         return None;
     }
-    let mut start_minutes =
-        (start.hour() as i32 - start_hour as i32) * 60 + start.minute() as i32;
-    let mut end_minutes =
-        (end.hour() as i32 - start_hour as i32) * 60 + end.minute() as i32;
+    let mut start_minutes = (start.hour() as i32 - start_hour as i32) * 60 + start.minute() as i32;
+    let mut end_minutes = (end.hour() as i32 - start_hour as i32) * 60 + end.minute() as i32;
     if start_minutes < 0 {
         start_minutes = 0;
     }

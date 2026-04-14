@@ -124,15 +124,15 @@ where
             value: {
                 let avatar_field_value = ArcRwSignal::new(String::new());
                 // 创建一个响应式效果，当avatar_url改变时更新字段值
-                    Effect::new({
-                        let avatar_url = avatar_url.clone();
-                        let avatar_field_value = avatar_field_value.clone();
-                        move |_| {
-                            avatar_field_value.set(avatar_url.with(|url| url.clone()));
-                        }
-                    });
-                    avatar_field_value
-                },
+                Effect::new({
+                    let avatar_url = avatar_url.clone();
+                    let avatar_field_value = avatar_field_value.clone();
+                    move |_| {
+                        avatar_field_value.set(avatar_url.with(|url| url.clone()));
+                    }
+                });
+                avatar_field_value
+            },
             placeholder: None,
             error_message: ArcRwSignal::new(None),
             validation: None,
@@ -155,7 +155,11 @@ where
             } else {
                 Some(phone_number)
             },
-            avatar_url: if avatar.is_empty() { None } else { Some(avatar) },
+            avatar_url: if avatar.is_empty() {
+                None
+            } else {
+                Some(avatar)
+            },
             merchant_uuid: None,
             role: None,
         };

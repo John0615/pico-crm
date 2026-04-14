@@ -1,0 +1,50 @@
+use crate::application::utils::parse_utc_time_to_string;
+use crate::domain::identity::user::{Status, User as DomainUser};
+use shared::user::{CreateUserRequest, User};
+
+impl From<DomainUser> for User {
+    fn from(user: DomainUser) -> Self {
+        let status = match user.status {
+            Status::Inactive => "inactive".to_string(),
+            Status::Active => "active".to_string(),
+        };
+
+        Self {
+            uuid: user.uuid,
+            user_name: user.user_name,
+            email: user.email,
+            phone_number: user.phone_number,
+            merchant_uuid: user.merchant_uuid,
+            role: user.role,
+            is_admin: user.is_admin,
+            status: status,
+            avatar_url: user.avatar_url,
+            last_login_at: user.last_login_at.map(parse_utc_time_to_string),
+            email_verified_at: user.email_verified_at.map(parse_utc_time_to_string),
+            inserted_at: parse_utc_time_to_string(user.inserted_at),
+            updated_at: parse_utc_time_to_string(user.updated_at),
+        }
+    }
+}
+
+impl From<CreateUserRequest> for DomainUser {
+    fn from(request: CreateUserRequest) -> Self {
+        let mut user = DomainUser::new(
+            request.user_name,
+            request.password,
+            request.email,
+            request.phone_number,
+        );
+        if let Some(role) = request.role {
+            user.set_role(role);
+        }
+        if let Some(merchant_uuid) = request.merchant_uuid {
+            user.set_merchant_uuid(merchant_uuid);
+        }
+        // 设置头像URL（如果提供了）
+        if let Some(avatar_url) = request.avatar_url {
+            user.avatar_url = Some(avatar_url);
+        }
+        user
+    }
+}

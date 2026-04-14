@@ -10,9 +10,9 @@ use shared::system_config::{
     endpoint = "/system-config",
 )]
 pub async fn fetch_system_config() -> Result<Vec<SystemConfigCategoryDto>, ServerFnError> {
-    use backend::application::queries::system_config_service::SystemConfigQueryService;
+    use backend::application::queries::platform::system_config_service::SystemConfigQueryService;
     use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::system_config_repository_impl::SeaOrmSystemConfigRepository;
+    use backend::infrastructure::repositories::platform::system_config_repository_impl::SeaOrmSystemConfigRepository;
 
     let pool = expect_context::<Database>();
     let repo = SeaOrmSystemConfigRepository::new(pool.get_connection().clone());
@@ -34,12 +34,12 @@ pub async fn fetch_system_config() -> Result<Vec<SystemConfigCategoryDto>, Serve
 pub async fn update_system_config(
     request: SystemConfigUpdateRequest,
 ) -> Result<SystemConfigUpdateResponse, ServerFnError> {
-    use backend::application::commands::system_config_service::SystemConfigCommandService;
-    use backend::application::mappers::system_config_mapper::to_item_dto;
-    use backend::domain::models::system_config::SystemConfigItemUpdateRequest;
+    use backend::application::commands::platform::system_config_service::SystemConfigCommandService;
+    use backend::application::mappers::platform::system_config_mapper::to_item_dto;
+    use backend::domain::platform::system_config::SystemConfigItemUpdateRequest;
     use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::audit_log_repository_impl::SeaOrmAuditLogRepository;
-    use backend::infrastructure::repositories::system_config_repository_impl::SeaOrmSystemConfigRepository;
+    use backend::infrastructure::repositories::platform::audit_log_repository_impl::SeaOrmAuditLogRepository;
+    use backend::infrastructure::repositories::platform::system_config_repository_impl::SeaOrmSystemConfigRepository;
 
     let pool = expect_context::<Database>();
     let repo = SeaOrmSystemConfigRepository::new(pool.get_connection().clone());

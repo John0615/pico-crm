@@ -1,15 +1,15 @@
 use crate::components::ui::toast::{error, success};
-use shared::auth::LoginResponse;
 use leptos::prelude::*;
+use shared::auth::LoginResponse;
 
 #[cfg(feature = "ssr")]
 pub mod login_ssr {
-    pub use backend::application::commands::admin_auth::AdminAuthAppService;
-    pub use backend::application::commands::merchant_auth::MerchantAuthAppService;
+    pub use backend::application::commands::platform::admin_auth::AdminAuthAppService;
+    pub use backend::application::commands::platform::merchant_auth::MerchantAuthAppService;
     pub use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
     pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::repositories::admin_user_repository_impl::SeaOrmAdminUserRepository;
-    pub use backend::infrastructure::repositories::merchant_repository_impl::SeaOrmMerchantRepository;
+    pub use backend::infrastructure::repositories::platform::admin_user_repository_impl::SeaOrmAdminUserRepository;
+    pub use backend::infrastructure::repositories::platform::merchant_repository_impl::SeaOrmMerchantRepository;
 }
 
 #[server(
@@ -59,11 +59,8 @@ pub async fn login_action(
         }
 
         let merchant_repo = SeaOrmMerchantRepository::new(pool.connection.clone());
-        let merchant_auth = MerchantAuthAppService::new(
-            merchant_repo,
-            pool.connection.clone(),
-            auth.clone(),
-        );
+        let merchant_auth =
+            MerchantAuthAppService::new(merchant_repo, pool.connection.clone(), auth.clone());
         merchant_auth
             .authenticate_by_contact_phone(&merchant_contact_phone, &user_name, &password)
             .await
@@ -96,9 +93,7 @@ pub async fn login_action(
 
     response.insert_header(SET_COOKIE, header_value);
 
-    let claims = auth
-        .get_claims(&token)
-        .map_err(|e| ServerFnError::new(e))?;
+    let claims = auth.get_claims(&token).map_err(|e| ServerFnError::new(e))?;
     let redirect_to = if claims.role == "admin" {
         "/admin/merchants"
     } else {

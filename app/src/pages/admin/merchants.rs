@@ -12,7 +12,9 @@ use shared::merchant::{
     MerchantListQuery, MerchantSummary, ProvisionMerchantRequest, UpdateMerchantRequest,
 };
 
-pub use crate::server::admin_merchant_handlers::{create_merchant, fetch_merchants, update_merchant};
+pub use crate::server::admin_merchant_handlers::{
+    create_merchant, fetch_merchants, update_merchant,
+};
 
 impl Identifiable for MerchantSummary {
     fn id(&self) -> String {

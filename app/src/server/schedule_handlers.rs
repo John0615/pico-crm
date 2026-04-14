@@ -10,12 +10,12 @@ use shared::ListResult;
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    pub use backend::application::commands::schedule_service::ScheduleAppService;
-    pub use backend::application::queries::schedule_service::ScheduleQueryService;
+    pub use backend::application::commands::crm::schedule_service::ScheduleAppService;
+    pub use backend::application::queries::crm::schedule_service::ScheduleQueryService;
     pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::queries::schedule_query_impl::SeaOrmScheduleQuery;
-    pub use backend::infrastructure::repositories::order_repository_impl::SeaOrmOrderRepository;
-    pub use backend::infrastructure::repositories::schedule_repository_impl::SeaOrmScheduleRepository;
+    pub use backend::infrastructure::queries::crm::schedule_query_impl::SeaOrmScheduleQuery;
+    pub use backend::infrastructure::repositories::crm::order_repository_impl::SeaOrmOrderRepository;
+    pub use backend::infrastructure::repositories::crm::schedule_repository_impl::SeaOrmScheduleRepository;
     pub use backend::infrastructure::tenant::TenantContext;
 }
 
@@ -202,13 +202,16 @@ pub async fn update_schedule_status(
             return Err(ServerFnError::new("无权限更新该排班".to_string()));
         }
         if payload.status != "in_service" && payload.status != "done" {
-            return Err(ServerFnError::new("仅允许更新服务开始或完成状态".to_string()));
+            return Err(ServerFnError::new(
+                "仅允许更新服务开始或完成状态".to_string(),
+            ));
         }
     } else {
         ensure_operator(&current_user)?;
     }
 
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name);
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 

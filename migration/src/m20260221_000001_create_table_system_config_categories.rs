@@ -28,7 +28,11 @@ impl MigrationTrait for Migration {
                             .string()
                             .not_null(),
                     )
-                    .col(ColumnDef::new(SystemConfigCategory::Description).string().null())
+                    .col(
+                        ColumnDef::new(SystemConfigCategory::Description)
+                            .string()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(SystemConfigCategory::SortOrder)
                             .integer()

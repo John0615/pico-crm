@@ -1,11 +1,11 @@
+#[cfg(feature = "ssr")]
+use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::merchant::{
     MerchantListQuery, MerchantPagedResult, MerchantSummary, ProvisionMerchantRequest,
     UpdateMerchantRequest,
 };
-#[cfg(feature = "ssr")]
-use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 
 #[server(
     name = FetchMerchants,
@@ -15,9 +15,9 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 pub async fn fetch_merchants(
     params: MerchantListQuery,
 ) -> Result<MerchantPagedResult<MerchantSummary>, ServerFnError> {
-    use backend::application::queries::merchant_service::MerchantQueryService;
+    use backend::application::queries::platform::merchant_service::MerchantQueryService;
     use backend::infrastructure::db::Database;
-    use backend::infrastructure::queries::merchant_query_impl::SeaOrmMerchantQuery;
+    use backend::infrastructure::queries::platform::merchant_query_impl::SeaOrmMerchantQuery;
 
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
@@ -41,9 +41,9 @@ pub async fn fetch_merchants(
 pub async fn create_merchant(
     request: ProvisionMerchantRequest,
 ) -> Result<MerchantSummary, ServerFnError> {
-    use backend::application::commands::merchant_service::MerchantProvisioningService;
+    use backend::application::commands::platform::merchant_service::MerchantProvisioningService;
     use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::merchant_repository_impl::SeaOrmMerchantRepository;
+    use backend::infrastructure::repositories::platform::merchant_repository_impl::SeaOrmMerchantRepository;
 
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
@@ -68,10 +68,10 @@ pub async fn update_merchant(
     uuid: String,
     request: UpdateMerchantRequest,
 ) -> Result<MerchantSummary, ServerFnError> {
-    use backend::application::commands::admin_merchant_service::AdminMerchantService;
-    use backend::domain::models::merchant::MerchantUpdate;
+    use backend::application::commands::platform::admin_merchant_service::AdminMerchantService;
+    use backend::domain::platform::merchant::MerchantUpdate;
     use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::merchant_repository_impl::SeaOrmMerchantRepository;
+    use backend::infrastructure::repositories::platform::merchant_repository_impl::SeaOrmMerchantRepository;
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
     let repo = SeaOrmMerchantRepository::new(db);
@@ -98,9 +98,7 @@ pub async fn update_merchant(
 }
 
 #[cfg(feature = "ssr")]
-fn parse_optional_datetime(
-    input: Option<String>,
-) -> Result<Option<DateTime<Utc>>, ServerFnError> {
+fn parse_optional_datetime(input: Option<String>) -> Result<Option<DateTime<Utc>>, ServerFnError> {
     let Some(raw) = input else {
         return Ok(None);
     };

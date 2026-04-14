@@ -4,7 +4,7 @@ use leptos_router::{lazy_route, LazyRoute};
 use crate::pages::admin::{
     AdminAnalytics, AdminMerchants, AdminUsers, SystemSettings, TenantMaintenance,
 };
-use crate::pages::{ContactsManagement, Login, ServiceRequestsPage, OrdersPage, SchedulesPage};
+use crate::pages::{ContactsManagement, Login, OrdersPage, SchedulesPage, ServiceRequestsPage};
 
 #[derive(Debug)]
 pub struct LoginRoute;

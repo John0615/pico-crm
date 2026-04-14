@@ -9,28 +9,30 @@ use shared::user::{CreateUserRequest, PagedResult, User, UserListQuery};
     endpoint = "/get_user",
 )]
 pub async fn get_user(uuid: String) -> Result<User, ServerFnError> {
-    use backend::infrastructure::queries::user_query_impl::SeaOrmUserQuery;
-    use backend::application::queries::user_service::UserAppService;
-    use backend::infrastructure::db::Database;
-    use backend::infrastructure::tenant::TenantContext;
     use axum::Extension;
-    use leptos_axum::extract;
+    use backend::application::queries::identity::user_service::UserAppService;
+    use backend::infrastructure::db::Database;
+    use backend::infrastructure::queries::identity::user_query_impl::SeaOrmUserQuery;
+    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
-    
+    use leptos_axum::extract;
+
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
     let Extension(tenant): Extension<TenantContext> = extract().await?;
-    
+
     // 创建查询repository和service
     let query_repository = SeaOrmUserQuery::new(db, tenant.schema_name);
     let query_service = UserAppService::new(query_repository);
-    
+
     // 调用查询服务获取用户
-    let user = query_service.get_user_by_uuid(&uuid).await
+    let user = query_service
+        .get_user_by_uuid(&uuid)
+        .await
         .map_err(|e| ServerFnError::new(format!("查询用户失败: {}", e)))?
         .ok_or_else(|| ServerFnError::new("用户不存在".to_string()))?;
-    
+
     Ok(user)
 }
 #[server(
@@ -39,13 +41,13 @@ pub async fn get_user(uuid: String) -> Result<User, ServerFnError> {
     endpoint = "/fetch_users",
 )]
 pub async fn fetch_users(params: UserListQuery) -> Result<PagedResult<User>, ServerFnError> {
-    use backend::application::queries::user_service::UserAppService;
-    use backend::infrastructure::db::Database;
-    use backend::infrastructure::queries::user_query_impl::SeaOrmUserQuery;
-    use backend::infrastructure::tenant::TenantContext;
     use axum::Extension;
-    use leptos_axum::extract;
+    use backend::application::queries::identity::user_service::UserAppService;
+    use backend::infrastructure::db::Database;
+    use backend::infrastructure::queries::identity::user_query_impl::SeaOrmUserQuery;
+    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
+    use leptos_axum::extract;
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
@@ -77,9 +79,9 @@ pub async fn fetch_users(params: UserListQuery) -> Result<PagedResult<User>, Ser
 )]
 pub async fn create_user(request: CreateUserRequest) -> Result<User, ServerFnError> {
     use axum::extract::Extension;
-    use backend::application::commands::user_service::UserCommandService;
+    use backend::application::commands::identity::user_service::UserCommandService;
     use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
+    use backend::infrastructure::repositories::identity::user_repository_impl::SeaOrmUserRepository;
     use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
     use leptos_axum::extract;
@@ -115,13 +117,13 @@ pub async fn create_user(request: CreateUserRequest) -> Result<User, ServerFnErr
     endpoint = "/update_user",
 )]
 pub async fn update_user(uuid: String, request: CreateUserRequest) -> Result<User, ServerFnError> {
-    use backend::application::commands::user_service::UserCommandService;
-    use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
-    use backend::infrastructure::tenant::TenantContext;
     use axum::Extension;
-    use leptos_axum::extract;
+    use backend::application::commands::identity::user_service::UserCommandService;
+    use backend::infrastructure::db::Database;
+    use backend::infrastructure::repositories::identity::user_repository_impl::SeaOrmUserRepository;
+    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
+    use leptos_axum::extract;
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
@@ -149,13 +151,13 @@ pub async fn update_user(uuid: String, request: CreateUserRequest) -> Result<Use
     endpoint = "/delete_user",
 )]
 pub async fn delete_user(uuid: String) -> Result<(), ServerFnError> {
-    use backend::application::commands::user_service::UserCommandService;
-    use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
-    use backend::infrastructure::tenant::TenantContext;
     use axum::Extension;
-    use leptos_axum::extract;
+    use backend::application::commands::identity::user_service::UserCommandService;
+    use backend::infrastructure::db::Database;
+    use backend::infrastructure::repositories::identity::user_repository_impl::SeaOrmUserRepository;
+    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
+    use leptos_axum::extract;
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
@@ -182,13 +184,13 @@ pub async fn delete_user(uuid: String) -> Result<(), ServerFnError> {
     endpoint = "/toggle_user_status",
 )]
 pub async fn toggle_user_status(uuid: String) -> Result<User, ServerFnError> {
-    use backend::application::commands::user_service::UserCommandService;
-    use backend::infrastructure::db::Database;
-    use backend::infrastructure::repositories::user_repository_impl::SeaOrmUserRepository;
-    use backend::infrastructure::tenant::TenantContext;
     use axum::Extension;
-    use leptos_axum::extract;
+    use backend::application::commands::identity::user_service::UserCommandService;
+    use backend::infrastructure::db::Database;
+    use backend::infrastructure::repositories::identity::user_repository_impl::SeaOrmUserRepository;
+    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
+    use leptos_axum::extract;
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
@@ -200,17 +202,23 @@ pub async fn toggle_user_status(uuid: String) -> Result<User, ServerFnError> {
     let service = UserCommandService::new(repository);
 
     // 获取当前用户状态并切换
-    let current_user = service.get_user_by_uuid(&uuid).await
+    let current_user = service
+        .get_user_by_uuid(&uuid)
+        .await
         .map_err(|e| ServerFnError::new(e))?
         .ok_or_else(|| ServerFnError::new("用户不存在".to_string()))?;
 
     let updated_user = if current_user.status == "active" {
         // 如果当前是活跃状态，则禁用
-        service.deactivate_user(&uuid).await
+        service
+            .deactivate_user(&uuid)
+            .await
             .map_err(|e| ServerFnError::new(e))?
     } else {
         // 如果当前是非活跃状态，则激活
-        service.activate_user(&uuid).await
+        service
+            .activate_user(&uuid)
+            .await
             .map_err(|e| ServerFnError::new(e))?
     };
 

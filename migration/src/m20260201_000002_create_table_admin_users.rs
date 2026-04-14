@@ -32,8 +32,18 @@ impl MigrationTrait for Migration {
                             .string_len(255)
                             .not_null(),
                     )
-                    .col(ColumnDef::new(AdminUser::Email).string().null().unique_key())
-                    .col(ColumnDef::new(AdminUser::PhoneNumber).string().null().unique_key())
+                    .col(
+                        ColumnDef::new(AdminUser::Email)
+                            .string()
+                            .null()
+                            .unique_key(),
+                    )
+                    .col(
+                        ColumnDef::new(AdminUser::PhoneNumber)
+                            .string()
+                            .null()
+                            .unique_key(),
+                    )
                     .col(
                         ColumnDef::new(AdminUser::Role)
                             .string()
@@ -46,7 +56,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default("active"),
                     )
-                    .col(ColumnDef::new(AdminUser::LastLoginAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AdminUser::LastLoginAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AdminUser::InsertedAt)
                             .timestamp_with_time_zone()

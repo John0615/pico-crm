@@ -25,3 +25,6 @@ uuid.workspace = true
 aws-sdk-s3.workspace = true
 aws-config.workspace = true
 aws-credential-types.workspace = true
+disintegrate = { version = "4.0.0", features = ["macros", "serde-json"] }
+disintegrate-postgres = { version = "4.0.0", features = ["listener"] }
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-native-tls", "chrono", "uuid"] }

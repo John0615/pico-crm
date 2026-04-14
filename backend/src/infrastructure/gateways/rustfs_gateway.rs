@@ -1,7 +1,6 @@
-use crate::domain::gateways::file_storage::FileStorageGateway;
-use crate::domain::models::file::{
+use crate::domain::shared::file::{
     FileDeleteRequest, FileDownloadRequest, FileDownloadResponse, FileInfo, FileListRequest,
-    FileListResponse, FileUploadRequest, FileUploadResponse,
+    FileListResponse, FileStorageGateway, FileUploadRequest, FileUploadResponse,
 };
 use async_trait::async_trait;
 use aws_config::BehaviorVersion;

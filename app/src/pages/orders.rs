@@ -122,7 +122,10 @@ pub fn OrdersPage() -> impl IntoView {
         if let Some(items) = contacts.get() {
             let mut map = HashMap::new();
             for contact in items {
-                map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
+                map.insert(
+                    contact.contact_uuid.clone(),
+                    contact_display_label(&contact),
+                );
             }
             contact_labels.set(map);
         }
@@ -140,7 +143,9 @@ pub fn OrdersPage() -> impl IntoView {
         let mut pending = pending_contacts.get();
         let mut missing_ids: Vec<String> = Vec::new();
         for order in &items {
-            let Some(contact_id) = order.customer_uuid.clone() else { continue };
+            let Some(contact_id) = order.customer_uuid.clone() else {
+                continue;
+            };
             if contact_id.is_empty() {
                 continue;
             }

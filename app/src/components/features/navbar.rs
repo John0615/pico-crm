@@ -14,7 +14,10 @@ fn try_init_flyonui_components() {
     let Some(document) = window.document() else {
         return;
     };
-    if document.get_element_by_id("collapsible-mini-sidebar").is_none() {
+    if document
+        .get_element_by_id("collapsible-mini-sidebar")
+        .is_none()
+    {
         return;
     }
     let overlay_btn_exists = document
@@ -51,8 +54,7 @@ fn try_init_flyonui_components() {
     let overlay = js_sys::Reflect::get(&window, &JsValue::from_str("HSOverlay"));
     if let Ok(overlay) = overlay {
         if !overlay.is_undefined() && !overlay.is_null() {
-            if let Ok(auto_init) = js_sys::Reflect::get(&overlay, &JsValue::from_str("autoInit"))
-            {
+            if let Ok(auto_init) = js_sys::Reflect::get(&overlay, &JsValue::from_str("autoInit")) {
                 if let Ok(auto_init) = auto_init.dyn_into::<js_sys::Function>() {
                     let _ = auto_init.call0(&overlay);
                 }
@@ -63,8 +65,7 @@ fn try_init_flyonui_components() {
     let dropdown = js_sys::Reflect::get(&window, &JsValue::from_str("HSDropdown"));
     if let Ok(dropdown) = dropdown {
         if !dropdown.is_undefined() && !dropdown.is_null() {
-            if let Ok(auto_init) = js_sys::Reflect::get(&dropdown, &JsValue::from_str("autoInit"))
-            {
+            if let Ok(auto_init) = js_sys::Reflect::get(&dropdown, &JsValue::from_str("autoInit")) {
                 if let Ok(auto_init) = auto_init.dyn_into::<js_sys::Function>() {
                     let _ = auto_init.call0(&dropdown);
                 }
@@ -87,18 +88,12 @@ fn init_flyonui_overlay_with_retry() {
     let cb_1 = Closure::once_into_js(|| {
         try_init_flyonui_components();
     });
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        cb_1.unchecked_ref(),
-        100,
-    );
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(cb_1.unchecked_ref(), 100);
 
     let cb_2 = Closure::once_into_js(|| {
         try_init_flyonui_components();
     });
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        cb_2.unchecked_ref(),
-        400,
-    );
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(cb_2.unchecked_ref(), 400);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

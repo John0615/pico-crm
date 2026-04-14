@@ -5,13 +5,13 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Redirect},
 };
-use backend::domain::auth::provider::{AuthCredential, AuthProvider};
-use backend::domain::repositories::admin_user::AdminUserRepository;
+use backend::domain::identity::auth::{AuthCredential, AuthProvider};
+use backend::domain::platform::admin_user::AdminUserRepository;
 use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
 use backend::infrastructure::config::app::AppConfig;
 use backend::infrastructure::db::Database;
+use backend::infrastructure::repositories::platform::admin_user_repository_impl::SeaOrmAdminUserRepository;
 use backend::infrastructure::tenant::{schema_name_from_merchant, TenantContext};
-use backend::infrastructure::repositories::admin_user_repository_impl::SeaOrmAdminUserRepository;
 use chrono::Utc;
 use cookie::{Cookie, CookieJar};
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
@@ -75,7 +75,12 @@ pub async fn global_api_auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
-    let white_list = ["/login", "/api/logout", "/api/login", "/api/register_merchant"];
+    let white_list = [
+        "/login",
+        "/api/logout",
+        "/api/login",
+        "/api/register_merchant",
+    ];
     let path = req.uri().path().to_string();
 
     if white_list.contains(&path.as_str()) {
@@ -143,12 +148,13 @@ pub async fn global_api_auth_middleware(
                     }
                 }
             } else {
-                let merchant_status = fetch_merchant_status(&db, &merchant_id)
-                    .await
-                    .map_err(|err| {
-                        println!("error: {:?}", err);
-                        err
-                    })?;
+                let merchant_status =
+                    fetch_merchant_status(&db, &merchant_id)
+                        .await
+                        .map_err(|err| {
+                            println!("error: {:?}", err);
+                            err
+                        })?;
                 if !merchant_status.is_active {
                     return handle_auth_failure(&path).await;
                 }
@@ -226,28 +232,21 @@ async fn fetch_merchant_status(
         "SELECT status, expired_at FROM public.merchant WHERE uuid = $1",
         vec![merchant_uuid.into()],
     );
-    let row = db
-        .connection
-        .query_one(stmt)
-        .await
-        .map_err(|err| {
-            println!("error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let row = db.connection.query_one(stmt).await.map_err(|err| {
+        println!("error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let Some(row) = row else {
         return Ok(MerchantStatus { is_active: false });
     };
 
-    let status: String = row
-        .try_get("", "status")
-        .map_err(|err| {
-            println!("error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-    let expired_at: Option<chrono::DateTime<Utc>> = row
-        .try_get("", "expired_at")
-        .map_err(|err| {
+    let status: String = row.try_get("", "status").map_err(|err| {
+        println!("error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let expired_at: Option<chrono::DateTime<Utc>> =
+        row.try_get("", "expired_at").map_err(|err| {
             println!("error: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;

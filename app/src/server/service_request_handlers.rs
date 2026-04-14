@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::service_request::{
-    CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
-    UpdateServiceRequestStatus,
+    CreateServiceRequest, ServiceRequest, ServiceRequestCommandResult, ServiceRequestQuery,
+    UpdateServiceRequest, UpdateServiceRequestStatus,
 };
 #[cfg(feature = "ssr")]
 use shared::user::User;
@@ -10,11 +10,11 @@ use shared::ListResult;
 
 #[cfg(feature = "ssr")]
 mod ssr {
-    pub use backend::application::commands::service_request_service::ServiceRequestAppService;
-    pub use backend::application::queries::service_request_service::ServiceRequestQueryService;
+    pub use backend::application::commands::crm::service_request_service::ServiceRequestAppService;
+    pub use backend::application::queries::crm::service_request_service::ServiceRequestQueryService;
     pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::queries::service_request_query_impl::SeaOrmServiceRequestQuery;
-    pub use backend::infrastructure::repositories::service_request_repository_impl::SeaOrmServiceRequestRepository;
+    pub use backend::infrastructure::queries::crm::service_request_query_impl::SeaOrmServiceRequestQuery;
+    pub use backend::infrastructure::repositories::crm::service_request_repository_impl::SeaOrmServiceRequestRepository;
     pub use backend::infrastructure::tenant::TenantContext;
 }
 
@@ -71,7 +71,7 @@ pub async fn get_service_request(uuid: String) -> Result<Option<ServiceRequest>,
 )]
 pub async fn create_service_request(
     payload: CreateServiceRequest,
-) -> Result<ServiceRequest, ServerFnError> {
+) -> Result<ServiceRequestCommandResult, ServerFnError> {
     use self::ssr::*;
     use axum::Extension;
     use leptos_axum::extract;
@@ -96,7 +96,7 @@ pub async fn create_service_request(
 )]
 pub async fn update_service_request(
     payload: UpdateServiceRequest,
-) -> Result<ServiceRequest, ServerFnError> {
+) -> Result<ServiceRequestCommandResult, ServerFnError> {
     use self::ssr::*;
     use axum::Extension;
     use leptos_axum::extract;
@@ -121,7 +121,7 @@ pub async fn update_service_request(
 pub async fn update_service_request_status(
     uuid: String,
     payload: UpdateServiceRequestStatus,
-) -> Result<ServiceRequest, ServerFnError> {
+) -> Result<ServiceRequestCommandResult, ServerFnError> {
     use self::ssr::*;
     use axum::Extension;
     use leptos_axum::extract;

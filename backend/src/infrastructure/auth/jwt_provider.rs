@@ -1,18 +1,16 @@
-use crate::domain::auth::claims::JwtClaims;
-use crate::domain::auth::provider::{AuthCredential, AuthProvider};
-use crate::domain::models::user::User;
-use crate::domain::queries::user::UserQuery;
+use crate::domain::identity::auth::{AuthCredential, AuthProvider, JwtClaims};
+use crate::domain::identity::user::{User, UserQuery};
 use crate::infrastructure::config::app::AppConfig;
 use crate::infrastructure::config::jwt::JwtConfig;
 use crate::infrastructure::entity::users::{Column, Entity};
-use crate::infrastructure::mappers::user_mapper::UserMapper;
-use crate::infrastructure::queries::user_query_impl::SeaOrmUserQuery;
+use crate::infrastructure::mappers::identity::user_mapper::UserMapper;
+use crate::infrastructure::queries::identity::user_query_impl::SeaOrmUserQuery;
 use crate::infrastructure::tenant::{schema_name_from_merchant, with_tenant_txn};
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use sea_orm::DatabaseConnection;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 #[derive(Debug, Clone)]
 pub struct JwtAuthProvider {

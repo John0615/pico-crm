@@ -10,7 +10,7 @@ use shared::admin::{TenantMigrationRequest, TenantMigrationResponse};
 pub async fn run_tenant_migrations(
     request: Option<TenantMigrationRequest>,
 ) -> Result<TenantMigrationResponse, ServerFnError> {
-    use backend::application::commands::admin_tenant_migration_service::AdminTenantMigrationService;
+    use backend::application::commands::platform::admin_tenant_migration_service::AdminTenantMigrationService;
     use backend::infrastructure::db::Database;
 
     let pool = expect_context::<Database>();

@@ -43,6 +43,11 @@ pub struct UpdateServiceRequestStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServiceRequestCommandResult {
+    pub uuid: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ServiceRequestQuery {
     pub page: u64,
     pub page_size: u64,

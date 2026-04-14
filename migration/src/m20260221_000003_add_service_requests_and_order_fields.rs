@@ -18,8 +18,16 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(ServiceRequests::ContactUuid).uuid().not_null())
-                    .col(ColumnDef::new(ServiceRequests::ServiceContent).text().not_null())
+                    .col(
+                        ColumnDef::new(ServiceRequests::ContactUuid)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ServiceRequests::ServiceContent)
+                            .text()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(ServiceRequests::AppointmentStartAt)
                             .timestamp_with_time_zone()
@@ -73,7 +81,9 @@ impl MigrationTrait for Migration {
                     .modify_column(ColumnDef::new(Orders::CustomerId).uuid().null())
                     .add_column_if_not_exists(ColumnDef::new(Orders::RequestId).uuid().null())
                     .add_column_if_not_exists(ColumnDef::new(Orders::ContactUuid).uuid().null())
-                    .add_column_if_not_exists(ColumnDef::new(Orders::AssignedUserUuid).uuid().null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(Orders::AssignedUserUuid).uuid().null(),
+                    )
                     .add_column_if_not_exists(
                         ColumnDef::new(Orders::ScheduledStartAt)
                             .timestamp_with_time_zone()

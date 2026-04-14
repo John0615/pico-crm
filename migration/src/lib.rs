@@ -6,19 +6,20 @@ mod m20250707_013515_create_table_users;
 mod m20260201_000001_create_table_merchants;
 mod m20260201_000002_create_table_admin_users;
 mod m20260201_000003_create_table_audit_logs;
+mod m20260201_000004_create_tenant_tables;
+mod m20260201_000005_add_user_tenant_columns;
 mod m20260221_000001_create_table_system_config_categories;
 mod m20260221_000002_create_table_system_config_items;
 mod m20260221_000003_add_service_requests_and_order_fields;
-mod m20260223_000004_add_service_request_creator;
 mod m20260222_000001_add_order_schedule_indexes;
+mod m20260223_000004_add_service_request_creator;
 mod m20260224_000001_use_schedules_for_assignment;
 mod m20260225_000001_fill_orders_customer_from_contact;
 mod m20260225_000002_rename_orders_customer_uuid;
 mod m20260225_000003_rename_service_requests_customer_uuid;
 mod m20260225_000004_backfill_orders_customer_uuid_from_requests;
 mod m20260225_000005_drop_customer_extra_fields;
-mod m20260201_000004_create_tenant_tables;
-mod m20260201_000005_add_user_tenant_columns;
+mod m20260414_000001_add_service_request_event_id;
 
 pub struct Migrator;
 
@@ -39,6 +40,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260225_000003_rename_service_requests_customer_uuid::Migration),
             Box::new(m20260225_000004_backfill_orders_customer_uuid_from_requests::Migration),
             Box::new(m20260225_000005_drop_customer_extra_fields::Migration),
+            Box::new(m20260414_000001_add_service_request_event_id::Migration),
         ]
     }
 }
@@ -81,6 +83,7 @@ impl MigratorTrait for TenantMigrator {
             Box::new(m20260225_000003_rename_service_requests_customer_uuid::Migration),
             Box::new(m20260225_000004_backfill_orders_customer_uuid_from_requests::Migration),
             Box::new(m20260225_000005_drop_customer_extra_fields::Migration),
+            Box::new(m20260414_000001_add_service_request_event_id::Migration),
         ]
     }
 }

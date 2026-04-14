@@ -8,15 +8,15 @@ use shared::{
 #[cfg(feature = "ssr")]
 mod ssr {
     pub use backend::application::{
-        commands::contact_service::ContactAppService,
-        queries::contact_service::ContactAppService as ContactQueryService,
+        commands::crm::contact_service::ContactAppService,
+        queries::crm::contact_service::ContactAppService as ContactQueryService,
     };
     pub use backend::infrastructure::db::Database;
-    pub use backend::infrastructure::{
-        queries::contact_query_impl::SeaOrmContactQuery,
-        repositories::contact_repository_impl::SeaOrmContactRepository,
-    };
     pub use backend::infrastructure::tenant::TenantContext;
+    pub use backend::infrastructure::{
+        queries::crm::contact_query_impl::SeaOrmContactQuery,
+        repositories::crm::contact_repository_impl::SeaOrmContactRepository,
+    };
 }
 
 // 获取联系人列表

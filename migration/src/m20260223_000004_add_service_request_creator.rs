@@ -11,7 +11,9 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(ServiceRequests::Table)
-                    .add_column_if_not_exists(ColumnDef::new(ServiceRequests::CreatorUuid).uuid().null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(ServiceRequests::CreatorUuid).uuid().null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -28,7 +30,11 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(ServiceRequests::Table)
-                    .modify_column(ColumnDef::new(ServiceRequests::CreatorUuid).uuid().not_null())
+                    .modify_column(
+                        ColumnDef::new(ServiceRequests::CreatorUuid)
+                            .uuid()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;

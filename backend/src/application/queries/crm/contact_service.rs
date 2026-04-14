@@ -1,0 +1,168 @@
+use crate::domain::crm::contact::{
+    ContactFilters, ContactQuery as CQuery, ContactSpecification, SortOption,
+};
+use crate::domain::shared::pagination::Pagination;
+use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Workbook};
+use shared::{
+    ListResult,
+    contact::{Contact, ContactQuery},
+};
+
+pub struct ContactAppService<R: CQuery> {
+    contact_query: R,
+}
+
+impl<R: CQuery<Result = Contact>> ContactAppService<R> {
+    pub fn new(contact_query: R) -> Self {
+        Self { contact_query }
+    }
+
+    pub async fn fetch_contact(&self, uuid: String) -> Result<Option<Contact>, String> {
+        let result = self
+            .contact_query
+            .get_contact(uuid)
+            .await
+            .map_err(|e| e.to_string())?
+            .map(|contact| contact);
+        Ok(result)
+    }
+
+    pub async fn fetch_contacts(
+        &self,
+        params: ContactQuery,
+    ) -> Result<ListResult<Contact>, String> {
+        let sort_options: Vec<SortOption> = params
+            .sort
+            .unwrap_or_default()
+            .into_iter()
+            .map(|item| item.into())
+            .collect();
+        // 构建领域规约
+        let pagination =
+            Pagination::new(params.page, params.page_size).map_err(|e| e.to_string())?;
+        let filters: ContactFilters = params.filters.map(|f| f.into()).unwrap_or_default();
+        let spec = ContactSpecification::new(Some(filters), Some(sort_options))
+            .map_err(|e| e.to_string())?;
+        println!("spec: {:?}", spec);
+        let (contacts, total) = self.contact_query.contacts(spec, pagination).await?;
+        let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact).collect();
+        Ok(ListResult {
+            items: contacts,
+            total,
+        })
+    }
+
+    pub async fn fetch_contacts_excel_data(&self, params: ContactQuery) -> Result<Vec<u8>, String> {
+        let sort_options: Vec<SortOption> = params
+            .sort
+            .unwrap_or_default()
+            .into_iter()
+            .map(|item| item.into())
+            .collect();
+        // 构建领域规约
+        let filters: ContactFilters = params.filters.map(|f| f.into()).unwrap_or_default();
+        let spec = ContactSpecification::new(Some(filters), Some(sort_options))
+            .map_err(|e| e.to_string())?;
+        println!("spec: {:?}", spec);
+        let contacts = self.contact_query.all_contacts(spec).await?;
+        let contacts: Vec<Contact> = contacts.into_iter().map(|contact| contact).collect();
+
+        // 创建 Excel 工作簿
+        let mut workbook = Workbook::new();
+        let worksheet = workbook.add_worksheet();
+
+        // 定义格式
+        let header_format = Format::new()
+            .set_bold()
+            .set_border(FormatBorder::Thin)
+            .set_background_color("#D3D3D3")
+            .set_align(FormatAlign::Center);
+
+        let content_format = Format::new()
+            .set_border(FormatBorder::Thin)
+            .set_align(FormatAlign::Left);
+
+        // 设置列宽
+        worksheet
+            .set_column_width(0, 20)
+            .map_err(|e| e.to_string())?; // 姓名列
+        worksheet
+            .set_column_width(1, 15)
+            .map_err(|e| e.to_string())?; // 电话列
+        worksheet
+            .set_column_width(2, 10)
+            .map_err(|e| e.to_string())?; // 状态列
+        worksheet
+            .set_column_width(3, 20)
+            .map_err(|e| e.to_string())?; // 最后联系
+        worksheet
+            .set_column_width(4, 15)
+            .map_err(|e| e.to_string())?; // 客户价值
+
+        // 写入表头
+        worksheet
+            .write_string_with_format(0, 0, "姓名", &header_format)
+            .map_err(|e| e.to_string())?;
+        worksheet
+            .write_string_with_format(0, 1, "电话", &header_format)
+            .map_err(|e| e.to_string())?;
+        worksheet
+            .write_string_with_format(0, 2, "状态", &header_format)
+            .map_err(|e| e.to_string())?;
+        worksheet
+            .write_string_with_format(0, 3, "最后联系", &header_format)
+            .map_err(|e| e.to_string())?;
+        worksheet
+            .write_string_with_format(0, 4, "客户价值", &header_format)
+            .map_err(|e| e.to_string())?;
+
+        // 写入联系人数据
+        for (row, contact) in contacts.iter().enumerate() {
+            let row = (row + 1) as u32; // 转换为u32类型
+            let status = match &contact.status {
+                1 => "已签约",
+                2 => "待跟进",
+                3 => "已流失",
+                _ => "未知",
+            };
+            let value_level = match &contact.value_level {
+                1 => "活跃客户",
+                2 => "潜在客户",
+                3 => "不活跃客户",
+                _ => "未知",
+            };
+
+            worksheet
+                .write_string_with_format(row, 0, &contact.user_name, &content_format)
+                .map_err(|e| e.to_string())?;
+
+            worksheet
+                .write_string_with_format(row, 1, &contact.phone_number, &content_format)
+                .map_err(|e| e.to_string())?;
+
+            worksheet
+                .write_string_with_format(row, 2, status, &content_format)
+                .map_err(|e| e.to_string())?;
+
+            worksheet
+                .write_string_with_format(row, 3, &contact.last_contact, &content_format)
+                .map_err(|e| e.to_string())?;
+
+            worksheet
+                .write_string_with_format(row, 4, value_level, &content_format)
+                .map_err(|e| e.to_string())?;
+        }
+
+        // 添加自动筛选
+        worksheet
+            .autofilter(0, 0, contacts.len() as u32, 2)
+            .map_err(|e| e.to_string())?;
+
+        // 保存到内存缓冲区
+        let buf = workbook
+            .save_to_buffer()
+            .map_err(|e| format!("保存Excel失败: {}", e))?;
+
+        Ok(buf)
+    }
+}

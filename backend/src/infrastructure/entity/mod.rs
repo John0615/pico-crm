@@ -2,13 +2,13 @@
 
 pub mod prelude;
 
-pub mod contacts;
 pub mod admin_users;
 pub mod audit_logs;
+pub mod contacts;
 pub mod merchant;
+pub mod orders;
+pub mod schedules;
+pub mod service_requests;
 pub mod system_config_categories;
 pub mod system_config_items;
 pub mod users;
-pub mod service_requests;
-pub mod orders;
-pub mod schedules;

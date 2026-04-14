@@ -1,8 +1,4 @@
-pub mod auth;
-pub mod errors;
-pub mod gateways;
-pub mod models;
-pub mod queries;
-pub mod repositories;
-pub mod services;
-pub mod specifications;
+pub mod crm;
+pub mod identity;
+pub mod platform;
+pub mod shared;

@@ -6,13 +6,7 @@ pub fn FlyonDatePicker(
     #[prop(optional)] placeholder: String,
     #[prop(optional)] class: String,
 ) -> impl IntoView {
-    picker_input(
-        value,
-        placeholder,
-        class,
-        false,
-        "Y-m-d".to_string(),
-    )
+    picker_input(value, placeholder, class, false, "Y-m-d".to_string())
 }
 
 #[component]
@@ -21,13 +15,7 @@ pub fn FlyonDateTimePicker(
     #[prop(optional)] placeholder: String,
     #[prop(optional)] class: String,
 ) -> impl IntoView {
-    picker_input(
-        value,
-        placeholder,
-        class,
-        true,
-        "Y-m-d H:i".to_string(),
-    )
+    picker_input(value, placeholder, class, true, "Y-m-d H:i".to_string())
 }
 
 fn picker_input(
@@ -97,11 +85,7 @@ fn picker_input(
 }
 
 #[cfg(target_arch = "wasm32")]
-fn init_flatpickr_with_retry(
-    input: web_sys::HtmlInputElement,
-    format: String,
-    enable_time: bool,
-) {
+fn init_flatpickr_with_retry(input: web_sys::HtmlInputElement, format: String, enable_time: bool) {
     use wasm_bindgen::closure::Closure;
     use wasm_bindgen::JsCast;
 
@@ -118,27 +102,17 @@ fn init_flatpickr_with_retry(
     let cb_1 = Closure::once_into_js(move || {
         let _ = init_flatpickr(&input_clone, &format_clone, enable_time);
     });
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        cb_1.unchecked_ref(),
-        100,
-    );
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(cb_1.unchecked_ref(), 100);
 
     let input_clone = input.clone();
     let cb_2 = Closure::once_into_js(move || {
         let _ = init_flatpickr(&input_clone, &format, enable_time);
     });
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        cb_2.unchecked_ref(),
-        400,
-    );
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(cb_2.unchecked_ref(), 400);
 }
 
 #[cfg(target_arch = "wasm32")]
-fn init_flatpickr(
-    input: &web_sys::HtmlInputElement,
-    format: &str,
-    enable_time: bool,
-) -> bool {
+fn init_flatpickr(input: &web_sys::HtmlInputElement, format: &str, enable_time: bool) -> bool {
     use wasm_bindgen::closure::Closure;
     use wasm_bindgen::JsCast;
     use wasm_bindgen::JsValue;
@@ -192,11 +166,7 @@ fn init_flatpickr(
     if let Ok(l10ns) = js_sys::Reflect::get(&flatpickr, &JsValue::from_str("l10ns")) {
         if let Ok(zh) = js_sys::Reflect::get(&l10ns, &JsValue::from_str("zh")) {
             if !zh.is_undefined() && !zh.is_null() {
-                let _ = js_sys::Reflect::set(
-                    &options,
-                    &JsValue::from_str("locale"),
-                    &zh,
-                );
+                let _ = js_sys::Reflect::set(&options, &JsValue::from_str("locale"), &zh);
             }
         }
     }

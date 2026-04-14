@@ -15,7 +15,11 @@ pub fn DaisyDrawer(
 ) -> impl IntoView {
     let is_left = position == "left";
     let panel_position = if is_left { "left-0" } else { "right-0" };
-    let panel_translate = if is_left { "-translate-x-full" } else { "translate-x-full" };
+    let panel_translate = if is_left {
+        "-translate-x-full"
+    } else {
+        "translate-x-full"
+    };
 
     view! {
         <div class="relative">

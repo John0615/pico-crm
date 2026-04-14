@@ -9,7 +9,7 @@ use shared::file::{FileDeleteRequest, FileInfoRequest, FileUploadRequest, FileUp
     endpoint = "/upload_file",
 )]
 pub async fn upload_file(request: FileUploadRequest) -> Result<FileUploadResponse, ServerFnError> {
-    use backend::application::commands::file_service::FileCommandService;
+    use backend::application::commands::shared::file_service::FileCommandService;
     use backend::infrastructure::gateways::rustfs_gateway::RustFSGateway;
     use leptos::prelude::*;
     use std::sync::Arc;
