@@ -126,6 +126,8 @@ impl Order {
     pub fn new_from_request(
         request_id: String,
         customer_uuid: String,
+        scheduled_start_at: Option<DateTime<Utc>>,
+        scheduled_end_at: Option<DateTime<Utc>>,
         notes: Option<String>,
     ) -> Self {
         let now = Utc::now();
@@ -133,8 +135,8 @@ impl Order {
             uuid: Uuid::new_v4().to_string(),
             request_id: Some(request_id),
             customer_uuid: Some(customer_uuid),
-            scheduled_start_at: None,
-            scheduled_end_at: None,
+            scheduled_start_at,
+            scheduled_end_at,
             status: OrderStatus::Pending,
             settlement_status: SettlementStatus::Unsettled,
             amount_cents: 0,

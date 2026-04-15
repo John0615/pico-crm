@@ -33,7 +33,11 @@ pub async fn initialize() -> Result<(), String> {
     let pool = event_store_pool().await?;
 
     EVENT_STORE_INIT
-        .get_or_try_init(|| async move { initialize_registered_event_schemas(pool).await })
+        .get_or_try_init(|| async move {
+            initialize_registered_event_schemas(pool.clone()).await?;
+            backfill_schedule_event_order_uuid(pool).await?;
+            Ok::<(), String>(())
+        })
         .await?;
 
     Ok(())
@@ -55,4 +59,37 @@ where
         .await
         .map(|_| ())
         .map_err(|e| format!("initialize {} event store schema error: {}", label, e))
+}
+
+async fn backfill_schedule_event_order_uuid(pool: sqlx::PgPool) -> Result<(), String> {
+    let has_legacy_order_id = sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'event' AND column_name = 'order_id'
+        )
+        "#,
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| format!("check legacy event.order_id column error: {}", e))?;
+
+    if !has_legacy_order_id {
+        return Ok(());
+    }
+
+    sqlx::query(
+        r#"
+        UPDATE event
+        SET order_uuid = order_id
+        WHERE order_uuid IS NULL
+          AND order_id IS NOT NULL
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| format!("backfill schedule event order_uuid error: {}", e))?;
+
+    Ok(())
 }

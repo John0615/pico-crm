@@ -5,7 +5,7 @@ use crate::domain::crm::order::OrderStatus;
 #[derive(Debug, Clone)]
 pub struct ScheduleAssignment {
     pub uuid: String,
-    pub order_id: String,
+    pub order_uuid: String,
     pub assigned_user_uuid: String,
     pub start_at: DateTime<Utc>,
     pub end_at: DateTime<Utc>,

@@ -454,6 +454,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 <DaisyTable data=data>
                     <Column
                         slot:columns
+                        freeze=true
                         prop="service_content".to_string()
                         label="服务内容".to_string()
                         class="font-semibold"
@@ -535,6 +536,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                     </Column>
                     <Column
                         slot:columns
+                        freeze=true
                         prop="actions".to_string()
                         label="操作".to_string()
                         class="text-right"

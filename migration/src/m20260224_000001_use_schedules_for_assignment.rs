@@ -30,7 +30,7 @@ impl MigrationTrait for Migration {
             backend,
             r#"
             INSERT INTO schedules (
-                order_id,
+                order_uuid,
                 assigned_user_uuid,
                 start_at,
                 end_at,
@@ -59,7 +59,7 @@ impl MigrationTrait for Migration {
               AND o.scheduled_start_at IS NOT NULL
               AND o.scheduled_end_at IS NOT NULL
               AND NOT EXISTS (
-                  SELECT 1 FROM schedules s WHERE s.order_id = o.uuid
+                  SELECT 1 FROM schedules s WHERE s.order_uuid = o.uuid
               );
             "#
             .to_string(),

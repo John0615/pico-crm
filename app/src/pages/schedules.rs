@@ -1,6 +1,6 @@
 use crate::components::features::get_user_info;
 use crate::components::ui::date_picker::{FlyonDatePicker, FlyonDateTimePicker};
-use crate::components::ui::modal::Modal;
+use crate::components::ui::modal::{Modal, DETAIL_MODAL_BOX_CLASS};
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
@@ -1127,6 +1127,7 @@ pub fn SchedulesPage() -> impl IntoView {
                 <DaisyTable data=data>
                     <Column
                         slot:columns
+                        freeze=true
                         prop="order_uuid".to_string()
                         label="订单ID".to_string()
                         class="font-semibold"
@@ -1217,6 +1218,7 @@ pub fn SchedulesPage() -> impl IntoView {
                     </Column>
                     <Column
                         slot:columns
+                        freeze=true
                         prop="actions".to_string()
                         label="操作".to_string()
                         class="text-right"
@@ -1609,7 +1611,7 @@ pub fn SchedulesPage() -> impl IntoView {
             </div>
         </Modal>
 
-        <Modal show=show_detail_modal>
+        <Modal show=show_detail_modal box_class=DETAIL_MODAL_BOX_CLASS>
             <div class="space-y-4">
                 <h3 class="text-lg font-semibold">"排班详情"</h3>
                 {move || {

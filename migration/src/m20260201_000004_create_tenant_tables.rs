@@ -187,7 +187,7 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(Schedules::OrderId).uuid().not_null())
+                    .col(ColumnDef::new(Schedules::OrderUuid).uuid().not_null())
                     .col(ColumnDef::new(Schedules::EmployeeId).uuid().not_null())
                     .col(
                         ColumnDef::new(Schedules::StartAt)
@@ -221,7 +221,7 @@ impl MigrationTrait for Migration {
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_schedules_order")
-                            .from(Schedules::Table, Schedules::OrderId)
+                            .from(Schedules::Table, Schedules::OrderUuid)
                             .to(Orders::Table, Orders::Uuid)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
@@ -356,7 +356,7 @@ enum Orders {
 enum Schedules {
     Table,
     Uuid,
-    OrderId,
+    OrderUuid,
     EmployeeId,
     StartAt,
     EndAt,

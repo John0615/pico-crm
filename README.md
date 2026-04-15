@@ -45,8 +45,8 @@ MVP in progress.
 cp .env.example .env.dev
 
 # 2) start postgres (podman or docker)
-podman rm -f pico-crm-pg
-podman run --name pico-crm-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=pico_crm_dev -p 5432:5432 -d postgres:latest
+sudo podman rm -f pico-crm-pg
+sudo podman run --name pico-crm-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=pico_crm_dev -p 5432:5432 -d postgres:latest
 
 # 3) install node deps
 npm i

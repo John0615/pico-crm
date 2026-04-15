@@ -19,7 +19,7 @@ pub enum ScheduleEventEnvelope {
         #[id]
         tenant_schema: String,
         #[id]
-        order_id: String,
+        order_uuid: String,
         schedule_uuid: String,
         assigned_user_uuid: String,
         start_at: DateTime<Utc>,
@@ -33,7 +33,7 @@ pub enum ScheduleEventEnvelope {
         #[id]
         tenant_schema: String,
         #[id]
-        order_id: String,
+        order_uuid: String,
         assigned_user_uuid: String,
         start_at: DateTime<Utc>,
         end_at: DateTime<Utc>,
@@ -44,7 +44,7 @@ pub enum ScheduleEventEnvelope {
         #[id]
         tenant_schema: String,
         #[id]
-        order_id: String,
+        order_uuid: String,
         status: String,
         updated_at: DateTime<Utc>,
     },
@@ -52,7 +52,7 @@ pub enum ScheduleEventEnvelope {
         #[id]
         tenant_schema: String,
         #[id]
-        order_id: String,
+        order_uuid: String,
         deleted_at: DateTime<Utc>,
     },
 }
@@ -63,7 +63,7 @@ pub fn seed_created_event(
 ) -> ScheduleEventEnvelope {
     ScheduleEventEnvelope::ScheduleAssignmentCreated {
         tenant_schema: tenant_schema.to_string(),
-        order_id: assignment.order_id.clone(),
+        order_uuid: assignment.order_uuid.clone(),
         schedule_uuid: assignment.uuid.clone(),
         assigned_user_uuid: assignment.assigned_user_uuid.clone(),
         start_at: assignment.start_at,

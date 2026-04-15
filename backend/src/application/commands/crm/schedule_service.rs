@@ -60,14 +60,14 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
         {
             return Err(format!(
                 "schedule time overlaps with existing assignment {}",
-                conflict.order_id
+                conflict.order_uuid
             ));
         }
 
         let schedule_status = ScheduleStatus::from_order_status(&order.status);
         let assignment = ScheduleAssignment {
             uuid: String::new(),
-            order_id: order_uuid.clone(),
+            order_uuid: order_uuid.clone(),
             assigned_user_uuid: assigned_user_uuid.clone(),
             start_at: start.clone(),
             end_at: end.clone(),
@@ -162,7 +162,7 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
         {
             return Err(format!(
                 "schedule time overlaps with existing assignment {}",
-                conflict.order_id
+                conflict.order_uuid
             ));
         }
 
@@ -182,7 +182,7 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
                 let schedule_status = ScheduleStatus::from_order_status(&order.status);
                 let new_assignment = ScheduleAssignment {
                     uuid: String::new(),
-                    order_id: order_uuid.clone(),
+                    order_uuid: order_uuid.clone(),
                     assigned_user_uuid: assigned_user_uuid.clone(),
                     start_at: start.clone(),
                     end_at: end.clone(),

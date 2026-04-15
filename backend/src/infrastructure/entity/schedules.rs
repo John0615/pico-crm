@@ -8,7 +8,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
-    pub order_id: Uuid,
+    pub order_uuid: Uuid,
     pub assigned_user_uuid: Uuid,
     pub start_at: DateTime<Utc>,
     pub end_at: DateTime<Utc>,
@@ -23,7 +23,7 @@ pub struct Model {
 pub enum Relation {
     #[sea_orm(
         belongs_to = "super::orders::Entity",
-        from = "Column::OrderId",
+        from = "Column::OrderUuid",
         to = "super::orders::Column::Uuid",
         on_update = "NoAction",
         on_delete = "Cascade"

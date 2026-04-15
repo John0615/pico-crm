@@ -11,7 +11,7 @@ pub struct ScheduleState {
     #[id]
     pub tenant_schema: String,
     #[id]
-    pub order_id: String,
+    pub order_uuid: String,
     pub exists: bool,
     pub schedule_uuid: Option<String>,
     pub assigned_user_uuid: Option<String>,
@@ -24,17 +24,17 @@ pub struct ScheduleState {
 }
 
 impl ScheduleState {
-    pub fn new(tenant_schema: impl Into<String>, order_id: impl Into<String>) -> Self {
+    pub fn new(tenant_schema: impl Into<String>, order_uuid: impl Into<String>) -> Self {
         Self {
             tenant_schema: tenant_schema.into(),
-            order_id: order_id.into(),
+            order_uuid: order_uuid.into(),
             ..Default::default()
         }
     }
 
     pub fn to_domain(&self) -> Result<ScheduleAssignment, String> {
         if !self.exists {
-            return Err(format!("schedule for order {} not found", self.order_id));
+            return Err(format!("schedule for order {} not found", self.order_uuid));
         }
 
         let uuid = self
@@ -65,7 +65,7 @@ impl ScheduleState {
 
         Ok(ScheduleAssignment {
             uuid,
-            order_id: self.order_id.clone(),
+            order_uuid: self.order_uuid.clone(),
             assigned_user_uuid,
             start_at,
             end_at,
@@ -82,7 +82,7 @@ impl StateMutate for ScheduleState {
         match event {
             ScheduleEvent::ScheduleAssignmentCreated {
                 tenant_schema,
-                order_id,
+                order_uuid,
                 schedule_uuid,
                 assigned_user_uuid,
                 start_at,
@@ -94,7 +94,7 @@ impl StateMutate for ScheduleState {
             } => {
                 self.exists = true;
                 self.tenant_schema = tenant_schema;
-                self.order_id = order_id;
+                self.order_uuid = order_uuid;
                 self.schedule_uuid = Some(schedule_uuid);
                 self.assigned_user_uuid = Some(assigned_user_uuid);
                 self.start_at = Some(start_at);

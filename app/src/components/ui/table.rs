@@ -112,12 +112,11 @@ pub fn DaisyTable<T: Clone + Send + Sync + Identifiable + 'static>(
 
                             };
 
-                            if col.freeze {
-                                view! { <th class=col.class.unwrap_or_default()>{cell_content}</th> }.into_any()
-                            } else {
-                                view! { <td class=col.class.unwrap_or_default()>{cell_content}</td> }.into_any()
-                            }
-
+                            view! {
+                                <th class=col.class.unwrap_or_default()>
+                                    {cell_content}
+                                </th>
+                            }.into_any()
                         }
                     />
                 </tr>

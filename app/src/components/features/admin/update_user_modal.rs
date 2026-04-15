@@ -227,7 +227,7 @@ where
     };
 
     view! {
-        <Modal show=show>
+        <Modal show=show box_class="max-h-none overflow-visible">
             <FormContainer title="修改员工">
                 {move || {
                     if *loading.read() {

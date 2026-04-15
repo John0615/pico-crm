@@ -1,5 +1,7 @@
 use leptos::prelude::*;
 
+pub const DETAIL_MODAL_BOX_CLASS: &str = "max-w-3xl max-h-none overflow-visible";
+
 #[component]
 pub fn Modal(
     show: RwSignal<bool>,

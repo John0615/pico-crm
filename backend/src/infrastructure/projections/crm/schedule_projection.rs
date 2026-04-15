@@ -49,7 +49,7 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
         match event.into_inner() {
             ScheduleEventEnvelope::ScheduleAssignmentCreated {
                 tenant_schema,
-                order_id,
+                order_uuid,
                 schedule_uuid,
                 assigned_user_uuid,
                 start_at,
@@ -61,16 +61,16 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
             } => {
                 with_tenant_txn(&self.db, &tenant_schema, |txn| {
                     Box::pin(async move {
-                        let order_uuid = parse_uuid(&order_id, "order_id")?;
+                        let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
                         let existing = schedules::Entity::find()
-                            .filter(schedules::Column::OrderId.eq(order_uuid))
+                            .filter(schedules::Column::OrderUuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query schedule projection error: {}", e))?;
                         if existing.is_none() {
                             let active = schedules::ActiveModel {
                                 uuid: Set(parse_uuid(&schedule_uuid, "schedule_uuid")?),
-                                order_id: Set(order_uuid),
+                                order_uuid: Set(order_uuid),
                                 assigned_user_uuid: Set(parse_uuid(
                                     &assigned_user_uuid,
                                     "assigned_user_uuid",
@@ -95,7 +95,7 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
             }
             ScheduleEventEnvelope::ScheduleAssignmentUpdated {
                 tenant_schema,
-                order_id,
+                order_uuid,
                 assigned_user_uuid,
                 start_at,
                 end_at,
@@ -104,9 +104,9 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
             } => {
                 with_tenant_txn(&self.db, &tenant_schema, |txn| {
                     Box::pin(async move {
-                        let order_uuid = parse_uuid(&order_id, "order_id")?;
+                        let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
                         let Some(model) = schedules::Entity::find()
-                            .filter(schedules::Column::OrderId.eq(order_uuid))
+                            .filter(schedules::Column::OrderUuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query schedule projection error: {}", e))?
@@ -137,15 +137,15 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
             }
             ScheduleEventEnvelope::ScheduleStatusChanged {
                 tenant_schema,
-                order_id,
+                order_uuid,
                 status,
                 updated_at,
             } => {
                 with_tenant_txn(&self.db, &tenant_schema, |txn| {
                     Box::pin(async move {
-                        let order_uuid = parse_uuid(&order_id, "order_id")?;
+                        let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
                         let Some(model) = schedules::Entity::find()
-                            .filter(schedules::Column::OrderId.eq(order_uuid))
+                            .filter(schedules::Column::OrderUuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query schedule projection error: {}", e))?
@@ -172,14 +172,14 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
             }
             ScheduleEventEnvelope::ScheduleDeleted {
                 tenant_schema,
-                order_id,
+                order_uuid,
                 deleted_at,
             } => {
                 with_tenant_txn(&self.db, &tenant_schema, |txn| {
                     Box::pin(async move {
-                        let order_uuid = parse_uuid(&order_id, "order_id")?;
+                        let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
                         let Some(model) = schedules::Entity::find()
-                            .filter(schedules::Column::OrderId.eq(order_uuid))
+                            .filter(schedules::Column::OrderUuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query schedule projection error: {}", e))?

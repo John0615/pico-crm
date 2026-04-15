@@ -5,7 +5,7 @@ use super::model::{ScheduleAssignment, ScheduleStatus};
 pub trait ScheduleRepository: Send + Sync {
     fn find_by_order(
         &self,
-        order_id: String,
+        order_uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<ScheduleAssignment>, String>> + Send;
 
     fn create_assignment(
@@ -15,7 +15,7 @@ pub trait ScheduleRepository: Send + Sync {
 
     fn update_assignment(
         &self,
-        order_id: String,
+        order_uuid: String,
         assigned_user_uuid: String,
         start_at: DateTime<Utc>,
         end_at: DateTime<Utc>,
@@ -24,12 +24,12 @@ pub trait ScheduleRepository: Send + Sync {
 
     fn delete_by_order(
         &self,
-        order_id: String,
+        order_uuid: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send;
 
     fn update_status(
         &self,
-        order_id: String,
+        order_uuid: String,
         status: ScheduleStatus,
     ) -> impl std::future::Future<Output = Result<Option<ScheduleAssignment>, String>> + Send;
 
@@ -38,6 +38,6 @@ pub trait ScheduleRepository: Send + Sync {
         assigned_user_uuid: String,
         start_at: DateTime<Utc>,
         end_at: DateTime<Utc>,
-        exclude_order_id: Option<String>,
+        exclude_order_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Option<ScheduleAssignment>, String>> + Send;
 }
