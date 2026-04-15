@@ -3,9 +3,8 @@
 use crate::middlewares::auth_middleware::global_api_auth_middleware;
 use app::*;
 use axum::{middleware::from_fn_with_state, Router};
+use backend::infrastructure::bootstrap_cqrs;
 use backend::infrastructure::db::Database;
-use backend::infrastructure::event_store::service_request::initialize;
-use backend::infrastructure::projections::crm::service_request_projection::spawn_service_request_listener;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, LeptosRoutes};
@@ -25,14 +24,16 @@ async fn main() {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
     println!("db_url: {:?}", db_url);
     let db = Database::new().await;
-    PublicMigrator::up(db.get_connection(), None).await.unwrap();
-    initialize().await.unwrap();
-    spawn_service_request_listener(db.connection.clone())
+    PublicMigrator::up(db.get_connection(), None)
         .await
-        .unwrap();
+        .unwrap_or_else(|err| panic!("执行公共数据库迁移失败: {}", err));
+    bootstrap_cqrs(db.connection.clone())
+        .await
+        .unwrap_or_else(|err| panic!("启动 CQRS 基础设施失败: {}", err));
     // Tenant 迁移在商户开通时执行，并通过 search_path 定向到租户 schema
 
-    let conf = get_configuration(None).unwrap();
+    let conf =
+        get_configuration(None).unwrap_or_else(|err| panic!("加载 Leptos 配置失败: {}", err));
     let addr = conf.leptos_options.site_addr;
     let leptos_options = conf.leptos_options;
     // Generate the list of routes in your Leptos App
@@ -69,8 +70,10 @@ async fn main() {
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
     log!("listening on http://{}", &addr);
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&addr)
+        .await
+        .unwrap_or_else(|err| panic!("绑定监听地址 {} 失败: {}", addr, err));
     axum::serve(listener, app.into_make_service())
         .await
-        .unwrap();
+        .unwrap_or_else(|err| panic!("启动 HTTP 服务失败: {}", err));
 }

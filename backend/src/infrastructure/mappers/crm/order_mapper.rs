@@ -70,6 +70,7 @@ impl OrderMapper {
             settlement_note: Set(order.settlement_note),
             inserted_at: Set(order.inserted_at),
             updated_at: Set(order.updated_at),
+            event_id: Set(0),
         }
     }
 

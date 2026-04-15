@@ -1,9 +1,7 @@
 use sea_orm::entity::prelude::*;
 
 use crate::{
-    domain::{
-        crm::contact::{Contact, ContactRepository, UpdateContact},
-    },
+    domain::crm::contact::{Contact, ContactRepository, UpdateContact},
     infrastructure::entity::contacts::{Column, Entity},
     infrastructure::mappers::crm::contact_mapper::ContactMapper,
     infrastructure::tenant::with_tenant_txn,

@@ -26,6 +26,7 @@ wasm-bindgen-futures = "0.4"
 uuid.workspace = true
 base64.workspace = true
 chrono.workspace = true
+tokio = { workspace = true, optional = true }
 web-sys = { version = "0.3", features = [
     "Blob",
     "Url",
@@ -52,5 +53,6 @@ ssr = [
     "leptos_router/ssr",
     "dep:leptos_axum",
     "dep:axum",
+    "dep:tokio",
     "backend",
 ]

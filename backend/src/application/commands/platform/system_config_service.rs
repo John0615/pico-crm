@@ -4,8 +4,7 @@ use serde_json::{Value, json};
 
 use crate::domain::platform::audit_log::{AuditLogCreate, AuditLogRepository};
 use crate::domain::platform::system_config::{
-    SystemConfigItem, SystemConfigItemUpdate, SystemConfigItemUpdateRequest,
-    SystemConfigRepository,
+    SystemConfigItem, SystemConfigItemUpdate, SystemConfigItemUpdateRequest, SystemConfigRepository,
 };
 
 const MASKED_VALUE: &str = "******";

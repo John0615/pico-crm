@@ -1051,7 +1051,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                                                                             key=|item| item.schedule.order_uuid.clone()
                                                                                             children=move |item| {
                                                                                                 let schedule = item.schedule.clone();
-                                                                                                let status_label = schedule_status_label(&schedule.schedule_status).to_string();
+                                                                                                let status_label = schedule_status_label(&schedule).to_string();
                                                                                                 let status_class = schedule_card_classes(&schedule);
                                                                                                 let contact_label = contact_labels_for_day
                                                                                                     .with_value(|labels| {
@@ -1203,10 +1203,14 @@ pub fn SchedulesPage() -> impl IntoView {
                                 .as_ref()
                                 .map(|v| v.schedule_status.clone())
                                 .unwrap_or_default();
+                            let status_label = item
+                                .as_ref()
+                                .map(schedule_status_label)
+                                .unwrap_or("未知");
                             let badge_class = schedule_status_badge_class(&status_value);
                             view! {
                                 <span class=format!("badge {}", badge_class)>
-                                    {schedule_status_label(&status_value)}
+                                    {status_label}
                                 </span>
                             }
                         }
@@ -1615,7 +1619,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                 {detail_item("订单ID", schedule.order_uuid.clone())}
                                 {detail_item("客户UUID", display_optional(schedule.customer_uuid.clone()))}
                                 {detail_item("员工UUID", display_optional(schedule.assigned_user_uuid.clone()))}
-                                {detail_item("排班状态", schedule.schedule_status.clone())}
+                                {detail_item("排班状态", schedule_status_label(&schedule).to_string())}
                                 {detail_item("订单状态", schedule.order_status.clone())}
                                 {detail_item("服务开始", display_optional(schedule.scheduled_start_at.clone()))}
                                 {detail_item("服务结束", display_optional(schedule.scheduled_end_at.clone()))}
@@ -1668,9 +1672,15 @@ const DURATION_OPTIONS: [(i64, &str); 5] = [
     (240, "4小时"),
 ];
 
-fn schedule_status_label(status: &str) -> &'static str {
-    match status {
-        "planned" => "待排班",
+fn schedule_status_label(schedule: &Schedule) -> &'static str {
+    match schedule.schedule_status.as_str() {
+        "planned" => {
+            if schedule_has_assignment(schedule) {
+                "已排班"
+            } else {
+                "待排班"
+            }
+        }
         "in_service" => "服务中",
         "done" => "已完成",
         "cancelled" => "已取消",
@@ -1686,6 +1696,19 @@ fn schedule_status_badge_class(status: &str) -> &'static str {
         "cancelled" => "badge-error",
         _ => "badge-info",
     }
+}
+
+fn schedule_has_assignment(schedule: &Schedule) -> bool {
+    schedule
+        .assigned_user_uuid
+        .as_deref()
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+        || schedule
+            .scheduled_start_at
+            .as_deref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
 }
 
 fn order_is_schedulable(order: &Order) -> bool {

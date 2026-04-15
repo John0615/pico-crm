@@ -160,6 +160,7 @@ dependencies = [
  "serde_json",
  "shared",
  "thiserror 2.0.18",
+ "tokio",
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",

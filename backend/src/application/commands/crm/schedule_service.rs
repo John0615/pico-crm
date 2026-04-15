@@ -1,7 +1,9 @@
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
 use crate::application::utils::parse_utc_time_to_string;
-use crate::domain::crm::order::{Order as DomainOrder, OrderAssignmentUpdate, OrderRepository};
+use crate::domain::crm::order::{
+    Order as DomainOrder, OrderAssignmentUpdate, OrderRepository, OrderStatus,
+};
 use crate::domain::crm::schedule::{
     ScheduleAssignment, ScheduleRepository, ScheduleStatus, validate_time_window,
 };
@@ -100,6 +102,14 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
             .order_repo
             .update_order_assignment(order_uuid, update)
             .await?;
+        let next_status = OrderStatus::next_after_schedule_assignment(order.status);
+        let updated = if next_status != updated.status {
+            self.order_repo
+                .update_order_status(updated.uuid.clone(), next_status.as_str().to_string())
+                .await?
+        } else {
+            updated
+        };
         Ok(build_schedule_view(updated, Some(assignment)))
     }
 
@@ -195,6 +205,14 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
             .order_repo
             .update_order_assignment(order_uuid, update)
             .await?;
+        let next_status = OrderStatus::next_after_schedule_assignment(order.status);
+        let updated = if next_status != updated.status {
+            self.order_repo
+                .update_order_status(updated.uuid.clone(), next_status.as_str().to_string())
+                .await?
+        } else {
+            updated
+        };
         Ok(build_schedule_view(updated, Some(assignment)))
     }
 

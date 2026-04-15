@@ -17,6 +17,26 @@ mod ssr {
     pub use backend::infrastructure::repositories::crm::schedule_repository_impl::SeaOrmScheduleRepository;
     pub use backend::infrastructure::repositories::crm::service_request_repository_impl::SeaOrmServiceRequestRepository;
     pub use backend::infrastructure::tenant::TenantContext;
+
+    pub async fn wait_for_order_projection(
+        pool: &Database,
+        schema_name: String,
+        order_uuid: String,
+    ) -> Result<Option<shared::order::Order>, String> {
+        use tokio::time::{sleep, Duration};
+
+        let query = SeaOrmOrderQuery::new(pool.connection.clone(), schema_name);
+        let service = OrderQueryService::new(query);
+
+        for _ in 0..20 {
+            if let Some(order) = service.fetch_order(order_uuid.clone()).await? {
+                return Ok(Some(order));
+            }
+            sleep(Duration::from_millis(50)).await;
+        }
+
+        Ok(None)
+    }
 }
 
 #[server(
@@ -77,21 +97,23 @@ pub async fn create_order_from_request(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let order_repo =
-        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
-    let schedule_repo =
-        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schema_name = tenant.schema_name.clone();
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), schema_name.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name.clone());
     let request_query =
-        SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), schema_name.clone());
     let request_repo =
-        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmServiceRequestRepository::new(pool.connection.clone(), schema_name.clone());
     let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
         .create_from_request(payload)
         .await
         .map_err(|e| ServerFnError::new(e))?;
-    Ok(result)
+    let projected = wait_for_order_projection(&pool, schema_name, result.uuid.clone())
+        .await
+        .map_err(ServerFnError::new)?;
+    Ok(projected.unwrap_or(result))
 }
 
 #[server(

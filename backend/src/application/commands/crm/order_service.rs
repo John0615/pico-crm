@@ -1,11 +1,11 @@
 use crate::domain::crm::order::{
     Order as DomainOrder, OrderAssignmentUpdate, OrderRepository, OrderStatus, SettlementStatus,
 };
-use crate::domain::crm::service_request::{
-    ServiceRequestQuery as ServiceRequestQueryTrait, ServiceRequestRepository,
-};
 use crate::domain::crm::schedule::{
     ScheduleAssignment, ScheduleRepository, ScheduleStatus, validate_time_window,
+};
+use crate::domain::crm::service_request::{
+    ServiceRequestQuery as ServiceRequestQueryTrait, ServiceRequestRepository,
 };
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use shared::order::{
@@ -176,6 +176,14 @@ where
             .order_repo
             .update_order_assignment(uuid, update)
             .await?;
+        let next_status = OrderStatus::next_after_schedule_assignment(order.status);
+        let updated = if next_status != updated.status {
+            self.order_repo
+                .update_order_status(updated.uuid.clone(), next_status.as_str().to_string())
+                .await?
+        } else {
+            updated
+        };
         Ok(updated.into())
     }
 

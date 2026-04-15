@@ -3,14 +3,14 @@ use std::time::Duration;
 use async_trait::async_trait;
 use disintegrate::{EventListener, PersistedEvent, StreamQuery, query};
 use disintegrate_postgres::{PgEventId, PgEventListener, PgEventListenerConfig};
+use sea_orm::ActiveValue::Set;
 use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel};
-use sea_orm::ActiveValue::Set;
 use uuid::Uuid;
 
 use crate::domain::crm::service_request::ServiceRequestEventEnvelope;
-use crate::infrastructure::event_store::service_request::event_store;
 use crate::infrastructure::entity::{merchant, service_requests};
+use crate::infrastructure::event_store::service_request::event_store;
 use crate::infrastructure::tenant::{is_safe_schema_name, with_tenant_txn};
 
 pub struct ServiceRequestProjection {
@@ -67,7 +67,9 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                         let existing = service_requests::Entity::find_by_id(request_uuid)
                             .one(txn)
                             .await
-                            .map_err(|e| format!("query service request projection error: {}", e))?;
+                            .map_err(|e| {
+                                format!("query service request projection error: {}", e)
+                            })?;
                         if existing.is_none() {
                             let active = service_requests::ActiveModel {
                                 uuid: Set(request_uuid),
@@ -107,7 +109,9 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                         let Some(model) = service_requests::Entity::find_by_id(request_uuid)
                             .one(txn)
                             .await
-                            .map_err(|e| format!("query service request projection error: {}", e))?
+                            .map_err(|e| {
+                                format!("query service request projection error: {}", e)
+                            })?
                         else {
                             return Ok(());
                         };
@@ -143,7 +147,9 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                         let Some(model) = service_requests::Entity::find_by_id(request_uuid)
                             .one(txn)
                             .await
-                            .map_err(|e| format!("query service request projection error: {}", e))?
+                            .map_err(|e| {
+                                format!("query service request projection error: {}", e)
+                            })?
                         else {
                             return Ok(());
                         };
@@ -192,7 +198,10 @@ pub async fn spawn_service_request_listener(
             .start()
             .await
         {
-            eprintln!("service request projection listener exited with error: {}", err);
+            eprintln!(
+                "service request projection listener exited with error: {}",
+                err
+            );
         }
     });
 
@@ -200,10 +209,12 @@ pub async fn spawn_service_request_listener(
 }
 
 async fn ensure_existing_tenant_read_models(db: &DatabaseConnection) -> Result<(), String> {
-    let merchants = merchant::Entity::find()
-        .all(db)
-        .await
-        .map_err(|e| format!("query merchants for service request projection error: {}", e))?;
+    let merchants = merchant::Entity::find().all(db).await.map_err(|e| {
+        format!(
+            "query merchants for service request projection error: {}",
+            e
+        )
+    })?;
 
     for merchant in merchants {
         ensure_tenant_read_model(db, &merchant.schema_name).await?;
@@ -212,7 +223,10 @@ async fn ensure_existing_tenant_read_models(db: &DatabaseConnection) -> Result<(
     Ok(())
 }
 
-async fn ensure_tenant_read_model(db: &DatabaseConnection, schema_name: &str) -> Result<(), String> {
+async fn ensure_tenant_read_model(
+    db: &DatabaseConnection,
+    schema_name: &str,
+) -> Result<(), String> {
     if !is_safe_schema_name(schema_name) {
         return Err(format!("invalid tenant schema name: {}", schema_name));
     }

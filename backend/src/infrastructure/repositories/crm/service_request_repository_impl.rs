@@ -4,9 +4,8 @@ use disintegrate::NoSnapshot;
 use sea_orm::DatabaseConnection;
 
 use crate::domain::crm::service_request::{
-    CreateServiceRequestDecision, ServiceRequest, ServiceRequestRepository,
-    ServiceRequestStatus, UpdateServiceRequest, UpdateServiceRequestDecision,
-    UpdateServiceRequestStatusDecision,
+    CreateServiceRequestDecision, ServiceRequest, ServiceRequestRepository, ServiceRequestStatus,
+    UpdateServiceRequest, UpdateServiceRequestDecision, UpdateServiceRequestStatusDecision,
 };
 use crate::infrastructure::event_store::service_request::event_store;
 
@@ -17,7 +16,10 @@ pub struct SeaOrmServiceRequestRepository {
 
 impl SeaOrmServiceRequestRepository {
     pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { _db: db, schema_name }
+        Self {
+            _db: db,
+            schema_name,
+        }
     }
 }
 

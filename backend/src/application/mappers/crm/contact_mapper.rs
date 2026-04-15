@@ -1,6 +1,6 @@
 use crate::domain::crm::contact::{
-    Contact as DomainContact, ContactFilters, CustomerStatus, CustomerValue,
-    SortDirection, SortOption as DomainSortOption, UpdateContact as DomainUpdateContact,
+    Contact as DomainContact, ContactFilters, CustomerStatus, CustomerValue, SortDirection,
+    SortOption as DomainSortOption, UpdateContact as DomainUpdateContact,
 };
 use chrono::{DateTime, FixedOffset, Utc};
 use shared::contact::{

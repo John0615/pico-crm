@@ -1,23 +1,47 @@
 use async_trait::async_trait;
-use sea_orm::entity::prelude::*;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
+use chrono::Utc;
+use disintegrate::{EventSourcedStateStore, LoadState, NoSnapshot};
+use sea_orm::DatabaseConnection;
 
 use crate::domain::crm::order::{
-    Order, OrderAssignmentUpdate, OrderRepository, OrderStatus, SettlementStatus,
+    CreateOrderDecision, Order, OrderAssignmentUpdate, OrderRepository, OrderState, OrderStatus,
+    SettlementStatus, UpdateOrderAssignmentDecision, UpdateOrderSettlementDecision,
+    UpdateOrderStatusDecision,
 };
-use crate::domain::crm::schedule::{ScheduleStatus, validate_time_window};
-use crate::infrastructure::entity::orders::Entity;
-use crate::infrastructure::mappers::crm::order_mapper::OrderMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::event_store::order::event_store;
 
 pub struct SeaOrmOrderRepository {
-    db: DatabaseConnection,
+    _db: DatabaseConnection,
     schema_name: String,
 }
 
 impl SeaOrmOrderRepository {
     pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+        Self {
+            _db: db,
+            schema_name,
+        }
+    }
+
+    async fn load_order_state(schema_name: &str, uuid: &str) -> Result<OrderState, String> {
+        let event_store = event_store().await?;
+        let state_store = EventSourcedStateStore::new(event_store, NoSnapshot);
+        let loaded_state = state_store
+            .load(OrderState::new(schema_name.to_string(), uuid.to_string()))
+            .await
+            .map_err(|e| format!("load order state error: {}", e))?;
+        Ok(loaded_state.state().clone())
+    }
+
+    async fn load_order_from_events(
+        schema_name: &str,
+        uuid: &str,
+    ) -> Result<Option<Order>, String> {
+        let state = Self::load_order_state(schema_name, uuid).await?;
+        if !state.exists {
+            return Ok(None);
+        }
+        Ok(Some(state.to_domain()?))
     }
 }
 
@@ -27,20 +51,19 @@ impl OrderRepository for SeaOrmOrderRepository {
         &self,
         order: Order,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let db = self.db.clone();
         let schema_name = self.schema_name.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
-                Box::pin(async move {
-                    let entity = OrderMapper::to_active_entity(order);
-                    let inserted = entity
-                        .insert(txn)
-                        .await
-                        .map_err(|e| format!("create order error: {}", e))?;
-                    Ok(OrderMapper::to_domain(inserted))
-                })
-            })
-            .await
+            let order_uuid = order.uuid.clone();
+            let event_store = event_store().await?;
+            let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
+            decision_maker
+                .make(CreateOrderDecision::new(schema_name.clone(), order))
+                .await
+                .map_err(|e| format!("create order decision error: {}", e))?;
+
+            SeaOrmOrderRepository::load_order_from_events(&schema_name, &order_uuid)
+                .await?
+                .ok_or_else(|| format!("order {} not found after creation", order_uuid))
         }
     }
 
@@ -48,23 +71,8 @@ impl OrderRepository for SeaOrmOrderRepository {
         &self,
         uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<Order>, String>> + Send {
-        let db = self.db.clone();
         let schema_name = self.schema_name.clone();
-        async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
-                let uuid = uuid.clone();
-                Box::pin(async move {
-                    let order_uuid =
-                        Uuid::parse_str(&uuid).map_err(|e| format!("invalid order uuid: {}", e))?;
-                    let model = Entity::find_by_id(order_uuid)
-                        .one(txn)
-                        .await
-                        .map_err(|e| format!("query order error: {}", e))?;
-                    Ok(model.map(OrderMapper::to_domain))
-                })
-            })
-            .await
-        }
+        async move { SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid).await }
     }
 
     fn update_order_status(
@@ -72,31 +80,28 @@ impl OrderRepository for SeaOrmOrderRepository {
         uuid: String,
         status: String,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let db = self.db.clone();
         let schema_name = self.schema_name.clone();
         async move {
-            let status = OrderStatus::parse(&status)?;
-            with_tenant_txn(&db, &schema_name, |txn| {
-                let status = status;
-                let uuid = uuid.clone();
-                Box::pin(async move {
-                    let order_uuid =
-                        Uuid::parse_str(&uuid).map_err(|e| format!("invalid order uuid: {}", e))?;
-                    let original = Entity::find_by_id(order_uuid)
-                        .one(txn)
-                        .await
-                        .map_err(|e| format!("query order error: {}", e))?
-                        .ok_or_else(|| format!("order {} not found", uuid))?;
+            let next_status = OrderStatus::parse(&status)?;
+            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+                .await?
+                .ok_or_else(|| format!("order {} not found", uuid.clone()))?;
 
-                    let active = OrderMapper::to_status_active_entity(original, status);
-                    let updated = active
-                        .update(txn)
-                        .await
-                        .map_err(|e| format!("update order status error: {}", e))?;
-                    Ok(OrderMapper::to_domain(updated))
-                })
-            })
-            .await
+            let event_store = event_store().await?;
+            let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
+            decision_maker
+                .make(UpdateOrderStatusDecision::new(
+                    schema_name.clone(),
+                    uuid.clone(),
+                    next_status,
+                    Utc::now(),
+                ))
+                .await
+                .map_err(|e| format!("update order status decision error: {}", e))?;
+
+            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+                .await?
+                .ok_or_else(|| format!("order {} not found after status update", uuid))
         }
     }
 
@@ -105,46 +110,27 @@ impl OrderRepository for SeaOrmOrderRepository {
         uuid: String,
         update: OrderAssignmentUpdate,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let db = self.db.clone();
         let schema_name = self.schema_name.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
-                let uuid = uuid.clone();
-                let update = update.clone();
-                Box::pin(async move {
-                    let order_uuid = Uuid::parse_str(&uuid)
-                        .map_err(|e| format!("invalid order uuid: {}", e))?;
-                    let original = Entity::find_by_id(order_uuid)
-                        .one(txn)
-                        .await
-                        .map_err(|e| format!("query order error: {}", e))?
-                        .ok_or_else(|| format!("order {} not found", uuid))?;
+            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+                .await?
+                .ok_or_else(|| format!("order {} not found", uuid.clone()))?;
 
-                    let current_status = OrderStatus::parse(&original.status)?;
-                    let schedule_status = ScheduleStatus::from_order_status(&current_status);
-                    if !schedule_status.allows_assignment_update() {
-                        return Err(format!(
-                            "schedule assignment can only be updated in planned status (current: {})",
-                            schedule_status.as_str()
-                        ));
-                    }
+            let event_store = event_store().await?;
+            let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
+            decision_maker
+                .make(UpdateOrderAssignmentDecision::new(
+                    schema_name.clone(),
+                    uuid.clone(),
+                    update,
+                    Utc::now(),
+                ))
+                .await
+                .map_err(|e| format!("update order assignment decision error: {}", e))?;
 
-                    if let (Some(start), Some(end)) = (
-                        update.scheduled_start_at.as_ref(),
-                        update.scheduled_end_at.as_ref(),
-                    ) {
-                        validate_time_window(start.clone(), end.clone())?;
-                    }
-
-                    let active = OrderMapper::to_assignment_active_entity(original, update);
-                    let updated = active
-                        .update(txn)
-                        .await
-                        .map_err(|e| format!("update order assignment error: {}", e))?;
-                    Ok(OrderMapper::to_domain(updated))
-                })
-            })
-            .await
+            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+                .await?
+                .ok_or_else(|| format!("order {} not found after assignment update", uuid))
         }
     }
 
@@ -154,36 +140,29 @@ impl OrderRepository for SeaOrmOrderRepository {
         settlement_status: String,
         settlement_note: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let db = self.db.clone();
         let schema_name = self.schema_name.clone();
         async move {
             let settlement_status = SettlementStatus::parse(&settlement_status)?;
-            with_tenant_txn(&db, &schema_name, |txn| {
-                let uuid = uuid.clone();
-                let settlement_status = settlement_status;
-                let settlement_note = settlement_note.clone();
-                Box::pin(async move {
-                    let order_uuid =
-                        Uuid::parse_str(&uuid).map_err(|e| format!("invalid order uuid: {}", e))?;
-                    let original = Entity::find_by_id(order_uuid)
-                        .one(txn)
-                        .await
-                        .map_err(|e| format!("query order error: {}", e))?
-                        .ok_or_else(|| format!("order {} not found", uuid))?;
+            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+                .await?
+                .ok_or_else(|| format!("order {} not found", uuid.clone()))?;
 
-                    let active = OrderMapper::to_settlement_active_entity(
-                        original,
-                        settlement_status,
-                        settlement_note,
-                    );
-                    let updated = active
-                        .update(txn)
-                        .await
-                        .map_err(|e| format!("update order settlement error: {}", e))?;
-                    Ok(OrderMapper::to_domain(updated))
-                })
-            })
-            .await
+            let event_store = event_store().await?;
+            let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
+            decision_maker
+                .make(UpdateOrderSettlementDecision::new(
+                    schema_name.clone(),
+                    uuid.clone(),
+                    settlement_status,
+                    settlement_note,
+                    Utc::now(),
+                ))
+                .await
+                .map_err(|e| format!("update order settlement decision error: {}", e))?;
+
+            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+                .await?
+                .ok_or_else(|| format!("order {} not found after settlement update", uuid))
         }
     }
 }

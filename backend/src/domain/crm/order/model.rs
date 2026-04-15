@@ -65,6 +65,44 @@ impl OrderStatus {
             _ => Err(format!("Invalid order status: {}", value)),
         }
     }
+
+    pub fn can_transition(current: OrderStatus, next: OrderStatus) -> bool {
+        current == next
+            || matches!(
+                (current, next),
+                (OrderStatus::Pending, OrderStatus::Confirmed)
+                    | (OrderStatus::Pending, OrderStatus::Dispatching)
+                    | (OrderStatus::Pending, OrderStatus::InService)
+                    | (OrderStatus::Pending, OrderStatus::Cancelled)
+                    | (OrderStatus::Confirmed, OrderStatus::Dispatching)
+                    | (OrderStatus::Confirmed, OrderStatus::InService)
+                    | (OrderStatus::Confirmed, OrderStatus::Cancelled)
+                    | (OrderStatus::Dispatching, OrderStatus::Confirmed)
+                    | (OrderStatus::Dispatching, OrderStatus::InService)
+                    | (OrderStatus::Dispatching, OrderStatus::Cancelled)
+                    | (OrderStatus::InService, OrderStatus::Completed)
+                    | (OrderStatus::InService, OrderStatus::Cancelled)
+            )
+    }
+
+    pub fn validate_transition(current: OrderStatus, next: OrderStatus) -> Result<(), String> {
+        if Self::can_transition(current, next) {
+            Ok(())
+        } else {
+            Err(format!(
+                "invalid order status transition: {} -> {}",
+                current.as_str(),
+                next.as_str()
+            ))
+        }
+    }
+
+    pub fn next_after_schedule_assignment(current: OrderStatus) -> OrderStatus {
+        match current {
+            OrderStatus::Pending | OrderStatus::Confirmed => OrderStatus::Dispatching,
+            other => other,
+        }
+    }
 }
 
 impl SettlementStatus {
@@ -155,5 +193,74 @@ impl Order {
         self.settlement_status = status;
         self.settlement_note = note;
         self.updated_at = Utc::now();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn order_status_transition_rules_allow_supported_paths() {
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::Pending, OrderStatus::Confirmed).is_ok()
+        );
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::Confirmed, OrderStatus::Dispatching)
+                .is_ok()
+        );
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::Dispatching, OrderStatus::InService)
+                .is_ok()
+        );
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::Pending, OrderStatus::InService).is_ok()
+        );
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::InService, OrderStatus::Completed)
+                .is_ok()
+        );
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::InService, OrderStatus::Cancelled)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn order_status_transition_rules_reject_invalid_paths() {
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::Pending, OrderStatus::Completed).is_err()
+        );
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::Completed, OrderStatus::Confirmed)
+                .is_err()
+        );
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::Cancelled, OrderStatus::Pending).is_err()
+        );
+        assert!(
+            OrderStatus::validate_transition(OrderStatus::InService, OrderStatus::Confirmed)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn schedule_assignment_promotes_waiting_orders() {
+        assert_eq!(
+            OrderStatus::next_after_schedule_assignment(OrderStatus::Pending),
+            OrderStatus::Dispatching
+        );
+        assert_eq!(
+            OrderStatus::next_after_schedule_assignment(OrderStatus::Confirmed),
+            OrderStatus::Dispatching
+        );
+        assert_eq!(
+            OrderStatus::next_after_schedule_assignment(OrderStatus::Dispatching),
+            OrderStatus::Dispatching
+        );
+        assert_eq!(
+            OrderStatus::next_after_schedule_assignment(OrderStatus::InService),
+            OrderStatus::InService
+        );
     }
 }
