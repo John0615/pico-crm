@@ -1,4 +1,9 @@
 use leptos::prelude::*;
+use std::cell::RefCell;
+
+thread_local! {
+    static MESSAGE_BOX_SIGNAL: RefCell<Option<RwSignal<MessageBoxState>>> = const { RefCell::new(None) };
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum MessageBoxType {
@@ -33,10 +38,11 @@ impl Default for MessageBoxState {
 #[component]
 pub fn MessageBox() -> impl IntoView {
     let message_state = RwSignal::new(MessageBoxState::default());
-    provide_context(message_state);
+    MESSAGE_BOX_SIGNAL.with(|slot| {
+        *slot.borrow_mut() = Some(message_state);
+    });
 
-    let state = use_context::<RwSignal<MessageBoxState>>()
-        .expect("there to be a `message_state` signal provided");
+    let state = message_state;
 
     view! {
         <div class=move || if state.with(|state| state.visible) { "modal modal-open" } else { "modal" }>
@@ -103,16 +109,19 @@ pub fn show_message_box(
     on_confirm: Option<Callback<()>>,
     on_cancel: Option<Callback<()>>,
 ) {
-    let state = use_context::<RwSignal<MessageBoxState>>()
-        .expect("there to be a `message_state` signal provided");
-
-    state.set(MessageBoxState {
-        title: title.to_string(),
-        message: message.to_string(),
-        visible: true,
-        message_type,
-        on_confirm,
-        on_cancel,
+    MESSAGE_BOX_SIGNAL.with(|slot| {
+        if let Some(state) = *slot.borrow() {
+            state.set(MessageBoxState {
+                title: title.to_string(),
+                message: message.to_string(),
+                visible: true,
+                message_type,
+                on_confirm,
+                on_cancel,
+            });
+        } else {
+            eprintln!("message box signal not initialized yet");
+        }
     });
 }
 

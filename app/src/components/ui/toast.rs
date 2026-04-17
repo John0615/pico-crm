@@ -1,6 +1,11 @@
 // use leptos::logging::log;
 use leptos::prelude::*;
+use std::cell::RefCell;
 use std::time::Duration;
+
+thread_local! {
+    static TOAST_SIGNAL: RefCell<Option<RwSignal<ToastState>>> = const { RefCell::new(None) };
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum ToastType {
@@ -20,10 +25,10 @@ pub struct ToastState {
 #[component]
 pub fn Toast() -> impl IntoView {
     let toast_state = RwSignal::new(ToastState::default());
-    provide_context(toast_state);
-    // 获取或初始化Store
-    let state =
-        use_context::<RwSignal<ToastState>>().expect("there to be a `toast_state` signal provided");
+    TOAST_SIGNAL.with(|slot| {
+        *slot.borrow_mut() = Some(toast_state);
+    });
+    let state = toast_state;
     // 自动隐藏效果
     Effect::new(move |_| {
         // log!("state11: {:?}", state.get());
@@ -62,16 +67,17 @@ pub fn Toast() -> impl IntoView {
 
 // 显示Toast的接口
 fn show_toast(message: String, toast_type: ToastType) {
-    let state =
-        use_context::<RwSignal<ToastState>>().expect("there to be a `toast_state` signal provided");
-
-    // log!("state: {:?}", state);
-
-    state.set(ToastState {
-        message: Some(message),
-        toast_type: Some(toast_type),
-        visible: true,
-        ..Default::default()
+    TOAST_SIGNAL.with(|slot| {
+        if let Some(state) = *slot.borrow() {
+            state.set(ToastState {
+                message: Some(message),
+                toast_type: Some(toast_type),
+                visible: true,
+                ..Default::default()
+            });
+        } else {
+            eprintln!("toast signal not initialized yet");
+        }
     });
 }
 
