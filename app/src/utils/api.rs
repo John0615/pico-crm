@@ -1,7 +1,6 @@
 use crate::components::ui::toast::error as show_error_toast;
 use leptos::logging;
 use leptos::prelude::*;
-use leptos_router::hooks::use_navigate;
 use std::future::Future;
 
 /// API 调用统一封装函数
@@ -50,9 +49,7 @@ fn handle_api_error(error: &ServerFnError) {
 
     // 2. 检查是否是 401 未授权错误
     if is_unauthorized_error(error) {
-        // 跳转到登录页
-        let navigate = use_navigate();
-        navigate("/login", Default::default());
+        redirect_to_login();
         return;
     }
 
@@ -124,6 +121,15 @@ fn format_api_error(error: &ServerFnError) -> String {
             ServerFnError::Deserialization(msg) => format!("数据解析失败: {}", msg),
             ServerFnError::Serialization(msg) => format!("数据序列化失败: {}", msg),
             _ => "未知错误".to_string(),
+        }
+    }
+}
+
+fn redirect_to_login() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            let _ = window.location().set_href("/login");
         }
     }
 }
