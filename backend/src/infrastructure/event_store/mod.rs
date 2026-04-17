@@ -4,9 +4,10 @@ pub mod service_request;
 
 use disintegrate::Event;
 use disintegrate::serde::json::Json;
-use disintegrate_postgres::PgEventStore;
+use disintegrate_postgres::{Migrator, PgEventStore};
 use serde::{Serialize, de::DeserializeOwned};
 use std::env;
+use std::future::pending;
 use tokio::sync::OnceCell;
 
 use crate::domain::crm::order::OrderEventEnvelope;
@@ -15,6 +16,7 @@ use crate::domain::crm::service_request::ServiceRequestEventEnvelope;
 
 static EVENT_STORE_POOL: OnceCell<sqlx::PgPool> = OnceCell::const_new();
 static EVENT_STORE_INIT: OnceCell<()> = OnceCell::const_new();
+const PROJECTION_LEADER_LOCK_KEY: i64 = 0x5049_434f_4351_5253;
 
 pub(crate) async fn event_store_pool() -> Result<sqlx::PgPool, String> {
     EVENT_STORE_POOL
@@ -35,12 +37,49 @@ pub async fn initialize() -> Result<(), String> {
     EVENT_STORE_INIT
         .get_or_try_init(|| async move {
             initialize_registered_event_schemas(pool.clone()).await?;
+            initialize_listener_infra(pool.clone()).await?;
             backfill_schedule_event_order_uuid(pool).await?;
             Ok::<(), String>(())
         })
         .await?;
 
     Ok(())
+}
+
+async fn initialize_listener_infra(pool: sqlx::PgPool) -> Result<(), String> {
+    let event_store = PgEventStore::new_uninitialized(
+        pool,
+        Json::<ServiceRequestEventEnvelope>::default(),
+    );
+    Migrator::new(event_store)
+        .init_listener()
+        .await
+        .map_err(|e| format!("initialize event listener schema error: {}", e))
+}
+
+pub async fn hold_projection_leader_lock() -> Result<bool, String> {
+    let pool = event_store_pool().await?;
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| format!("acquire projection leader lock connection error: {}", e))?;
+
+    let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1)")
+        .bind(PROJECTION_LEADER_LOCK_KEY)
+        .fetch_one(&mut *conn)
+        .await
+        .map_err(|e| format!("acquire projection leader lock error: {}", e))?;
+
+    if !acquired {
+        return Ok(false);
+    }
+
+    tokio::spawn(async move {
+        let _projection_lock_conn = conn;
+        pending::<()>().await;
+    });
+
+    Ok(true)
 }
 
 async fn initialize_registered_event_schemas(pool: sqlx::PgPool) -> Result<(), String> {

@@ -191,9 +191,14 @@ pub async fn spawn_service_request_listener(
         };
 
         if let Err(err) = PgEventListener::builder(listener_event_store)
+            .uninitialized()
             .register_listener(
                 projection,
-                PgEventListenerConfig::poller(Duration::from_millis(250)).with_notifier(),
+                PgEventListenerConfig::poller(Duration::from_millis(250))
+                    .with_notifier()
+                    .with_retry(|err, attempts| {
+                        super::projection_listener_retry("service request", err, attempts)
+                    }),
             )
             .start()
             .await

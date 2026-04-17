@@ -221,9 +221,14 @@ pub async fn spawn_schedule_listener(read_model_db: DatabaseConnection) -> Resul
         };
 
         if let Err(err) = PgEventListener::builder(listener_event_store)
+            .uninitialized()
             .register_listener(
                 projection,
-                PgEventListenerConfig::poller(Duration::from_millis(250)).with_notifier(),
+                PgEventListenerConfig::poller(Duration::from_millis(250))
+                    .with_notifier()
+                    .with_retry(|err, attempts| {
+                        super::projection_listener_retry("schedule", err, attempts)
+                    }),
             )
             .start()
             .await
