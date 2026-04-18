@@ -21,6 +21,8 @@ mod m20260225_000004_backfill_orders_customer_uuid_from_requests;
 mod m20260225_000005_drop_customer_extra_fields;
 mod m20260414_000001_add_service_request_event_id;
 mod m20260415_000002_rename_schedules_order_id;
+mod m20260418_000001_extend_customer_fields;
+mod m20260418_000002_drop_customer_lifecycle_fields;
 
 pub struct Migrator;
 
@@ -43,6 +45,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20260225_000005_drop_customer_extra_fields::Migration),
             Box::new(m20260414_000001_add_service_request_event_id::Migration),
             Box::new(m20260415_000002_rename_schedules_order_id::Migration),
+            Box::new(m20260418_000001_extend_customer_fields::Migration),
+            Box::new(m20260418_000002_drop_customer_lifecycle_fields::Migration),
         ]
     }
 }
@@ -87,6 +91,8 @@ impl MigratorTrait for TenantMigrator {
             Box::new(m20260225_000005_drop_customer_extra_fields::Migration),
             Box::new(m20260414_000001_add_service_request_event_id::Migration),
             Box::new(m20260415_000002_rename_schedules_order_id::Migration),
+            Box::new(m20260418_000001_extend_customer_fields::Migration),
+            Box::new(m20260418_000002_drop_customer_lifecycle_fields::Migration),
         ]
     }
 }

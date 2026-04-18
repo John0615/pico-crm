@@ -15,4 +15,9 @@ pub trait ContactRepository: Send + Sync {
         &self,
         uuid: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send;
+
+    fn find_contact_by_phone_number(
+        &self,
+        phone_number: &str,
+    ) -> impl std::future::Future<Output = Result<Option<Contact>, String>> + Send;
 }

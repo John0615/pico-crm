@@ -107,4 +107,28 @@ impl ContactRepository for SeaOrmContactRepository {
             .await
         }
     }
+
+    fn find_contact_by_phone_number(
+        &self,
+        phone_number: &str,
+    ) -> impl std::future::Future<Output = Result<Option<Contact>, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        let phone_number = phone_number.to_string();
+        async move {
+            with_tenant_txn(&db, &schema_name, |txn| {
+                let phone_number = phone_number.clone();
+                Box::pin(async move {
+                    let contact = Entity::find()
+                        .filter(Column::PhoneNumber.eq(phone_number))
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("查询客户失败: {}", e))?;
+
+                    Ok(contact.map(ContactMapper::to_domain))
+                })
+            })
+            .await
+        }
+    }
 }

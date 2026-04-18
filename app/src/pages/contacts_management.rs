@@ -26,27 +26,34 @@ impl Identifiable for Contact {
 
 #[component]
 pub fn ContactsManagement() -> impl IntoView {
+    let query = use_query_map();
+    let refresh_count = RwSignal::new(0);
+
     let (sort_ops, set_sort_ops) = signal::<Vec<(String, SortValue)>>(vec![]);
     let (name, set_name) = signal(String::new());
-    let (status, set_status) = signal(String::new());
+    let (address_keyword, set_address_keyword) = signal(String::new());
+    let (tag_keyword, set_tag_keyword) = signal(String::new());
+    let (follow_up_status, set_follow_up_status) = signal(String::new());
     let (edit_contact_uuid, set_edit_contact_uuid) = signal(String::new());
+    let (detail_contact_uuid, set_detail_contact_uuid) = signal(String::new());
+
     let show_modal = RwSignal::new(false);
     let show_update_modal = RwSignal::new(false);
     let open_drawer = RwSignal::new(false);
-    let refresh_count = RwSignal::new(0);
-    let query = use_query_map();
 
     let data = Resource::new(
         move || {
             (
-                sort_ops.with(|value| value.clone()),
-                name.with(|value| value.clone()),
-                status.with(|value| value.clone()),
-                *refresh_count.read(),
+                sort_ops.get(),
+                name.get(),
+                address_keyword.get(),
+                tag_keyword.get(),
+                follow_up_status.get(),
+                refresh_count.get(),
                 query.with(|value| value.clone()),
             )
         },
-        |(sort_ops, name, status, _, query)| async move {
+        |(sort_ops, name, address_keyword, tag_keyword, follow_up_status, _, query)| async move {
             let page = query
                 .get("page")
                 .unwrap_or_default()
@@ -63,8 +70,7 @@ pub fn ContactsManagement() -> impl IntoView {
                 .filter_map(|(field, sort_value)| {
                     let field_enum = match field.as_str() {
                         "user_name" => Some(SortField::Name),
-                        "last_contact" => Some(SortField::LastContact),
-                        _ => None, // 忽略无效字段
+                        _ => None,
                     }?;
 
                     let order = match sort_value {
@@ -79,14 +85,13 @@ pub fn ContactsManagement() -> impl IntoView {
                 })
                 .collect();
 
-            // logging::error!("Generated sort options: {:?}", sort_options);
-            // logging::error!("Fetching contacts with query: {:?} {:?}", page, page_size);
             let filters = ContactFilters {
-                user_name: (!name.is_empty()).then_some(name),
-                status: (!status.is_empty()).then_some(status),
+                user_name: normalize_optional(name),
                 phone_number: None,
+                address_keyword: normalize_optional(address_keyword),
+                tag: normalize_optional(tag_keyword),
+                follow_up_status: normalize_optional(follow_up_status),
             };
-            // logging::error!("Fetching contacts with filters: {:?} ", filters);
 
             let params = ContactQuery {
                 page,
@@ -123,21 +128,9 @@ pub fn ContactsManagement() -> impl IntoView {
         });
     });
 
-    let search = move |ev| {
-        let value = event_target_value(&ev);
-        set_name.set(value);
-        // logging::error!("Fetching contacts with name: {:?}", value);
-    };
-
-    let filter_by_status = move |ev| {
-        let value = event_target_value(&ev);
-        set_status.set(value);
-    };
-
     let delete_row = move |contact_uuid: String| {
         delete_confirm("删除确认", "确定要删除吗？", move |result| {
             if result {
-                logging::error!("delete row contact_uuid: {:?}", contact_uuid);
                 let uuid = contact_uuid.clone();
                 spawn_local(async move {
                     let result = call_api(delete_contact(uuid)).await;
@@ -148,6 +141,7 @@ pub fn ContactsManagement() -> impl IntoView {
                         }
                         Err(err) => {
                             logging::error!("Failed to delete contact: {:?}", err);
+                            error("操作失败".to_string());
                         }
                     }
                 });
@@ -155,14 +149,13 @@ pub fn ContactsManagement() -> impl IntoView {
         });
     };
 
-    let export_excel = move |_ev| {
+    let export_excel = move |_| {
         let sort_options: Vec<SortOption> = sort_ops.with_untracked(|current| {
             current
                 .iter()
                 .filter_map(|(field, sort_value)| {
                     let field_enum = match field.as_str() {
                         "user_name" => Some(SortField::Name),
-                        "last_contact" => Some(SortField::LastContact),
                         _ => None,
                     }?;
 
@@ -179,35 +172,28 @@ pub fn ContactsManagement() -> impl IntoView {
                 .collect()
         });
 
-        // logging::error!("Generated sort options: {:?}", sort_options);
-        let (name_value, status_value) = (
-            name.with_untracked(|value| value.clone()),
-            status.with_untracked(|value| value.clone()),
-        );
         let filters = ContactFilters {
-            user_name: (!name_value.is_empty()).then_some(name_value),
-            status: (!status_value.is_empty()).then_some(status_value),
+            user_name: normalize_optional(name.get_untracked()),
             phone_number: None,
+            address_keyword: normalize_optional(address_keyword.get_untracked()),
+            tag: normalize_optional(tag_keyword.get_untracked()),
+            follow_up_status: normalize_optional(follow_up_status.get_untracked()),
         };
 
         let params = ContactQuery {
             page: 1,
-            page_size: 10,
+            page_size: 500,
             sort: Some(sort_options),
             filters: Some(filters),
         };
 
-        // logging::error!("export contacts with params: {:?} ", &params);
-
         spawn_local(async move {
             let result = call_api(export_contacts(params)).await;
-            // logging::error!("export result: {:?}", result);
-
             match result {
                 Ok(data) => {
                     let _ = download_file(&data, "contacts.xlsx");
                 }
-                Err(_e) => {
+                Err(_) => {
                     error("操作失败".to_string());
                 }
             }
@@ -218,7 +204,10 @@ pub fn ContactsManagement() -> impl IntoView {
         <Title text="客户管理 - PicoCRM"/>
         <div class="space-y-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h1 class="text-2xl font-semibold">"客户管理"</h1>
+                <div>
+                    <h1 class="text-2xl font-semibold">"客户管理"</h1>
+                    <p class="mt-1 text-sm text-base-content/60">"支持地址、标签、跟进状态和最近服务时间的客户资料管理"</p>
+                </div>
                 <button
                     class="btn btn-primary"
                     on:click=move |_| {
@@ -228,8 +217,9 @@ pub fn ContactsManagement() -> impl IntoView {
                     "新建客户"
                 </button>
             </div>
-            <div class="flex flex-col md:flex-row gap-4">
-                <label class="input w-full md:w-80 md:flex-none">
+
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <label class="input input-bordered flex items-center gap-2">
                     <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                         <g
                             stroke-linejoin="round"
@@ -242,34 +232,72 @@ pub fn ContactsManagement() -> impl IntoView {
                             <path d="m21 21-4.3-4.3"></path>
                         </g>
                     </svg>
-                    <input type="search" on:input=search required placeholder="搜索客户..." />
+                    <input
+                        type="search"
+                        prop:value=move || name.get()
+                        on:input=move |ev| set_name.set(event_target_value(&ev))
+                        placeholder="搜索客户姓名"
+                    />
                 </label>
-                <div class="flex gap-2 items-center md:flex-nowrap">
-                    <select on:change=filter_by_status class="select select-bordered">
-                        <option disabled selected>状态筛选</option>
-                        <option value="">全部</option>
-                        <option value="1">已签约</option>
-                        <option value="2">待跟进</option>
-                        <option value="3">已流失</option>
-                    </select>
-                    <button class="btn btn-sm btn-outline btn-primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                        </svg>
-                        更多筛选
-                    </button>
-                    <button on:click=export_excel class="btn btn-sm btn-outline btn-primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        导出
-                    </button>
-                </div>
+
+                <label class="input input-bordered flex items-center gap-2">
+                    <input
+                        type="search"
+                        prop:value=move || address_keyword.get()
+                        on:input=move |ev| set_address_keyword.set(event_target_value(&ev))
+                        placeholder="按地址/小区/门牌筛选"
+                    />
+                </label>
+
+                <label class="input input-bordered flex items-center gap-2">
+                    <input
+                        type="search"
+                        prop:value=move || tag_keyword.get()
+                        on:input=move |ev| set_tag_keyword.set(event_target_value(&ev))
+                        placeholder="按标签筛选"
+                    />
+                </label>
+
+                <select
+                    class="select select-bordered"
+                    prop:value=move || follow_up_status.get()
+                    on:change=move |ev| set_follow_up_status.set(event_target_value(&ev))
+                >
+                    <option value="">全部跟进状态</option>
+                    <option value="pending">待跟进</option>
+                    <option value="contacted">已联系</option>
+                    <option value="quoted">已报价</option>
+                    <option value="scheduled">已预约</option>
+                    <option value="completed">已完成</option>
+                </select>
             </div>
-            <ContactModal show=show_modal on_finish=on_contact_modal_finish  />
-            <UpdateContactModal show=show_update_modal contact_uuid=edit_contact_uuid on_finish=on_contact_modal_finish />
-            <ContactDetail open_drawer=open_drawer />
-            <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button on:click=export_excel class="btn btn-sm btn-outline btn-primary">
+                    "导出"
+                </button>
+                <button
+                    class="btn btn-sm btn-ghost"
+                    on:click=move |_| {
+                        set_name.set(String::new());
+                        set_address_keyword.set(String::new());
+                        set_tag_keyword.set(String::new());
+                        set_follow_up_status.set(String::new());
+                    }
+                >
+                    "清空筛选"
+                </button>
+            </div>
+
+            <ContactModal show=show_modal on_finish=on_contact_modal_finish />
+            <UpdateContactModal
+                show=show_update_modal
+                contact_uuid=edit_contact_uuid
+                on_finish=on_contact_modal_finish
+            />
+            <ContactDetail open_drawer=open_drawer contact_uuid=detail_contact_uuid />
+
+            <div class="overflow-x-auto h-[calc(100vh-220px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data on_sort=on_sort>
                     <Column
                         slot:columns
@@ -277,12 +305,13 @@ pub fn ContactsManagement() -> impl IntoView {
                         prop="user_name".to_string()
                         label="姓名".to_string()
                         class="font-bold"
+                        sort=true
                     >
                         {
                             let user: Option<Contact> = use_context::<Contact>();
                             view! {
                                 <span class="font-medium">
-                                    {user.map(|u| u.user_name).unwrap_or("".to_string())}
+                                    {user.map(|u| u.user_name).unwrap_or_default()}
                                 </span>
                             }
                         }
@@ -291,97 +320,85 @@ pub fn ContactsManagement() -> impl IntoView {
                         slot:columns
                         label="电话".to_string()
                         prop="phone_number".to_string()
-                        class=""
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! { <span>{user.map(|u| u.phone_number).unwrap_or_default()}</span> }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="位置".to_string()
+                        prop="community".to_string()
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <div class="max-w-48 whitespace-normal text-sm">
+                                    {
+                                        user.map(|u| {
+                                            let community = u.community.unwrap_or_default();
+                                            let building = u.building.unwrap_or_default();
+                                            match (community.trim().is_empty(), building.trim().is_empty()) {
+                                                (true, true) => "-".to_string(),
+                                                (false, true) => community,
+                                                (true, false) => building,
+                                                (false, false) => format!("{} / {}", community, building),
+                                            }
+                                        }).unwrap_or_else(|| "-".to_string())
+                                    }
+                                </div>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="跟进状态".to_string()
+                        prop="follow_up_status".to_string()
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            let badge_class = user
+                                .as_ref()
+                                .map(|u| follow_up_status_badge_class(u.follow_up_status.as_deref()))
+                                .unwrap_or("badge-ghost");
+                            let label = user
+                                .as_ref()
+                                .map(|u| {
+                                    follow_up_status_label(u.follow_up_status.as_deref()).to_string()
+                                })
+                                .unwrap_or_else(|| "-".to_string());
+                            view! {
+                                <span class=format!("badge badge-outline {}", badge_class)>
+                                    {label}
+                                </span>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="标签".to_string()
+                        prop="tags".to_string()
+                    >
+                        {
+                            let user: Option<Contact> = use_context::<Contact>();
+                            view! {
+                                <div class="max-w-48 whitespace-normal text-sm">
+                                    {user.map(|u| tags_summary(&u.tags)).unwrap_or_else(|| "-".to_string())}
+                                </div>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="最近服务".to_string()
+                        prop="last_service_at".to_string()
                     >
                         {
                             let user: Option<Contact> = use_context::<Contact>();
                             view! {
                                 <span>
-                                    {user.map(|u| u.phone_number).unwrap_or("".to_string())}
-                                </span>
-                            }
-                        }
-                    </Column>
-                    <Column
-                        slot:columns
-                        label="状态".to_string()
-                        prop="status".to_string()
-                        class=""
-                    >
-                        {
-                            let user: Option<Contact> = use_context::<Contact>();
-                            view! {
-                                <span class=format!("badge {}",
-                                    user.map(|u| {
-                                        match u.status {
-                                            1 => "badge-success",
-                                            2 => "badge-warning",
-                                            3 => "badge-error",
-                                            _ => "badge-info"
-                                        }
-                                    }).unwrap_or("")
-
-                                )>
-                                    {
-                                        user.clone().map(|u| {
-                                            match u.status {
-                                                1 => "已签约",
-                                                2 => "待跟进",
-                                                3 => "已流失",
-                                                _ => "未知",
-                                            }
-                                        }).unwrap_or("")
-                                    }
-                                </span>
-                            }
-                        }
-                    </Column>
-                    <Column
-                        slot:columns
-                        label="最后联系".to_string()
-                        sort=true
-                        prop="last_contact".to_string()
-                        class=""
-                    >
-                        {
-                            let user: Option<Contact> = use_context::<Contact>();
-                            view! {
-                                <span>
-                                    {user.map(|u| u.last_contact).unwrap_or("".to_string())}
-                                </span>
-                            }
-                        }
-                    </Column>
-                    <Column
-                        slot:columns
-                        label="客户价值".to_string()
-                        prop="status".to_string()
-                        class=""
-                    >
-                        {
-                            let user: Option<Contact> = use_context::<Contact>();
-                            view! {
-                                <span class=format!("badge {}",
-                                    user.map(|u| {
-                                        match u.value_level {
-                                            1 => "badge-success",
-                                            2 => "badge-warning",
-                                            3 => "badge-error",
-                                            _ => "badge-info"
-                                        }
-                                    }).unwrap_or("")
-
-                                )>
-                                    {
-                                        user.clone().map(|u| {
-                                            match u.value_level {
-                                                1 => "活跃客户",
-                                                2 => "潜在客户",
-                                                3 => "不活跃客户",
-                                                _ => "未知",
-                                            }
-                                        }).unwrap_or("")
-                                    }
+                                    {user.and_then(|u| u.last_service_at).unwrap_or_else(|| "-".to_string())}
                                 </span>
                             }
                         }
@@ -396,19 +413,37 @@ pub fn ContactsManagement() -> impl IntoView {
                         {
                             let user: Option<Contact> = use_context::<Contact>();
                             let contact_uuid = user.map(|u| u.contact_uuid).unwrap_or_default();
+                            let detail_uuid = contact_uuid.clone();
+                            let edit_uuid = contact_uuid.clone();
                             let contact_uuid_delete = contact_uuid.clone();
                             view! {
                                 <div class="flex justify-end gap-1">
-                                    <button on:click=move |_ev| {
-                                        open_drawer.set(true);
-                                    } class="btn btn-ghost btn-xs">查看</button>
-                                    <button on:click=move |_ev| {
-                                        set_edit_contact_uuid.set(contact_uuid.clone());
-                                        show_update_modal.set(true);
-                                    } class="btn btn-soft btn-warning btn-xs">修改</button>
-                                    <button on:click=move |_ev| {
-                                        delete_row(contact_uuid_delete.clone());
-                                    } class="btn btn-soft btn-error btn-xs">删除</button>
+                                    <button
+                                        on:click=move |_| {
+                                            set_detail_contact_uuid.set(detail_uuid.clone());
+                                            open_drawer.set(true);
+                                        }
+                                        class="btn btn-ghost btn-xs"
+                                    >
+                                        "查看"
+                                    </button>
+                                    <button
+                                        on:click=move |_| {
+                                            set_edit_contact_uuid.set(edit_uuid.clone());
+                                            show_update_modal.set(true);
+                                        }
+                                        class="btn btn-soft btn-warning btn-xs"
+                                    >
+                                        "修改"
+                                    </button>
+                                    <button
+                                        on:click=move |_| {
+                                            delete_row(contact_uuid_delete.clone());
+                                        }
+                                        class="btn btn-soft btn-error btn-xs"
+                                    >
+                                        "删除"
+                                    </button>
                                 </div>
                             }
                         }
@@ -417,14 +452,53 @@ pub fn ContactsManagement() -> impl IntoView {
             </div>
 
             <Transition>
-                 {move || {
+                {move || {
                     data.with(|data| {
-                        data.as_ref().map(|data| view! {
-                            <Pagination total_items=data.1 />
-                        })
+                        data.as_ref().map(|data| view! { <Pagination total_items=data.1 /> })
                     })
-                 }}
+                }}
             </Transition>
         </div>
+    }
+}
+
+fn follow_up_status_label(value: Option<&str>) -> &'static str {
+    match value.unwrap_or("pending") {
+        "pending" => "待跟进",
+        "contacted" => "已联系",
+        "quoted" => "已报价",
+        "scheduled" => "已预约",
+        "completed" => "已完成",
+        _ => "未知",
+    }
+}
+
+fn follow_up_status_badge_class(value: Option<&str>) -> &'static str {
+    match value.unwrap_or("pending") {
+        "pending" => "badge-ghost",
+        "contacted" => "badge-info",
+        "quoted" => "badge-secondary",
+        "scheduled" => "badge-primary",
+        "completed" => "badge-success",
+        _ => "badge-ghost",
+    }
+}
+
+fn tags_summary(tags: &[String]) -> String {
+    if tags.is_empty() {
+        "-".to_string()
+    } else if tags.len() <= 3 {
+        tags.join(" / ")
+    } else {
+        format!("{} / +{}", tags[..3].join(" / "), tags.len() - 3)
+    }
+}
+
+fn normalize_optional(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
     }
 }

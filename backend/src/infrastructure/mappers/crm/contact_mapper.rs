@@ -1,12 +1,13 @@
 use crate::infrastructure::utils::parse_date_time_to_string;
 use crate::{
-    domain::crm::contact::{Contact, CustomerStatus, CustomerValue, UpdateContact},
+    domain::crm::contact::{Contact, FollowUpStatus, UpdateContact},
     infrastructure::entity::contacts::ActiveModel as ActiveContactEntity,
     infrastructure::entity::contacts::Model as ContactEntity,
 };
 use chrono::prelude::Utc;
 use sea_orm::ActiveValue::Set;
-use sea_orm::entity::prelude::Uuid;
+use sea_orm::entity::prelude::{Json, Uuid};
+use serde_json::{Value, json};
 use shared::contact::Contact as SharedContact;
 
 pub struct ContactMapper;
@@ -17,86 +18,58 @@ impl ContactMapper {
             contact_uuid: entity.contact_uuid.to_string(),
             user_name: entity.user_name,
             phone_number: entity.phone_number,
-            value_level: entity.value_level,
-            status: entity.status,
-            last_contact: parse_date_time_to_string(entity.last_contact),
+            address: entity.address,
+            community: entity.community,
+            building: entity.building,
+            house_area_sqm: entity.house_area_sqm,
+            service_need: entity.service_need,
+            tags: json_to_tags(&entity.tags),
+            last_service_at: entity.last_service_at.map(parse_date_time_to_string),
+            follow_up_status: Some(entity.follow_up_status),
             inserted_at: parse_date_time_to_string(entity.inserted_at),
             updated_at: parse_date_time_to_string(entity.updated_at),
         }
     }
 
     pub fn to_domain(entity: ContactEntity) -> Contact {
-        let value = match entity.value_level {
-            1 => CustomerValue::Active,
-            2 => CustomerValue::Potential,
-            3 => CustomerValue::Inactive,
-            _ => CustomerValue::Active,
-        };
-        let status = match entity.status {
-            1 => CustomerStatus::Signed,
-            2 => CustomerStatus::Pending,
-            3 => CustomerStatus::Churned,
-            _ => CustomerStatus::Signed,
-        };
+        let follow_up_status =
+            FollowUpStatus::parse(&entity.follow_up_status).unwrap_or(FollowUpStatus::Pending);
+
         Contact {
             uuid: entity.contact_uuid.to_string(),
             name: entity.user_name,
             phone: entity.phone_number,
-            last_contact: entity.last_contact,
-            value,
-            status,
+            address: entity.address,
+            community: entity.community,
+            building: entity.building,
+            house_area_sqm: entity.house_area_sqm,
+            service_need: entity.service_need,
+            tags: json_to_tags(&entity.tags),
+            last_service_at: entity.last_service_at,
+            follow_up_status,
             inserted_at: entity.inserted_at,
             updated_at: entity.updated_at,
         }
     }
 
-    pub fn to_entity(contact: Contact) -> ContactEntity {
-        let uuid = Uuid::new_v4();
-        let value_level = match contact.value {
-            CustomerValue::Active => 1,
-            CustomerValue::Potential => 2,
-            CustomerValue::Inactive => 3,
-        };
-        let status = match contact.status {
-            CustomerStatus::Signed => 1,
-            CustomerStatus::Pending => 2,
-            CustomerStatus::Churned => 3,
-        };
-        ContactEntity {
-            contact_uuid: uuid,
-            user_name: contact.name,
-            phone_number: contact.phone,
-            inserted_at: contact.inserted_at,
-            updated_at: contact.updated_at,
-            last_contact: contact.last_contact,
-            value_level,
-            status,
-            creator_uuid: uuid,
-        }
-    }
-
     pub fn to_active_entity(contact: Contact) -> ActiveContactEntity {
-        let uuid = Uuid::parse_str(&contact.uuid).expect("解析uuid失败！");
-        let value_level = match contact.value {
-            CustomerValue::Active => 1,
-            CustomerValue::Potential => 2,
-            CustomerValue::Inactive => 3,
-        };
-        let status = match contact.status {
-            CustomerStatus::Signed => 1,
-            CustomerStatus::Pending => 2,
-            CustomerStatus::Churned => 3,
-        };
+        let uuid = Uuid::parse_str(&contact.uuid).unwrap_or_else(|_| Uuid::new_v4());
+
         ActiveContactEntity {
             contact_uuid: Set(uuid),
             user_name: Set(contact.name),
             phone_number: Set(contact.phone),
+            address: Set(contact.address),
+            community: Set(contact.community),
+            building: Set(contact.building),
+            house_area_sqm: Set(contact.house_area_sqm),
+            service_need: Set(contact.service_need),
+            tags: Set(Json::from(json!(contact.tags))),
+            last_service_at: Set(contact.last_service_at),
+            follow_up_status: Set(contact.follow_up_status.as_str().to_string()),
             inserted_at: Set(contact.inserted_at),
             updated_at: Set(contact.updated_at),
-            last_contact: Set(contact.last_contact),
-            value_level: Set(value_level),
             creator_uuid: Set(uuid),
-            status: Set(status),
         }
     }
 
@@ -105,30 +78,33 @@ impl ContactMapper {
         original_entity: &ContactEntity,
     ) -> ActiveContactEntity {
         let uuid = Uuid::parse_str(&update_data.uuid).expect("Invalid UUID");
-        // 转换枚举字段（仅当更新数据中存在时才覆盖）
-        let value_level = match update_data.value {
-            CustomerValue::Active => 1,
-            CustomerValue::Potential => 2,
-            CustomerValue::Inactive => 3,
-        };
 
-        let status = match update_data.status {
-            CustomerStatus::Signed => 1,
-            CustomerStatus::Pending => 2,
-            CustomerStatus::Churned => 3,
-        };
-
-        // 构建更新后的实体（仅修改提供的字段）
         ActiveContactEntity {
             contact_uuid: Set(uuid),
             user_name: Set(update_data.name),
             phone_number: Set(update_data.phone),
+            address: Set(update_data.address),
+            community: Set(update_data.community),
+            building: Set(update_data.building),
+            house_area_sqm: Set(update_data.house_area_sqm),
+            service_need: Set(update_data.service_need),
+            tags: Set(Json::from(json!(update_data.tags))),
+            last_service_at: Set(update_data.last_service_at),
+            follow_up_status: Set(update_data.follow_up_status.as_str().to_string()),
             inserted_at: Set(original_entity.inserted_at),
             updated_at: Set(Utc::now()),
-            last_contact: Set(original_entity.last_contact),
-            value_level: Set(value_level),
             creator_uuid: Set(original_entity.creator_uuid),
-            status: Set(status),
         }
+    }
+}
+
+fn json_to_tags(value: &Json) -> Vec<String> {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .filter_map(|item| item.as_str())
+            .map(ToString::to_string)
+            .collect(),
+        _ => Vec::new(),
     }
 }

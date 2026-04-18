@@ -5,9 +5,14 @@ pub struct Contact {
     pub contact_uuid: String,
     pub user_name: String,
     pub phone_number: String,
-    pub last_contact: String,
-    pub value_level: i32,
-    pub status: i32,
+    pub address: Option<String>,
+    pub community: Option<String>,
+    pub building: Option<String>,
+    pub house_area_sqm: Option<i32>,
+    pub service_need: Option<String>,
+    pub tags: Vec<String>,
+    pub last_service_at: Option<String>,
+    pub follow_up_status: Option<String>,
     pub inserted_at: String,
     pub updated_at: String,
 }
@@ -17,8 +22,14 @@ pub struct UpdateContact {
     pub contact_uuid: String,
     pub user_name: String,
     pub phone_number: String,
-    pub value_level: i32,
-    pub status: i32,
+    pub address: Option<String>,
+    pub community: Option<String>,
+    pub building: Option<String>,
+    pub house_area_sqm: Option<i32>,
+    pub service_need: Option<String>,
+    pub tags: Vec<String>,
+    pub last_service_at: Option<String>,
+    pub follow_up_status: Option<String>,
 }
 
 // 允许的排序字段枚举
@@ -26,7 +37,6 @@ pub struct UpdateContact {
 #[serde(rename_all = "snake_case")]
 pub enum SortField {
     Name,
-    LastContact,
 }
 
 // 排序方向枚举
@@ -46,8 +56,10 @@ pub struct SortOption {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct ContactFilters {
     pub user_name: Option<String>,
-    pub status: Option<String>,
     pub phone_number: Option<String>,
+    pub address_keyword: Option<String>,
+    pub tag: Option<String>,
+    pub follow_up_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
