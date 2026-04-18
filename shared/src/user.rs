@@ -10,6 +10,11 @@ pub struct User {
     pub role: String,
     pub is_admin: Option<bool>,
     pub status: String,
+    pub employment_status: String,
+    pub skills: Vec<String>,
+    pub service_areas: Vec<String>,
+    pub employee_note: Option<String>,
+    pub joined_at: Option<String>,
     pub avatar_url: Option<String>,
     pub last_login_at: Option<String>,
     pub email_verified_at: Option<String>,
@@ -24,6 +29,11 @@ pub struct CreateUserRequest {
     pub password: String,
     pub email: Option<String>,
     pub phone_number: Option<String>,
+    pub employment_status: Option<String>,
+    pub skills: Vec<String>,
+    pub service_areas: Vec<String>,
+    pub employee_note: Option<String>,
+    pub joined_at: Option<String>,
     pub avatar_url: Option<String>,
     pub merchant_uuid: Option<String>,
     pub role: Option<String>,
@@ -37,6 +47,9 @@ pub struct UserListQuery {
     pub name: Option<String>,
     pub role: Option<String>,
     pub status: Option<String>,
+    pub employment_status: Option<String>,
+    pub skill: Option<String>,
+    pub dispatchable_only: Option<bool>,
 }
 
 /// 分页结果

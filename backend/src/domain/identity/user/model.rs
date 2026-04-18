@@ -18,6 +18,36 @@ impl Status {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum EmploymentStatus {
+    Active,
+    OnLeave,
+    Resigned,
+}
+
+impl EmploymentStatus {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "active" => Ok(Self::Active),
+            "on_leave" => Ok(Self::OnLeave),
+            "resigned" => Ok(Self::Resigned),
+            _ => Err(format!("Invalid employment status: {}", value)),
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::OnLeave => "on_leave",
+            Self::Resigned => "resigned",
+        }
+    }
+
+    pub fn is_dispatchable(&self) -> bool {
+        matches!(self, Self::Active)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct User {
     pub uuid: String,
@@ -29,6 +59,11 @@ pub struct User {
     pub role: String,
     pub is_admin: Option<bool>,
     pub status: Status,
+    pub employment_status: EmploymentStatus,
+    pub skills: Vec<String>,
+    pub service_areas: Vec<String>,
+    pub employee_note: Option<String>,
+    pub joined_at: Option<DateTime<Utc>>,
     pub avatar_url: Option<String>,
     pub last_login_at: Option<DateTime<Utc>>,
     pub email_verified_at: Option<DateTime<Utc>>,
@@ -54,6 +89,11 @@ impl User {
             role: "operator".to_string(),
             is_admin: Some(false),
             status: Status::Active,
+            employment_status: EmploymentStatus::Active,
+            skills: Vec::new(),
+            service_areas: Vec::new(),
+            employee_note: None,
+            joined_at: None,
             avatar_url: None,
             last_login_at: None,
             email_verified_at: None,
@@ -80,6 +120,13 @@ impl User {
         self.is_admin.unwrap_or(false)
     }
 
+    pub fn can_be_dispatched(&self) -> bool {
+        self.is_active()
+            && self.employment_status.is_dispatchable()
+            && !self.is_admin()
+            && self.role == "user"
+    }
+
     pub fn set_admin(&mut self, is_admin: bool) {
         self.is_admin = Some(is_admin);
         if is_admin {
@@ -96,6 +143,39 @@ impl User {
     pub fn set_merchant_uuid(&mut self, merchant_uuid: String) {
         self.merchant_uuid = Some(merchant_uuid);
         self.updated_at = Utc::now();
+    }
+
+    pub fn set_employment_status(&mut self, employment_status: EmploymentStatus) {
+        self.employment_status = employment_status;
+        self.updated_at = Utc::now();
+    }
+
+    pub fn update_employee_profile(
+        &mut self,
+        employment_status: Option<EmploymentStatus>,
+        skills: Vec<String>,
+        service_areas: Vec<String>,
+        employee_note: Option<String>,
+        joined_at: Option<DateTime<Utc>>,
+    ) -> Result<(), String> {
+        validate_profile_fields(&skills, &service_areas, employee_note.as_deref())?;
+
+        if let Some(employment_status) = employment_status {
+            self.employment_status = employment_status;
+        }
+        self.skills = normalize_list(skills, 12)?;
+        self.service_areas = normalize_list(service_areas, 12)?;
+        self.employee_note = employee_note.and_then(|value| {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        });
+        self.joined_at = joined_at;
+        self.updated_at = Utc::now();
+        Ok(())
     }
 
     pub fn record_login(&mut self) {
@@ -180,6 +260,7 @@ impl User {
         Ok(is_match)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn from_db_record(
         uuid: String,
         user_name: String,
@@ -190,6 +271,11 @@ impl User {
         role: String,
         is_admin: Option<bool>,
         status: Status,
+        employment_status: EmploymentStatus,
+        skills: Vec<String>,
+        service_areas: Vec<String>,
+        employee_note: Option<String>,
+        joined_at: Option<DateTime<Utc>>,
         avatar_url: Option<String>,
         last_login_at: Option<DateTime<Utc>>,
         email_verified_at: Option<DateTime<Utc>>,
@@ -206,11 +292,100 @@ impl User {
             role,
             is_admin,
             status,
+            employment_status,
+            skills,
+            service_areas,
+            employee_note,
+            joined_at,
             avatar_url,
             last_login_at,
             email_verified_at,
             inserted_at,
             updated_at,
         }
+    }
+}
+
+fn validate_profile_fields(
+    skills: &[String],
+    service_areas: &[String],
+    employee_note: Option<&str>,
+) -> Result<(), String> {
+    let _ = normalize_list(skills.to_vec(), 12)?;
+    let _ = normalize_list(service_areas.to_vec(), 12)?;
+    if let Some(note) = employee_note {
+        if note.chars().count() > 500 {
+            return Err("employee_note length cannot exceed 500".to_string());
+        }
+    }
+    Ok(())
+}
+
+fn normalize_list(values: Vec<String>, limit: usize) -> Result<Vec<String>, String> {
+    let mut normalized = Vec::new();
+    for value in values {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.chars().count() > 30 {
+            return Err("employee profile item length cannot exceed 30".to_string());
+        }
+        if normalized.iter().any(|item| item == trimmed) {
+            continue;
+        }
+        normalized.push(trimmed.to_string());
+    }
+
+    if normalized.len() > limit {
+        return Err(format!("employee profile items cannot exceed {}", limit));
+    }
+
+    Ok(normalized)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn employee_dispatch_requires_active_account_and_employment() {
+        let mut user = User::new("worker".to_string(), "hash".to_string(), None, None);
+        user.set_role("user".to_string());
+        assert!(user.can_be_dispatched());
+
+        user.set_employment_status(EmploymentStatus::OnLeave);
+        assert!(!user.can_be_dispatched());
+
+        user.set_employment_status(EmploymentStatus::Active);
+        user.deactivate();
+        assert!(!user.can_be_dispatched());
+    }
+
+    #[test]
+    fn employee_profile_normalizes_skill_lists() {
+        let mut user = User::new("worker".to_string(), "hash".to_string(), None, None);
+        user.update_employee_profile(
+            Some(EmploymentStatus::Active),
+            vec![
+                "保洁".to_string(),
+                "保洁".to_string(),
+                " 深度保洁 ".to_string(),
+            ],
+            vec!["朝阳".to_string(), "海淀".to_string()],
+            Some("  备注  ".to_string()),
+            None,
+        )
+        .expect("employee profile should update");
+
+        assert_eq!(
+            user.skills,
+            vec!["保洁".to_string(), "深度保洁".to_string()]
+        );
+        assert_eq!(
+            user.service_areas,
+            vec!["朝阳".to_string(), "海淀".to_string()]
+        );
+        assert_eq!(user.employee_note.as_deref(), Some("备注"));
     }
 }

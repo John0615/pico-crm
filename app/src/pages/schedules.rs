@@ -279,8 +279,11 @@ pub fn SchedulesPage() -> impl IntoView {
                 page: 1,
                 page_size: 200,
                 name: None,
-                role: Some("user".to_string()),
+                role: None,
                 status: None,
+                employment_status: None,
+                skill: None,
+                dispatchable_only: Some(true),
             };
 
             match call_api(fetch_users(params)).await {
@@ -1833,10 +1836,33 @@ fn contact_display_label(contact: &Contact) -> String {
 }
 
 fn user_display_label(user: &User) -> String {
+    let skill_hint = if user.skills.is_empty() {
+        None
+    } else {
+        Some(
+            user.skills
+                .iter()
+                .take(2)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("/"),
+        )
+    };
+
     if let Some(phone) = user.phone_number.clone().filter(|value| !value.is_empty()) {
-        format!("{} ({})", user.user_name, phone)
+        if let Some(skill_hint) = skill_hint {
+            format!("{} ({}, {})", user.user_name, phone, skill_hint)
+        } else {
+            format!("{} ({})", user.user_name, phone)
+        }
     } else if let Some(email) = user.email.clone().filter(|value| !value.is_empty()) {
-        format!("{} ({})", user.user_name, email)
+        if let Some(skill_hint) = skill_hint {
+            format!("{} ({}, {})", user.user_name, email, skill_hint)
+        } else {
+            format!("{} ({})", user.user_name, email)
+        }
+    } else if let Some(skill_hint) = skill_hint {
+        format!("{} ({})", user.user_name, skill_hint)
     } else {
         user.user_name.clone()
     }

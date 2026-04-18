@@ -13,7 +13,6 @@ use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::user::{PagedResult, User, UserListQuery};
 
-// 重新导出server函数
 pub use crate::server::user_handlers::{delete_user, fetch_users, toggle_user_status};
 
 impl Identifiable for User {
@@ -27,10 +26,10 @@ pub fn AdminUsers() -> impl IntoView {
     let query = use_query_map();
     let refresh_count = RwSignal::new(0);
 
-    // 简单的筛选状态管理
     let (name, set_name) = signal(String::new());
-    let (role, set_role) = signal(String::new());
-    let (status, set_status) = signal(String::new());
+    let (employment_status, set_employment_status) = signal(String::new());
+    let (skill, set_skill) = signal(String::new());
+    let (account_status, set_account_status) = signal(String::new());
     let (edit_user_uuid, set_edit_user_uuid) = signal(String::new());
     let show_modal = RwSignal::new(false);
     let show_update_modal = RwSignal::new(false);
@@ -38,14 +37,15 @@ pub fn AdminUsers() -> impl IntoView {
     let data = Resource::new(
         move || {
             (
-                name.with(|value| value.clone()),
-                role.with(|value| value.clone()),
-                status.with(|value| value.clone()),
-                *refresh_count.read(),
+                name.get(),
+                employment_status.get(),
+                skill.get(),
+                account_status.get(),
+                refresh_count.get(),
                 query.with(|value| value.clone()),
             )
         },
-        |(name, role, status, _, query)| async move {
+        |(name, employment_status, skill, account_status, _, query)| async move {
             let page = query
                 .get("page")
                 .unwrap_or_default()
@@ -60,9 +60,12 @@ pub fn AdminUsers() -> impl IntoView {
             let params = UserListQuery {
                 page,
                 page_size,
-                name: (!name.is_empty()).then_some(name),
-                role: (!role.is_empty()).then_some(role),
-                status: (!status.is_empty()).then_some(status),
+                name: normalize_optional(name),
+                role: Some("user".to_string()),
+                status: normalize_optional(account_status),
+                employment_status: normalize_optional(employment_status),
+                skill: normalize_optional(skill),
+                dispatchable_only: None,
             };
 
             let result = call_api(fetch_users(params)).await.unwrap_or_else(|e| {
@@ -81,21 +84,6 @@ pub fn AdminUsers() -> impl IntoView {
         set_edit_user_uuid.set(String::new());
     };
 
-    let search = move |ev| {
-        let value = event_target_value(&ev);
-        set_name.set(value);
-    };
-
-    let filter_by_role = move |ev| {
-        let value = event_target_value(&ev);
-        set_role.set(value);
-    };
-
-    let filter_by_status = move |ev| {
-        let value = event_target_value(&ev);
-        set_status.set(value);
-    };
-
     let delete_row = move |user_uuid: String| {
         delete_confirm(
             "删除确认",
@@ -103,7 +91,6 @@ pub fn AdminUsers() -> impl IntoView {
             move |result| {
                 if result {
                     let user_uuid_clone = user_uuid.clone();
-                    logging::error!("delete row user_uuid: {:?}", user_uuid_clone);
                     spawn_local(async move {
                         let result = call_api(delete_user(user_uuid_clone)).await;
                         match result {
@@ -149,7 +136,10 @@ pub fn AdminUsers() -> impl IntoView {
         <Title text="员工管理 - PicoCRM"/>
         <div class="space-y-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h1 class="text-2xl font-semibold">"员工管理"</h1>
+                <div>
+                    <h1 class="text-2xl font-semibold">"员工管理"</h1>
+                    <p class="mt-1 text-sm text-base-content/60">"维护员工技能、服务范围和在岗状态，离职员工默认不出现在列表中"</p>
+                </div>
                 <button
                     class="btn btn-primary"
                     on:click=move |_| {
@@ -159,39 +149,46 @@ pub fn AdminUsers() -> impl IntoView {
                     "新建员工"
                 </button>
             </div>
-            // 搜索和筛选栏
-            <div class="flex flex-col md:flex-row gap-4">
-                <label class="input w-full md:w-80 md:flex-none">
-                    <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <g
-                            stroke-linejoin="round"
-                            stroke-linecap="round"
-                            stroke-width="2.5"
-                            fill="none"
-                            stroke="currentColor"
-                        >
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.3-4.3"></path>
-                        </g>
-                    </svg>
-                    <input type="search" on:input=search required placeholder="搜索员工..." />
+
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <label class="input input-bordered flex items-center gap-2">
+                    <input
+                        type="search"
+                        prop:value=move || name.get()
+                        on:input=move |ev| set_name.set(event_target_value(&ev))
+                        placeholder="搜索员工姓名"
+                    />
                 </label>
-                <div class="flex gap-2 items-center md:flex-nowrap">
-                    <select on:change=filter_by_role class="select select-bordered">
-                        <option value="">所有角色</option>
-                        <option value="admin">管理员</option>
-                        <option value="user">普通员工</option>
-                    </select>
-                    <select on:change=filter_by_status class="select select-bordered">
-                        <option value="">所有状态</option>
-                        <option value="active">活跃</option>
-                        <option value="inactive">禁用</option>
-                    </select>
-                </div>
+                <select
+                    class="select select-bordered"
+                    prop:value=move || employment_status.get()
+                    on:change=move |ev| set_employment_status.set(event_target_value(&ev))
+                >
+                    <option value="">全部员工状态</option>
+                    <option value="active">在岗</option>
+                    <option value="on_leave">休假</option>
+                    <option value="resigned">离职</option>
+                </select>
+                <label class="input input-bordered flex items-center gap-2">
+                    <input
+                        type="search"
+                        prop:value=move || skill.get()
+                        on:input=move |ev| set_skill.set(event_target_value(&ev))
+                        placeholder="按技能筛选"
+                    />
+                </label>
+                <select
+                    class="select select-bordered"
+                    prop:value=move || account_status.get()
+                    on:change=move |ev| set_account_status.set(event_target_value(&ev))
+                >
+                    <option value="">全部账号状态</option>
+                    <option value="active">启用</option>
+                    <option value="inactive">禁用</option>
+                </select>
             </div>
 
-            // 员工表格
-            <div class="overflow-x-auto h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow">
+            <div class="overflow-x-auto h-[calc(100vh-220px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data>
                     <Column
                         slot:columns
@@ -229,7 +226,7 @@ pub fn AdminUsers() -> impl IntoView {
                                     </div>
                                     <div>
                                         <div class="font-bold">{user.as_ref().map(|u| u.user_name.clone()).unwrap_or_default()}</div>
-                                        <div class="text-sm opacity-50">{user.as_ref().and_then(|u| u.email.clone()).unwrap_or_default()}</div>
+                                        <div class="text-sm opacity-50">{user.as_ref().and_then(|u| u.phone_number.clone()).unwrap_or_else(|| user.as_ref().and_then(|u| u.email.clone()).unwrap_or_default())}</div>
                                     </div>
                                 </div>
                             }
@@ -237,49 +234,70 @@ pub fn AdminUsers() -> impl IntoView {
                     </Column>
                     <Column
                         slot:columns
-                        label="角色".to_string()
-                        prop="is_admin".to_string()
-                        class=""
+                        label="员工状态".to_string()
+                        prop="employment_status".to_string()
+                    >
+                        {
+                            let user: Option<User> = use_context::<User>();
+                            let badge_class = user.as_ref().map(|u| employment_status_badge_class(&u.employment_status)).unwrap_or("badge-ghost");
+                            let label = user.as_ref().map(|u| employment_status_label(&u.employment_status).to_string()).unwrap_or_else(|| "-".to_string());
+                            view! { <span class=format!("badge {}", badge_class)>{label}</span> }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="技能".to_string()
+                        prop="skills".to_string()
                     >
                         {
                             let user: Option<User> = use_context::<User>();
                             view! {
-                                <span class=format!("badge {}",
-                                    user.as_ref().map(|u| {
-                                        match u.is_admin {
-                                            Some(true) => "badge-primary",
-                                            Some(false) => "badge-secondary",
-                                            None => "badge-accent"
-                                        }
-                                    }).unwrap_or("badge-ghost")
-                                )>
-                                    {user.as_ref().map(|u| {
-                                        match u.is_admin {
-                                            Some(true) => "管理员",
-                                            Some(false) => "普通员工",
-                                            None => "普通员工"
-                                        }
-                                    }).unwrap_or("普通员工")}
+                                <div class="max-w-56 whitespace-normal text-sm">
+                                    {user.as_ref().map(|u| summary_list(&u.skills)).unwrap_or_else(|| "-".to_string())}
+                                </div>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="服务范围".to_string()
+                        prop="service_areas".to_string()
+                    >
+                        {
+                            let user: Option<User> = use_context::<User>();
+                            view! {
+                                <div class="max-w-48 whitespace-normal text-sm">
+                                    {user.as_ref().map(|u| summary_list(&u.service_areas)).unwrap_or_else(|| "-".to_string())}
+                                </div>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="入职时间".to_string()
+                        prop="joined_at".to_string()
+                    >
+                        {
+                            let user: Option<User> = use_context::<User>();
+                            view! {
+                                <span class="text-sm opacity-70">
+                                    {user.as_ref().and_then(|u| u.joined_at.clone()).unwrap_or_else(|| "-".to_string())}
                                 </span>
                             }
                         }
                     </Column>
                     <Column
                         slot:columns
-                        label="状态".to_string()
+                        label="账号状态".to_string()
                         prop="status".to_string()
-                        class=""
                     >
                         {
                             let user: Option<User> = use_context::<User>();
                             let user_uuid = user.as_ref().map(|u| u.uuid.clone()).unwrap_or_default();
                             let current_status = user.as_ref().map(|u| u.status.clone()).unwrap_or_default();
                             let is_active = current_status == "active";
-
-                            // 克隆用于闭包的值
                             let status_for_closure = current_status.clone();
                             let status_for_display = current_status.clone();
-
                             view! {
                                 <div class="flex items-center gap-2">
                                     <input
@@ -295,7 +313,7 @@ pub fn AdminUsers() -> impl IntoView {
                                     <span class="text-sm">
                                         {
                                             match status_for_display.as_str() {
-                                                "active" => "活跃",
+                                                "active" => "启用",
                                                 "inactive" => "禁用",
                                                 _ => "未知",
                                             }
@@ -307,31 +325,15 @@ pub fn AdminUsers() -> impl IntoView {
                     </Column>
                     <Column
                         slot:columns
-                        label="最后登录".to_string()
-                        prop="last_login_at".to_string()
-                        class=""
+                        label="备注".to_string()
+                        prop="employee_note".to_string()
                     >
                         {
                             let user: Option<User> = use_context::<User>();
                             view! {
-                                <span class="text-sm opacity-70">
-                                    {user.as_ref().and_then(|u| u.last_login_at.clone()).unwrap_or("从未登录".to_string())}
-                                </span>
-                            }
-                        }
-                    </Column>
-                    <Column
-                        slot:columns
-                        label="创建时间".to_string()
-                        prop="inserted_at".to_string()
-                        class=""
-                    >
-                        {
-                            let user: Option<User> = use_context::<User>();
-                            view! {
-                                <span class="text-sm opacity-70">
-                                    {user.as_ref().map(|u| u.inserted_at.clone()).unwrap_or_default()}
-                                </span>
+                                <div class="max-w-56 whitespace-normal text-sm opacity-70">
+                                    {user.as_ref().and_then(|u| u.employee_note.clone()).unwrap_or_else(|| "-".to_string())}
+                                </div>
                             }
                         }
                     </Column>
@@ -348,11 +350,11 @@ pub fn AdminUsers() -> impl IntoView {
                             let user_uuid_delete = user_uuid.clone();
                             view! {
                                 <div class="flex justify-end gap-1">
-                                    <button on:click=move |_ev| {
+                                    <button on:click=move |_| {
                                         set_edit_user_uuid.set(user_uuid.clone());
                                         show_update_modal.set(true);
                                     } class="btn btn-soft btn-warning btn-xs">修改</button>
-                                    <button on:click=move |_ev| {
+                                    <button on:click=move |_| {
                                         delete_row(user_uuid_delete.clone());
                                     } class="btn btn-soft btn-error btn-xs">删除</button>
                                 </div>
@@ -363,18 +365,52 @@ pub fn AdminUsers() -> impl IntoView {
             </div>
 
             <Transition>
-                 {move || {
+                {move || {
                     data.with(|data| {
-                        data.as_ref().map(|data| view! {
-                            <Pagination total_items=data.1 />
-                        })
+                        data.as_ref().map(|data| view! { <Pagination total_items=data.1 /> })
                     })
-                 }}
+                }}
             </Transition>
 
-            // 模态框组件
             <UserModal show=show_modal on_finish=on_user_modal_finish />
             <UpdateUserModal show=show_update_modal user_uuid=edit_user_uuid on_finish=on_user_modal_finish />
         </div>
+    }
+}
+
+fn employment_status_label(value: &str) -> &'static str {
+    match value {
+        "active" => "在岗",
+        "on_leave" => "休假",
+        "resigned" => "离职",
+        _ => "未知",
+    }
+}
+
+fn employment_status_badge_class(value: &str) -> &'static str {
+    match value {
+        "active" => "badge-success",
+        "on_leave" => "badge-warning",
+        "resigned" => "badge-error",
+        _ => "badge-ghost",
+    }
+}
+
+fn summary_list(values: &[String]) -> String {
+    if values.is_empty() {
+        "-".to_string()
+    } else if values.len() <= 3 {
+        values.join(" / ")
+    } else {
+        format!("{} / +{}", values[..3].join(" / "), values.len() - 3)
+    }
+}
+
+fn normalize_optional(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
     }
 }

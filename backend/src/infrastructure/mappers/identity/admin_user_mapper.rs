@@ -1,4 +1,4 @@
-use crate::domain::identity::user::{Status, User};
+use crate::domain::identity::user::{EmploymentStatus, Status, User};
 use crate::infrastructure::entity::admin_users::{ActiveModel, Model};
 use sea_orm::entity::prelude::Uuid;
 use sea_orm::{ActiveValue, IntoActiveModel};
@@ -23,6 +23,11 @@ impl AdminUserMapper {
             model.role,
             Some(true),
             status,
+            EmploymentStatus::Active,
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
             None,
             model.last_login_at,
             None,

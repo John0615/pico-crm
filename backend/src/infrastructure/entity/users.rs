@@ -19,6 +19,12 @@ pub struct Model {
     pub role: String,
     pub is_admin: Option<bool>,
     pub status: String,
+    pub employment_status: String,
+    pub skills: Json,
+    pub service_areas: Json,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub employee_note: Option<String>,
+    pub joined_at: Option<DateTime<Utc>>,
     #[sea_orm(column_type = "Text", nullable)]
     pub avatar_url: Option<String>,
     pub last_login_at: Option<DateTime<Utc>>,

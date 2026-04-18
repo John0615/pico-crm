@@ -3,9 +3,10 @@ use crate::infrastructure::entity::users::{Column, Entity};
 use crate::infrastructure::mappers::identity::user_mapper::UserMapper;
 use crate::infrastructure::tenant::with_tenant_txn;
 use sea_orm::prelude::*;
+use sea_orm::sea_query::Expr;
 use sea_orm::{
     Condition, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect,
+    QuerySelect, Select,
 };
 use shared::user::{PagedResult, UserListQuery};
 
@@ -50,58 +51,14 @@ impl UserQuery for SeaOrmUserQuery {
         let schema_name = self.schema_name.clone();
         with_tenant_txn(&db, &schema_name, |txn| {
             Box::pin(async move {
-                println!("收到查询参数: {:?}", query);
+                let select = apply_user_filters(Entity::find(), &query);
 
-                let mut select = Entity::find();
-                let mut condition = Condition::all();
-
-                // 添加筛选条件
-                if let Some(name) = &query.name {
-                    if !name.is_empty() {
-                        condition = condition.add(Column::UserName.contains(name));
-                        println!("添加姓名筛选: {}", name);
-                    }
-                }
-
-                if let Some(status) = &query.status {
-                    if !status.is_empty() {
-                        condition = condition.add(Column::Status.eq(status));
-                        println!("添加状态筛选: {}", status);
-                    }
-                }
-
-                // 角色筛选优先使用 role 字段，保持对旧 is_admin 的兼容
-                if let Some(role) = &query.role {
-                    if !role.is_empty() {
-                        match role.as_str() {
-                            "admin" => {
-                                let mut role_condition = Condition::any();
-                                role_condition = role_condition.add(Column::Role.eq("admin"));
-                                role_condition = role_condition.add(Column::IsAdmin.eq(Some(true)));
-                                condition = condition.add(role_condition);
-                                println!("添加管理员角色筛选");
-                            }
-                            "user" => {
-                                condition = condition.add(Column::Role.ne("admin"));
-                                println!("添加普通用户角色筛选");
-                            }
-                            _ => {
-                                condition = condition.add(Column::Role.eq(role));
-                            }
-                        }
-                    }
-                }
-
-                select = select.filter(condition);
-
-                // 获取总数
                 let total = select
                     .clone()
                     .count(txn)
                     .await
                     .map_err(|e| format!("Database count error: {}", e))?;
 
-                // 分页查询，添加默认排序（按创建时间降序）
                 let models = select
                     .order_by_desc(Column::InsertedAt)
                     .offset(Some((query.page - 1) * query.page_size))
@@ -110,19 +67,7 @@ impl UserQuery for SeaOrmUserQuery {
                     .await
                     .map_err(|e| format!("Database query error: {}", e))?;
 
-                // 转换为domain对象
-                let users: Vec<User> = models
-                    .into_iter()
-                    .map(|model| {
-                        println!(
-                            "数据库用户记录: uuid={}, name={}, status={}, is_admin={:?}",
-                            model.uuid, model.user_name, model.status, model.is_admin
-                        );
-                        UserMapper::to_domain(model)
-                    })
-                    .collect();
-
-                println!("查询结果: 总数={}, 返回用户数={}", total, users.len());
+                let users: Vec<User> = models.into_iter().map(UserMapper::to_domain).collect();
 
                 Ok(PagedResult {
                     items: users,
@@ -151,5 +96,116 @@ impl UserQuery for SeaOrmUserQuery {
             })
         })
         .await
+    }
+}
+
+fn apply_user_filters(select: Select<Entity>, query: &UserListQuery) -> Select<Entity> {
+    let mut condition = Condition::all();
+
+    if let Some(name) = &query.name {
+        if !name.is_empty() {
+            condition = condition.add(Column::UserName.contains(name));
+        }
+    }
+
+    if let Some(status) = &query.status {
+        if !status.is_empty() {
+            condition = condition.add(Column::Status.eq(status));
+        }
+    }
+
+    if query.dispatchable_only.unwrap_or(false) {
+        condition = condition.add(Column::Role.eq("user"));
+        condition = condition.add(Column::Status.eq("active"));
+        condition = condition.add(Column::EmploymentStatus.eq("active"));
+    } else if let Some(role) = &query.role {
+        if !role.is_empty() {
+            match role.as_str() {
+                "admin" => {
+                    let mut role_condition = Condition::any();
+                    role_condition = role_condition.add(Column::Role.eq("admin"));
+                    role_condition = role_condition.add(Column::IsAdmin.eq(Some(true)));
+                    condition = condition.add(role_condition);
+                }
+                _ => {
+                    condition = condition.add(Column::Role.eq(role));
+                }
+            }
+        }
+    }
+
+    if let Some(employment_status) = &query.employment_status {
+        if !employment_status.is_empty() {
+            condition = condition.add(Column::EmploymentStatus.eq(employment_status));
+        }
+    } else if query.role.as_deref() == Some("user") && !query.dispatchable_only.unwrap_or(false) {
+        condition = condition.add(Column::EmploymentStatus.ne("resigned"));
+    }
+
+    if let Some(skill) = &query.skill {
+        if !skill.is_empty() {
+            let pattern = format!("%\"{}\"%", skill.trim());
+            condition = condition.add(Expr::col(Column::Skills).cast_as("text").like(pattern));
+        }
+    }
+
+    select.filter(condition)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::{DbBackend, QueryTrait};
+
+    #[test]
+    fn dispatchable_filter_requires_active_employee_user() {
+        let sql = apply_user_filters(
+            Entity::find(),
+            &UserListQuery {
+                page: 1,
+                page_size: 20,
+                name: None,
+                role: None,
+                status: None,
+                employment_status: None,
+                skill: None,
+                dispatchable_only: Some(true),
+            },
+        )
+        .build(DbBackend::Postgres)
+        .to_string();
+
+        assert!(sql.contains(r#""users"."role" = 'user'"#), "sql: {sql}");
+        assert!(sql.contains(r#""users"."status" = 'active'"#), "sql: {sql}");
+        assert!(
+            sql.contains(r#""users"."employment_status" = 'active'"#),
+            "sql: {sql}"
+        );
+    }
+
+    #[test]
+    fn skill_filter_matches_json_array_text() {
+        let sql = apply_user_filters(
+            Entity::find(),
+            &UserListQuery {
+                page: 1,
+                page_size: 20,
+                name: None,
+                role: Some("user".to_string()),
+                status: None,
+                employment_status: None,
+                skill: Some("保洁".to_string()),
+                dispatchable_only: None,
+            },
+        )
+        .build(DbBackend::Postgres)
+        .to_string();
+
+        assert!(sql.contains(r#"CAST("skills" AS text) LIKE"#), "sql: {sql}");
+        assert!(sql.contains("保洁"), "sql: {sql}");
+        assert!(
+            sql.contains(r#""users"."employment_status" <> 'resigned'"#),
+            "sql: {sql}"
+        );
     }
 }

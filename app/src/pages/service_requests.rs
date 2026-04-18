@@ -82,6 +82,9 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 name: None,
                 role: None,
                 status: None,
+                employment_status: None,
+                skill: None,
+                dispatchable_only: None,
             };
             match call_api(fetch_users(params)).await {
                 Ok(result) => result.items,
