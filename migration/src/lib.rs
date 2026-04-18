@@ -24,6 +24,9 @@ mod m20260415_000002_rename_schedules_order_id;
 mod m20260418_000001_extend_customer_fields;
 mod m20260418_000002_drop_customer_lifecycle_fields;
 mod m20260418_000003_extend_users_employee_fields;
+mod m20260418_000004_extend_orders_for_mvp;
+mod m20260418_000005_create_order_change_logs;
+mod m20260418_000006_drop_order_service_type;
 
 pub struct Migrator;
 
@@ -49,6 +52,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20260418_000001_extend_customer_fields::Migration),
             Box::new(m20260418_000002_drop_customer_lifecycle_fields::Migration),
             Box::new(m20260418_000003_extend_users_employee_fields::Migration),
+            Box::new(m20260418_000004_extend_orders_for_mvp::Migration),
+            Box::new(m20260418_000005_create_order_change_logs::Migration),
+            Box::new(m20260418_000006_drop_order_service_type::Migration),
         ]
     }
 }
@@ -96,6 +102,9 @@ impl MigratorTrait for TenantMigrator {
             Box::new(m20260418_000001_extend_customer_fields::Migration),
             Box::new(m20260418_000002_drop_customer_lifecycle_fields::Migration),
             Box::new(m20260418_000003_extend_users_employee_fields::Migration),
+            Box::new(m20260418_000004_extend_orders_for_mvp::Migration),
+            Box::new(m20260418_000005_create_order_change_logs::Migration),
+            Box::new(m20260418_000006_drop_order_service_type::Migration),
         ]
     }
 }

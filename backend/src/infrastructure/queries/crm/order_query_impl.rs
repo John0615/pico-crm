@@ -8,11 +8,14 @@ use std::collections::{HashMap, HashSet};
 
 use crate::domain::crm::order::OrderQuery as DomainOrderQuery;
 use crate::infrastructure::entity::contacts::{Column as ContactColumn, Entity as ContactEntity};
+use crate::infrastructure::entity::order_change_logs::{
+    Column as OrderChangeLogColumn, Entity as OrderChangeLogEntity,
+};
 use crate::infrastructure::entity::orders::{Column, Entity};
 use crate::infrastructure::mappers::crm::order_mapper::OrderMapper;
 use crate::infrastructure::tenant::with_tenant_txn;
-use shared::order::Order as SharedOrder;
-use shared::order::OrderQuery;
+use crate::infrastructure::utils::parse_date_time_to_string;
+use shared::order::{Order as SharedOrder, OrderChangeLogDto, OrderQuery};
 
 pub struct SeaOrmOrderQuery {
     db: DatabaseConnection,
@@ -145,6 +148,42 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                     let mut view = OrderMapper::to_view(model);
                     view.customer_name = customer_name;
                     Ok(Some(view))
+                })
+            })
+            .await
+        }
+    }
+
+    fn list_order_change_logs(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<Vec<OrderChangeLogDto>, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        async move {
+            with_tenant_txn(&db, &schema_name, |txn| {
+                Box::pin(async move {
+                    let order_uuid =
+                        Uuid::parse_str(&uuid).map_err(|e| format!("invalid order uuid: {}", e))?;
+                    let models = OrderChangeLogEntity::find()
+                        .filter(OrderChangeLogColumn::OrderUuid.eq(order_uuid))
+                        .order_by_desc(OrderChangeLogColumn::CreatedAt)
+                        .all(txn)
+                        .await
+                        .map_err(|e| format!("query order change logs error: {}", e))?;
+
+                    Ok(models
+                        .into_iter()
+                        .map(|model| OrderChangeLogDto {
+                            uuid: model.uuid.to_string(),
+                            order_uuid: model.order_uuid.to_string(),
+                            action: model.action,
+                            operator_uuid: model.operator_uuid.map(|value| value.to_string()),
+                            before_data: model.before_data.map(Into::into),
+                            after_data: model.after_data.map(Into::into),
+                            created_at: parse_date_time_to_string(model.created_at),
+                        })
+                        .collect())
                 })
             })
             .await

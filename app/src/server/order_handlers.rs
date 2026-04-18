@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::order::{
-    CreateOrderFromRequest, Order, OrderQuery, UpdateOrderAssignment, UpdateOrderSettlement,
-    UpdateOrderStatus,
+    CancelOrderRequest, CreateOrderFromRequest, Order, OrderChangeLogDto, OrderQuery,
+    UpdateOrderAssignment, UpdateOrderRequest, UpdateOrderSettlement, UpdateOrderStatus,
 };
 use shared::ListResult;
 
@@ -84,6 +84,27 @@ pub async fn get_order(uuid: String) -> Result<Option<Order>, ServerFnError> {
 }
 
 #[server(
+    name = GetOrderChangeLogsFn,
+    prefix = "/api",
+    endpoint = "/get_order_change_logs",
+)]
+pub async fn get_order_change_logs(uuid: String) -> Result<Vec<OrderChangeLogDto>, ServerFnError> {
+    use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
+
+    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let pool = expect_context::<Database>();
+    let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.schema_name);
+    let service = OrderQueryService::new(query);
+
+    service
+        .fetch_order_change_logs(uuid)
+        .await
+        .map_err(ServerFnError::new)
+}
+
+#[server(
     name = CreateOrderFromRequestFn,
     prefix = "/api",
     endpoint = "/create_order_from_request",
@@ -95,6 +116,7 @@ pub async fn create_order_from_request(
     use axum::Extension;
     use leptos_axum::extract;
 
+    let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let schema_name = tenant.schema_name.clone();
@@ -107,13 +129,71 @@ pub async fn create_order_from_request(
     let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
-        .create_from_request(payload)
+        .create_from_request(payload, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
     let projected = wait_for_order_projection(&pool, schema_name, result.uuid.clone())
         .await
         .map_err(ServerFnError::new)?;
     Ok(projected.unwrap_or(result))
+}
+
+#[server(
+    name = UpdateOrderFn,
+    prefix = "/api",
+    endpoint = "/update_order",
+)]
+pub async fn update_order(uuid: String, payload: UpdateOrderRequest) -> Result<Order, ServerFnError> {
+    use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
+
+    let Extension(current_user): Extension<shared::user::User> = extract().await?;
+    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let pool = expect_context::<Database>();
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let request_query =
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let request_repo =
+        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
+
+    service
+        .update_order(uuid, payload, Some(current_user.uuid))
+        .await
+        .map_err(ServerFnError::new)
+}
+
+#[server(
+    name = CancelOrderFn,
+    prefix = "/api",
+    endpoint = "/cancel_order",
+)]
+pub async fn cancel_order(uuid: String, payload: CancelOrderRequest) -> Result<Order, ServerFnError> {
+    use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
+
+    let Extension(current_user): Extension<shared::user::User> = extract().await?;
+    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let pool = expect_context::<Database>();
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let request_query =
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let request_repo =
+        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
+
+    service
+        .cancel_order(uuid, payload, Some(current_user.uuid))
+        .await
+        .map_err(ServerFnError::new)
 }
 
 #[server(
@@ -129,6 +209,7 @@ pub async fn update_order_status(
     use axum::Extension;
     use leptos_axum::extract;
 
+    let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let order_repo =
@@ -142,7 +223,7 @@ pub async fn update_order_status(
     let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
-        .update_status(uuid, payload)
+        .update_status(uuid, payload, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)
@@ -161,6 +242,7 @@ pub async fn update_order_assignment(
     use axum::Extension;
     use leptos_axum::extract;
 
+    let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let order_repo =
@@ -174,7 +256,7 @@ pub async fn update_order_assignment(
     let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
-        .update_assignment(uuid, payload)
+        .update_assignment(uuid, payload, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)
@@ -193,6 +275,7 @@ pub async fn update_order_settlement(
     use axum::Extension;
     use leptos_axum::extract;
 
+    let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let order_repo =
@@ -206,7 +289,7 @@ pub async fn update_order_settlement(
     let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
 
     let result = service
-        .update_settlement(uuid, payload)
+        .update_settlement(uuid, payload, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)

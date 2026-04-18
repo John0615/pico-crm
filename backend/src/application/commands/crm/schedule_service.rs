@@ -28,6 +28,7 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
         &self,
         order_uuid: String,
         payload: CreateScheduleAssignment,
+        operator_uuid: Option<String>,
     ) -> Result<Schedule, String> {
         let assigned_user_uuid = normalize_required(payload.assigned_user_uuid, "assigned user")?;
         let start = parse_required_datetime(&payload.scheduled_start_at, "scheduled_start_at")?;
@@ -100,12 +101,16 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
         };
         let updated = self
             .order_repo
-            .update_order_assignment(order_uuid, update)
+            .update_order_assignment(order_uuid, update, operator_uuid.clone())
             .await?;
         let next_status = OrderStatus::next_after_schedule_assignment(order.status);
         let updated = if next_status != updated.status {
             self.order_repo
-                .update_order_status(updated.uuid.clone(), next_status.as_str().to_string())
+                .update_order_status(
+                    updated.uuid.clone(),
+                    next_status.as_str().to_string(),
+                    operator_uuid,
+                )
                 .await?
         } else {
             updated
@@ -117,6 +122,7 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
         &self,
         order_uuid: String,
         payload: UpdateScheduleAssignment,
+        operator_uuid: Option<String>,
     ) -> Result<Schedule, String> {
         let assigned_user_uuid = normalize_optional(payload.assigned_user_uuid);
         let start =
@@ -203,12 +209,16 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
         };
         let updated = self
             .order_repo
-            .update_order_assignment(order_uuid, update)
+            .update_order_assignment(order_uuid, update, operator_uuid.clone())
             .await?;
         let next_status = OrderStatus::next_after_schedule_assignment(order.status);
         let updated = if next_status != updated.status {
             self.order_repo
-                .update_order_status(updated.uuid.clone(), next_status.as_str().to_string())
+                .update_order_status(
+                    updated.uuid.clone(),
+                    next_status.as_str().to_string(),
+                    operator_uuid,
+                )
                 .await?
         } else {
             updated
@@ -216,12 +226,17 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
         Ok(build_schedule_view(updated, Some(assignment)))
     }
 
-    pub async fn cancel_schedule(&self, order_uuid: String) -> Result<Schedule, String> {
+    pub async fn cancel_schedule(
+        &self,
+        order_uuid: String,
+        operator_uuid: Option<String>,
+    ) -> Result<Schedule, String> {
         self.update_schedule_status(
             order_uuid,
             UpdateScheduleStatus {
                 status: "cancelled".to_string(),
             },
+            operator_uuid,
         )
         .await
     }
@@ -230,6 +245,7 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
         &self,
         order_uuid: String,
         payload: UpdateScheduleStatus,
+        operator_uuid: Option<String>,
     ) -> Result<Schedule, String> {
         let target_status = ScheduleStatus::parse(&payload.status)?;
         let target_order_status = target_status
@@ -246,7 +262,11 @@ impl<R: OrderRepository, S: ScheduleRepository> ScheduleAppService<R, S> {
 
         let updated = self
             .order_repo
-            .update_order_status(order_uuid.clone(), target_order_status.as_str().to_string())
+            .update_order_status(
+                order_uuid.clone(),
+                target_order_status.as_str().to_string(),
+                operator_uuid,
+            )
             .await?;
         let assignment = self
             .schedule_repo

@@ -9,7 +9,9 @@ use crate::domain::crm::order::Order;
     OrderEvent,
     [
         OrderCreated,
+        OrderDetailsUpdated,
         OrderStatusChanged,
+        OrderCancelled,
         OrderAssignmentUpdated,
         OrderSettlementUpdated
     ]
@@ -20,11 +22,17 @@ pub enum OrderEventEnvelope {
         tenant_schema: String,
         #[id]
         order_uuid: String,
+        #[serde(default)]
+        operator_uuid: Option<String>,
         request_id: Option<String>,
         customer_uuid: Option<String>,
         scheduled_start_at: Option<DateTime<Utc>>,
         scheduled_end_at: Option<DateTime<Utc>>,
         status: String,
+        #[serde(default)]
+        cancellation_reason: Option<String>,
+        #[serde(default)]
+        completed_at: Option<DateTime<Utc>>,
         settlement_status: String,
         amount_cents: i64,
         notes: Option<String>,
@@ -33,12 +41,38 @@ pub enum OrderEventEnvelope {
         inserted_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     },
+    OrderDetailsUpdated {
+        #[id]
+        tenant_schema: String,
+        #[id]
+        order_uuid: String,
+        #[serde(default)]
+        operator_uuid: Option<String>,
+        customer_uuid: Option<String>,
+        amount_cents: i64,
+        notes: Option<String>,
+        updated_at: DateTime<Utc>,
+    },
     OrderStatusChanged {
         #[id]
         tenant_schema: String,
         #[id]
         order_uuid: String,
+        #[serde(default)]
+        operator_uuid: Option<String>,
         status: String,
+        #[serde(default)]
+        completed_at: Option<DateTime<Utc>>,
+        updated_at: DateTime<Utc>,
+    },
+    OrderCancelled {
+        #[id]
+        tenant_schema: String,
+        #[id]
+        order_uuid: String,
+        #[serde(default)]
+        operator_uuid: Option<String>,
+        cancellation_reason: String,
         updated_at: DateTime<Utc>,
     },
     OrderAssignmentUpdated {
@@ -46,6 +80,8 @@ pub enum OrderEventEnvelope {
         tenant_schema: String,
         #[id]
         order_uuid: String,
+        #[serde(default)]
+        operator_uuid: Option<String>,
         scheduled_start_at: Option<DateTime<Utc>>,
         scheduled_end_at: Option<DateTime<Utc>>,
         dispatch_note: Option<String>,
@@ -56,21 +92,30 @@ pub enum OrderEventEnvelope {
         tenant_schema: String,
         #[id]
         order_uuid: String,
+        #[serde(default)]
+        operator_uuid: Option<String>,
         settlement_status: String,
         settlement_note: Option<String>,
         updated_at: DateTime<Utc>,
     },
 }
 
-pub fn seed_created_event(tenant_schema: &str, order: &Order) -> OrderEventEnvelope {
+pub fn seed_created_event(
+    tenant_schema: &str,
+    order: &Order,
+    operator_uuid: Option<String>,
+) -> OrderEventEnvelope {
     OrderEventEnvelope::OrderCreated {
         tenant_schema: tenant_schema.to_string(),
         order_uuid: order.uuid.clone(),
+        operator_uuid,
         request_id: order.request_id.clone(),
         customer_uuid: order.customer_uuid.clone(),
         scheduled_start_at: order.scheduled_start_at,
         scheduled_end_at: order.scheduled_end_at,
         status: order.status.as_str().to_string(),
+        cancellation_reason: order.cancellation_reason.clone(),
+        completed_at: order.completed_at,
         settlement_status: order.settlement_status.as_str().to_string(),
         amount_cents: order.amount_cents,
         notes: order.notes.clone(),

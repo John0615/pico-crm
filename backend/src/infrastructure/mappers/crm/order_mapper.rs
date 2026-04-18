@@ -1,10 +1,12 @@
-use crate::domain::crm::order::{Order, OrderAssignmentUpdate, OrderStatus, SettlementStatus};
+use chrono::{DateTime, Utc};
+use crate::domain::crm::order::{
+    Order, OrderAssignmentUpdate, OrderDetailsUpdate, OrderStatus, SettlementStatus,
+};
 use crate::infrastructure::entity::orders::{ActiveModel, Model};
 use crate::infrastructure::utils::parse_date_time_to_string;
-use chrono::Utc;
+use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
 use sea_orm::IntoActiveModel;
-use sea_orm::entity::prelude::*;
 use shared::order::Order as SharedOrder;
 
 pub struct OrderMapper;
@@ -19,6 +21,8 @@ impl OrderMapper {
             scheduled_start_at: entity.scheduled_start_at.map(parse_date_time_to_string),
             scheduled_end_at: entity.scheduled_end_at.map(parse_date_time_to_string),
             status: entity.status,
+            cancellation_reason: entity.cancellation_reason,
+            completed_at: entity.completed_at.map(parse_date_time_to_string),
             settlement_status: entity.settlement_status,
             amount_cents: entity.amount_cents,
             notes: entity.notes,
@@ -40,6 +44,8 @@ impl OrderMapper {
             scheduled_start_at: entity.scheduled_start_at,
             scheduled_end_at: entity.scheduled_end_at,
             status,
+            cancellation_reason: entity.cancellation_reason,
+            completed_at: entity.completed_at,
             settlement_status,
             amount_cents: entity.amount_cents,
             notes: entity.notes,
@@ -58,6 +64,8 @@ impl OrderMapper {
                 .as_ref()
                 .map(|value| Uuid::parse_str(value).expect("Invalid customer UUID"))),
             status: Set(order.status.as_str().to_string()),
+            cancellation_reason: Set(order.cancellation_reason),
+            completed_at: Set(order.completed_at),
             amount_cents: Set(order.amount_cents),
             notes: Set(order.notes),
             request_id: Set(order
@@ -74,9 +82,17 @@ impl OrderMapper {
         }
     }
 
-    pub fn to_status_active_entity(original: Model, status: OrderStatus) -> ActiveModel {
+    pub fn to_status_active_entity(
+        original: Model,
+        status: OrderStatus,
+        completed_at: Option<DateTime<Utc>>,
+    ) -> ActiveModel {
         let mut active = original.into_active_model();
         active.status = Set(status.as_str().to_string());
+        active.completed_at = Set(completed_at);
+        if status != OrderStatus::Cancelled {
+            active.cancellation_reason = Set(None);
+        }
         active.updated_at = Set(Utc::now());
         active
     }
@@ -89,6 +105,26 @@ impl OrderMapper {
         active.scheduled_start_at = Set(update.scheduled_start_at);
         active.scheduled_end_at = Set(update.scheduled_end_at);
         active.dispatch_note = Set(update.dispatch_note);
+        active.updated_at = Set(Utc::now());
+        active
+    }
+
+    pub fn to_details_active_entity(original: Model, update: OrderDetailsUpdate) -> ActiveModel {
+        let mut active = original.into_active_model();
+        active.customer_uuid = Set(Some(
+            Uuid::parse_str(&update.customer_uuid).expect("Invalid customer UUID"),
+        ));
+        active.amount_cents = Set(update.amount_cents);
+        active.notes = Set(update.notes);
+        active.updated_at = Set(Utc::now());
+        active
+    }
+
+    pub fn to_cancelled_active_entity(original: Model, reason: String) -> ActiveModel {
+        let mut active = original.into_active_model();
+        active.status = Set(OrderStatus::Cancelled.as_str().to_string());
+        active.cancellation_reason = Set(Some(reason));
+        active.completed_at = Set(None);
         active.updated_at = Set(Utc::now());
         active
     }

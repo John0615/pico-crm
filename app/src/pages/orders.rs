@@ -4,7 +4,10 @@ use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
 use crate::server::contact_handlers::{fetch_contacts, get_contact};
-use crate::server::order_handlers::{fetch_orders, update_order_status};
+use crate::server::order_handlers::{
+    cancel_order, fetch_orders, get_order_change_logs, update_order, update_order_settlement,
+    update_order_status,
+};
 use crate::utils::api::call_api;
 use leptos::logging;
 use leptos::prelude::*;
@@ -12,7 +15,10 @@ use leptos::task::spawn_local;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::contact::{Contact, ContactQuery};
-use shared::order::{Order, OrderQuery, UpdateOrderStatus};
+use shared::order::{
+    CancelOrderRequest, Order, OrderChangeLogDto, OrderQuery, UpdateOrderRequest,
+    UpdateOrderSettlement, UpdateOrderStatus,
+};
 use shared::ListResult;
 use std::collections::{HashMap, HashSet};
 
@@ -32,7 +38,19 @@ pub fn OrdersPage() -> impl IntoView {
     let date_end = RwSignal::new(String::new());
 
     let show_detail_modal = RwSignal::new(false);
+    let show_edit_modal = RwSignal::new(false);
+    let show_cancel_modal = RwSignal::new(false);
     let detail_order: RwSignal<Option<Order>> = RwSignal::new(None);
+    let editing_order_uuid = RwSignal::new(String::new());
+    let cancelling_order_uuid = RwSignal::new(String::new());
+
+    let form_customer_uuid = RwSignal::new(String::new());
+    let form_amount_cents = RwSignal::new(String::new());
+    let form_notes = RwSignal::new(String::new());
+    let cancel_reason = RwSignal::new(String::new());
+    let settlement_status = RwSignal::new(String::new());
+    let settlement_note = RwSignal::new(String::new());
+
     let contact_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
     let pending_contacts: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
 
@@ -122,10 +140,7 @@ pub fn OrdersPage() -> impl IntoView {
         if let Some(items) = contacts.get() {
             let mut map = HashMap::new();
             for contact in items {
-                map.insert(
-                    contact.contact_uuid.clone(),
-                    contact_display_label(&contact),
-                );
+                map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
             }
             contact_labels.set(map);
         }
@@ -178,9 +193,98 @@ pub fn OrdersPage() -> impl IntoView {
         }
     });
 
+    let order_logs = Resource::new(
+        move || detail_order.get().map(|order| order.uuid.clone()),
+        |uuid| async move {
+            match uuid {
+                Some(uuid) => call_api(get_order_change_logs(uuid)).await.unwrap_or_default(),
+                None => Vec::new(),
+            }
+        },
+    );
+
+    let open_edit = move |order: Order| {
+        editing_order_uuid.set(order.uuid.clone());
+        form_customer_uuid.set(order.customer_uuid.unwrap_or_default());
+        form_amount_cents.set(order.amount_cents.to_string());
+        form_notes.set(order.notes.unwrap_or_default());
+        show_edit_modal.set(true);
+    };
+
+    let open_cancel = move |order: Order| {
+        cancelling_order_uuid.set(order.uuid.clone());
+        cancel_reason.set(order.cancellation_reason.unwrap_or_default());
+        show_cancel_modal.set(true);
+    };
+
     let open_detail = move |order: Order| {
+        settlement_status.set(order.settlement_status.clone());
+        settlement_note.set(order.settlement_note.clone().unwrap_or_default());
         detail_order.set(Some(order));
         show_detail_modal.set(true);
+    };
+
+    let save_order_details = move |_| {
+        let uuid = editing_order_uuid.get();
+        if uuid.trim().is_empty() {
+            error("缺少订单ID".to_string());
+            return;
+        }
+        let amount_cents = match form_amount_cents.get().trim().parse::<i64>() {
+            Ok(value) if value >= 0 => value,
+            _ => {
+                error("金额必须是非负整数".to_string());
+                return;
+            }
+        };
+
+        let payload = UpdateOrderRequest {
+            customer_uuid: form_customer_uuid.get().trim().to_string(),
+            amount_cents,
+            notes: normalize_optional(&form_notes.get()),
+        };
+
+        spawn_local(async move {
+            match call_api(update_order(uuid, payload)).await {
+                Ok(_) => {
+                    success("订单已更新".to_string());
+                    show_edit_modal.set(false);
+                    refresh_count.update(|value| *value += 1);
+                }
+                Err(err) => error(format!("更新失败: {}", err)),
+            }
+        });
+    };
+
+    let submit_cancel_order = move |_| {
+        let uuid = cancelling_order_uuid.get();
+        if uuid.trim().is_empty() {
+            error("缺少订单ID".to_string());
+            return;
+        }
+        let reason = cancel_reason.get();
+        if reason.trim().is_empty() {
+            error("取消订单必须填写原因".to_string());
+            return;
+        }
+
+        spawn_local(async move {
+            match call_api(cancel_order(
+                uuid,
+                CancelOrderRequest {
+                    reason: reason.trim().to_string(),
+                },
+            ))
+            .await
+            {
+                Ok(_) => {
+                    success("订单已取消".to_string());
+                    show_cancel_modal.set(false);
+                    refresh_count.update(|value| *value += 1);
+                }
+                Err(err) => error(format!("取消失败: {}", err)),
+            }
+        });
     };
 
     let confirm_order = move |uuid: String| {
@@ -199,12 +303,37 @@ pub fn OrdersPage() -> impl IntoView {
         });
     };
 
+    let save_settlement = move |_| {
+        let Some(order) = detail_order.get() else {
+            return;
+        };
+
+        let payload = UpdateOrderSettlement {
+            settlement_status: settlement_status.get(),
+            settlement_note: normalize_optional(&settlement_note.get()),
+        };
+
+        spawn_local(async move {
+            match call_api(update_order_settlement(order.uuid.clone(), payload)).await {
+                Ok(updated) => {
+                    success("结算状态已更新".to_string());
+                    detail_order.set(Some(updated));
+                    refresh_count.update(|value| *value += 1);
+                }
+                Err(err) => error(format!("更新结算失败: {}", err)),
+            }
+        });
+    };
+
     view! {
         <Title text="订单管理 - PicoCRM"/>
         <div class="space-y-4">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h1 class="text-2xl font-semibold">"订单管理"</h1>
-            </div>
+            <div class="flex flex-col items-start gap-3 text-left md:flex-row md:items-center md:justify-between">
+                <div class="text-left">
+                    <h1 class="text-2xl font-semibold">"订单管理"</h1>
+                    <p class="mt-1 text-sm text-base-content/60">"订单只能从已确认的需求单转化生成，这里仅支持查看、编辑、取消、收款更新和变更记录"</p>
+                </div>
+                </div>
 
             <div class="card bg-base-100 shadow-sm">
                 <div class="card-body p-4 flex flex-col gap-3 md:flex-row md:items-end">
@@ -288,24 +417,22 @@ pub fn OrdersPage() -> impl IntoView {
                             let status_value = item.as_ref().map(|v| v.status.clone()).unwrap_or_default();
                             let label = order_status_label(&status_value);
                             let badge_class = order_status_badge_class(&status_value);
-                            view! {
-                                <span class=format!("badge {}", badge_class)>{label}</span>
-                            }
+                            view! { <span class=format!("badge {}", badge_class)>{label}</span> }
                         }
                     </Column>
-                    <Column
-                        slot:columns
-                        prop="settlement".to_string()
-                        label="结算".to_string()
-                    >
+                    <Column slot:columns prop="settlement".to_string() label="结算".to_string()>
                         {
                             let item: Option<Order> = use_context::<Order>();
                             let settlement_value = item.as_ref().map(|v| v.settlement_status.clone()).unwrap_or_default();
                             let label = settlement_status_label(&settlement_value);
                             let badge_class = settlement_status_badge_class(&settlement_value);
-                            view! {
-                                <span class=format!("badge {}", badge_class)>{label}</span>
-                            }
+                            view! { <span class=format!("badge {}", badge_class)>{label}</span> }
+                        }
+                    </Column>
+                    <Column slot:columns prop="completed_at".to_string() label="完成时间".to_string()>
+                        {
+                            let item: Option<Order> = use_context::<Order>();
+                            view! { <span class="text-xs">{item.as_ref().and_then(|v| v.completed_at.clone()).unwrap_or_else(|| "-".to_string())}</span> }
                         }
                     </Column>
                     <Column
@@ -320,12 +447,11 @@ pub fn OrdersPage() -> impl IntoView {
                                 let item: Option<Order> = use_context::<Order>();
                                 let order = StoredValue::new(item);
                                 let can_confirm = order
-                                    .with_value(|value| {
-                                        value
-                                            .as_ref()
-                                            .map(|value| value.status == "pending")
-                                            .unwrap_or(false)
-                                    });
+                                    .with_value(|value| value.as_ref().map(|value| value.status == "pending").unwrap_or(false));
+                                let can_edit = order
+                                    .with_value(|value| value.as_ref().map(|value| value.status != "completed" && value.status != "cancelled").unwrap_or(false));
+                                let can_cancel = order
+                                    .with_value(|value| value.as_ref().map(|value| value.status != "completed" && value.status != "cancelled").unwrap_or(false));
                                 view! {
                                     <Show when=move || can_confirm>
                                         <button class="btn btn-soft btn-primary btn-xs" on:click=move |_| {
@@ -334,6 +460,24 @@ pub fn OrdersPage() -> impl IntoView {
                                             }
                                         }>
                                             "确认"
+                                        </button>
+                                    </Show>
+                                    <Show when=move || can_edit>
+                                        <button class="btn btn-soft btn-warning btn-xs" on:click=move |_| {
+                                            if let Some(value) = order.with_value(|value| value.clone()) {
+                                                open_edit(value);
+                                            }
+                                        }>
+                                            "编辑"
+                                        </button>
+                                    </Show>
+                                    <Show when=move || can_cancel>
+                                        <button class="btn btn-soft btn-error btn-xs" on:click=move |_| {
+                                            if let Some(value) = order.with_value(|value| value.clone()) {
+                                                open_cancel(value);
+                                            }
+                                        }>
+                                            "取消"
                                         </button>
                                     </Show>
                                     <button class="btn btn-ghost btn-xs" on:click=move |_| {
@@ -359,6 +503,41 @@ pub fn OrdersPage() -> impl IntoView {
             </Transition>
         </div>
 
+        <Modal show=show_edit_modal box_class=DETAIL_MODAL_BOX_CLASS>
+            <div class="space-y-4">
+                <h3 class="text-lg font-semibold">"编辑订单"</h3>
+                <OrderForm
+                    contacts=contacts
+                    customer_uuid=form_customer_uuid
+                    amount_cents=form_amount_cents
+                    notes=form_notes
+                />
+                <div class="flex justify-end gap-2">
+                    <button class="btn" on:click=move |_| show_edit_modal.set(false)>"取消"</button>
+                    <button class="btn btn-primary" on:click=save_order_details>"保存修改"</button>
+                </div>
+            </div>
+        </Modal>
+
+        <Modal show=show_cancel_modal>
+            <div class="space-y-4">
+                <h3 class="text-lg font-semibold">"取消订单"</h3>
+                <label class="form-control">
+                    <span class="label-text text-sm">"取消原因"</span>
+                    <textarea
+                        class="textarea textarea-bordered min-h-32"
+                        prop:value=move || cancel_reason.get()
+                        on:input=move |ev| cancel_reason.set(event_target_value(&ev))
+                        placeholder="必须填写取消原因"
+                    />
+                </label>
+                <div class="flex justify-end gap-2">
+                    <button class="btn" on:click=move |_| show_cancel_modal.set(false)>"返回"</button>
+                    <button class="btn btn-error" on:click=submit_cancel_order>"确认取消"</button>
+                </div>
+            </div>
+        </Modal>
+
         <Modal show=show_detail_modal box_class=DETAIL_MODAL_BOX_CLASS>
             <div class="space-y-4">
                 <h3 class="text-lg font-semibold">"订单详情"</h3>
@@ -376,7 +555,10 @@ pub fn OrdersPage() -> impl IntoView {
                                 {detail_item("客户", customer_name)}
                                 {detail_item("客户UUID", display_optional(order.customer_uuid.clone()))}
                                 {detail_item("状态", order_status_label(&order.status).to_string())}
+                                {detail_item("取消原因", display_optional(order.cancellation_reason.clone()))}
+                                {detail_item("完成时间", display_optional(order.completed_at.clone()))}
                                 {detail_item("结算状态", settlement_status_label(&order.settlement_status).to_string())}
+                                {detail_item("订单金额(分)", order.amount_cents.to_string())}
                                 {detail_item("服务开始", display_optional(order.scheduled_start_at.clone()))}
                                 {detail_item("服务结束", display_optional(order.scheduled_end_at.clone()))}
                                 {detail_item("派工备注", display_optional(order.dispatch_note.clone()))}
@@ -390,6 +572,104 @@ pub fn OrdersPage() -> impl IntoView {
                         view! { <div class="text-sm text-base-content/60">"暂无详情"</div> }.into_any()
                     }
                 }}
+
+                <div class="rounded-box border border-base-200 p-4 space-y-3">
+                    <div class="font-medium">"收款更新"</div>
+                    <div class="grid gap-3 md:grid-cols-[180px,1fr]">
+                        <select
+                            class="select select-bordered"
+                            prop:value=move || settlement_status.get()
+                            on:change=move |ev| settlement_status.set(event_target_value(&ev))
+                        >
+                            <option value="unsettled">"未结算"</option>
+                            <option value="settled">"已结算"</option>
+                        </select>
+                        <input
+                            class="input input-bordered"
+                            prop:value=move || settlement_note.get()
+                            on:input=move |ev| settlement_note.set(event_target_value(&ev))
+                            placeholder="填写结算备注"
+                        />
+                    </div>
+                    <div class="flex justify-end">
+                        <button class="btn btn-sm btn-primary" on:click=save_settlement>
+                            "保存结算状态"
+                        </button>
+                    </div>
+                </div>
+
+                <div class="rounded-box border border-base-200 p-4 space-y-3">
+                    <div class="font-medium">"变更记录"</div>
+                    <Transition fallback=move || view! { <div class="text-sm text-base-content/60">"加载中..."</div> }>
+                        {move || {
+                            order_logs.get().map(|logs| {
+                                if logs.is_empty() {
+                                    view! { <div class="text-sm text-base-content/60">"暂无变更记录"</div> }.into_any()
+                                } else {
+                                    view! {
+                                        <div class="space-y-3">
+                                            <For
+                                            each=move || logs.clone().into_iter().enumerate()
+                                            key=|(idx, item)| format!("{}-{}", idx, item.uuid)
+                                            children=move |(_, item)| {
+                                                let diff_items = order_log_diff_items(&item);
+                                                let has_diff = !diff_items.is_empty();
+                                                let diff_rows = diff_items
+                                                    .iter()
+                                                    .cloned()
+                                                    .map(|field| {
+                                                        view! {
+                                                            <div class="grid gap-2 rounded bg-base-100 p-2 text-xs md:grid-cols-[120px,1fr,1fr]">
+                                                                <div class="font-medium text-base-content/70">{field.0}</div>
+                                                                <div>
+                                                                    <div class="text-[11px] text-base-content/50">"变更前"</div>
+                                                                    <div class="whitespace-pre-wrap break-all">{field.1}</div>
+                                                                </div>
+                                                                <div>
+                                                                    <div class="text-[11px] text-base-content/50">"变更后"</div>
+                                                                    <div class="whitespace-pre-wrap break-all">{field.2}</div>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    })
+                                                    .collect_view();
+                                                view! {
+                                                    <div class="rounded-box bg-base-200/50 p-3 space-y-2">
+                                                        <div class="flex items-center justify-between gap-2">
+                                                            <span class="font-medium text-sm">{order_log_action_label(&item.action)}</span>
+                                                            <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
+                                                        </div>
+                                                        <div class="text-xs text-base-content/60">
+                                                            {format!(
+                                                                "操作人UUID: {}",
+                                                                item.operator_uuid.clone().unwrap_or_else(|| "-".to_string())
+                                                            )}
+                                                        </div>
+                                                        {if has_diff {
+                                                            view! {
+                                                                <div class="space-y-2">
+                                                                    {diff_rows}
+                                                                </div>
+                                                            }.into_any()
+                                                        } else {
+                                                            view! {
+                                                                <div class="text-xs text-base-content/60">
+                                                                    "该操作没有记录到具体字段差异"
+                                                                </div>
+                                                            }.into_any()
+                                                        }}
+                                                    </div>
+                                                }
+                                            }
+                                            />
+                                        </div>
+                                    }.into_any()
+                                }
+                            })
+                        }}
+                    </Transition>
+                </div>
+
                 <div class="flex justify-end gap-2">
                     <button class="btn" on:click=move |_| show_detail_modal.set(false)>
                         "关闭"
@@ -397,6 +677,63 @@ pub fn OrdersPage() -> impl IntoView {
                 </div>
             </div>
         </Modal>
+    }
+}
+
+#[component]
+fn OrderForm(
+    contacts: Resource<Vec<Contact>>,
+    customer_uuid: RwSignal<String>,
+    amount_cents: RwSignal<String>,
+    notes: RwSignal<String>,
+) -> impl IntoView {
+    view! {
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label class="form-control">
+                <span class="label-text text-sm">"客户"</span>
+                <select
+                    class="select select-bordered"
+                    prop:value=move || customer_uuid.get()
+                    on:change=move |ev| customer_uuid.set(event_target_value(&ev))
+                >
+                    <option value="">"请选择客户"</option>
+                    <Transition fallback=move || view! { <option value="">"加载中..."</option> }>
+                        {move || contacts.get().map(|items| {
+                            view! {
+                                <For
+                                    each=move || items.clone().into_iter()
+                                    key=|contact| contact.contact_uuid.clone()
+                                    children=move |contact| {
+                                        let label = contact_display_label(&contact);
+                                        view! { <option value={contact.contact_uuid}>{label}</option> }
+                                    }
+                                />
+                            }
+                        })}
+                    </Transition>
+                </select>
+            </label>
+            <label class="form-control">
+                <span class="label-text text-sm">"订单金额(分)"</span>
+                <input
+                    class="input input-bordered"
+                    type="number"
+                    min="0"
+                    prop:value=move || amount_cents.get()
+                    on:input=move |ev| amount_cents.set(event_target_value(&ev))
+                    placeholder="例如：29900"
+                />
+            </label>
+            <label class="form-control md:col-span-2">
+                <span class="label-text text-sm">"订单备注"</span>
+                <textarea
+                    class="textarea textarea-bordered min-h-24"
+                    prop:value=move || notes.get()
+                    on:input=move |ev| notes.set(event_target_value(&ev))
+                    placeholder="补充订单说明"
+                />
+            </label>
+        </div>
     }
 }
 
@@ -439,6 +776,15 @@ fn detail_item(label: &'static str, value: String) -> impl IntoView {
     }
 }
 
+fn normalize_optional(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 fn order_status_label(status: &str) -> &'static str {
     match status {
         "pending" => "待确认",
@@ -476,5 +822,93 @@ fn settlement_status_badge_class(status: &str) -> &'static str {
         "unsettled" => "badge-warning",
         "settled" => "badge-success",
         _ => "badge-info",
+    }
+}
+
+fn order_log_action_label(action: &str) -> &'static str {
+    match action {
+        "created" => "创建订单",
+        "details_updated" => "编辑订单",
+        "status_changed" => "状态变更",
+        "cancelled" => "取消订单",
+        "assignment_updated" => "派工更新",
+        "settlement_updated" => "结算更新",
+        _ => "订单变更",
+    }
+}
+
+fn order_log_diff_items(item: &OrderChangeLogDto) -> Vec<(String, String, String)> {
+    let mut result = Vec::new();
+    let before = item.before_data.as_ref().and_then(|value| value.as_object());
+    let after = item.after_data.as_ref().and_then(|value| value.as_object());
+
+    let keys = [
+        "customer_uuid",
+        "status",
+        "cancellation_reason",
+        "completed_at",
+        "settlement_status",
+        "amount_cents",
+        "notes",
+        "dispatch_note",
+        "settlement_note",
+        "scheduled_start_at",
+        "scheduled_end_at",
+    ];
+
+    for key in keys {
+        let before_value = before.and_then(|map| map.get(key));
+        let after_value = after.and_then(|map| map.get(key));
+        if before_value == after_value {
+            continue;
+        }
+        result.push((
+            order_log_field_label(key),
+            format_json_field(before_value),
+            format_json_field(after_value),
+        ));
+    }
+
+    result
+}
+
+fn order_log_field_label(key: &str) -> String {
+    match key {
+        "customer_uuid" => "客户UUID".to_string(),
+        "status" => "订单状态".to_string(),
+        "cancellation_reason" => "取消原因".to_string(),
+        "completed_at" => "完成时间".to_string(),
+        "settlement_status" => "结算状态".to_string(),
+        "amount_cents" => "订单金额(分)".to_string(),
+        "notes" => "订单备注".to_string(),
+        "dispatch_note" => "派工备注".to_string(),
+        "settlement_note" => "结算备注".to_string(),
+        "scheduled_start_at" => "服务开始".to_string(),
+        "scheduled_end_at" => "服务结束".to_string(),
+        _ => key.to_string(),
+    }
+}
+
+fn format_json_field(value: Option<&serde_json::Value>) -> String {
+    match value {
+        None | Some(serde_json::Value::Null) => "-".to_string(),
+        Some(serde_json::Value::String(value)) => {
+            if value.trim().is_empty() {
+                "-".to_string()
+            } else {
+                value.clone()
+            }
+        }
+        Some(serde_json::Value::Number(value)) => value.to_string(),
+        Some(serde_json::Value::Bool(value)) => {
+            if *value {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+        Some(other) => {
+            serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string())
+        }
     }
 }

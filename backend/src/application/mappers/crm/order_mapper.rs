@@ -12,6 +12,8 @@ impl From<DomainOrder> for SharedOrder {
             scheduled_start_at: order.scheduled_start_at.map(parse_utc_time_to_string),
             scheduled_end_at: order.scheduled_end_at.map(parse_utc_time_to_string),
             status: order.status.as_str().to_string(),
+            cancellation_reason: order.cancellation_reason,
+            completed_at: order.completed_at.map(parse_utc_time_to_string),
             settlement_status: order.settlement_status.as_str().to_string(),
             amount_cents: order.amount_cents,
             notes: order.notes,

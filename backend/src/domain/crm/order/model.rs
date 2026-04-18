@@ -9,6 +9,8 @@ pub struct Order {
     pub scheduled_start_at: Option<DateTime<Utc>>,
     pub scheduled_end_at: Option<DateTime<Utc>>,
     pub status: OrderStatus,
+    pub cancellation_reason: Option<String>,
+    pub completed_at: Option<DateTime<Utc>>,
     pub settlement_status: SettlementStatus,
     pub amount_cents: i64,
     pub notes: Option<String>,
@@ -24,6 +26,13 @@ pub struct OrderAssignmentUpdate {
     pub scheduled_start_at: Option<DateTime<Utc>>,
     pub scheduled_end_at: Option<DateTime<Utc>>,
     pub dispatch_note: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct OrderDetailsUpdate {
+    pub customer_uuid: String,
+    pub amount_cents: i64,
+    pub notes: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,15 +82,11 @@ impl OrderStatus {
                 (OrderStatus::Pending, OrderStatus::Confirmed)
                     | (OrderStatus::Pending, OrderStatus::Dispatching)
                     | (OrderStatus::Pending, OrderStatus::InService)
-                    | (OrderStatus::Pending, OrderStatus::Cancelled)
                     | (OrderStatus::Confirmed, OrderStatus::Dispatching)
                     | (OrderStatus::Confirmed, OrderStatus::InService)
-                    | (OrderStatus::Confirmed, OrderStatus::Cancelled)
                     | (OrderStatus::Dispatching, OrderStatus::Confirmed)
                     | (OrderStatus::Dispatching, OrderStatus::InService)
-                    | (OrderStatus::Dispatching, OrderStatus::Cancelled)
                     | (OrderStatus::InService, OrderStatus::Completed)
-                    | (OrderStatus::InService, OrderStatus::Cancelled)
             )
     }
 
@@ -138,6 +143,8 @@ impl Order {
             scheduled_start_at,
             scheduled_end_at,
             status: OrderStatus::Pending,
+            cancellation_reason: None,
+            completed_at: None,
             settlement_status: SettlementStatus::Unsettled,
             amount_cents: 0,
             notes,
@@ -150,20 +157,15 @@ impl Order {
 
     pub fn verify(&self) -> Result<(), String> {
         if self
-            .request_id
-            .as_ref()
-            .map(|v| v.trim().is_empty())
-            .unwrap_or(true)
-        {
-            return Err("Request id is required".to_string());
-        }
-        if self
             .customer_uuid
             .as_ref()
             .map(|v| v.trim().is_empty())
             .unwrap_or(true)
         {
             return Err("Customer is required".to_string());
+        }
+        if self.amount_cents < 0 {
+            return Err("Amount cents must be non-negative".to_string());
         }
         if let (Some(start), Some(end)) = (self.scheduled_start_at, self.scheduled_end_at) {
             if end <= start {
@@ -175,6 +177,9 @@ impl Order {
 
     pub fn update_status(&mut self, status: OrderStatus) {
         self.status = status;
+        if status != OrderStatus::Completed {
+            self.completed_at = None;
+        }
         self.updated_at = Utc::now();
     }
 
@@ -191,6 +196,37 @@ impl Order {
         Ok(())
     }
 
+    pub fn update_details(&mut self, update: OrderDetailsUpdate) -> Result<(), String> {
+        if self.status == OrderStatus::Completed || self.status == OrderStatus::Cancelled {
+            return Err("Completed or cancelled orders cannot update core fields".to_string());
+        }
+        if update.customer_uuid.trim().is_empty() {
+            return Err("Customer is required".to_string());
+        }
+        if update.amount_cents < 0 {
+            return Err("Amount cents must be non-negative".to_string());
+        }
+
+        self.customer_uuid = Some(update.customer_uuid);
+        self.amount_cents = update.amount_cents;
+        self.notes = update.notes;
+        self.updated_at = Utc::now();
+        Ok(())
+    }
+
+    pub fn cancel(&mut self, reason: String) -> Result<(), String> {
+        if reason.trim().is_empty() {
+            return Err("Cancellation reason is required".to_string());
+        }
+        if self.status == OrderStatus::Completed {
+            return Err("Completed orders cannot be cancelled".to_string());
+        }
+        self.status = OrderStatus::Cancelled;
+        self.cancellation_reason = Some(reason.trim().to_string());
+        self.updated_at = Utc::now();
+        Ok(())
+    }
+
     pub fn update_settlement(&mut self, status: SettlementStatus, note: Option<String>) {
         self.settlement_status = status;
         self.settlement_note = note;
@@ -201,6 +237,16 @@ impl Order {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_order() -> Order {
+        Order::new_from_request(
+            "request-1".to_string(),
+            "customer-1".to_string(),
+            None,
+            None,
+            Some("new".to_string()),
+        )
+    }
 
     #[test]
     fn order_status_transition_rules_allow_supported_paths() {
@@ -222,10 +268,6 @@ mod tests {
             OrderStatus::validate_transition(OrderStatus::InService, OrderStatus::Completed)
                 .is_ok()
         );
-        assert!(
-            OrderStatus::validate_transition(OrderStatus::InService, OrderStatus::Cancelled)
-                .is_ok()
-        );
     }
 
     #[test]
@@ -240,29 +282,26 @@ mod tests {
         assert!(
             OrderStatus::validate_transition(OrderStatus::Cancelled, OrderStatus::Pending).is_err()
         );
-        assert!(
-            OrderStatus::validate_transition(OrderStatus::InService, OrderStatus::Confirmed)
-                .is_err()
-        );
     }
 
     #[test]
-    fn schedule_assignment_promotes_waiting_orders() {
-        assert_eq!(
-            OrderStatus::next_after_schedule_assignment(OrderStatus::Pending),
-            OrderStatus::Dispatching
-        );
-        assert_eq!(
-            OrderStatus::next_after_schedule_assignment(OrderStatus::Confirmed),
-            OrderStatus::Dispatching
-        );
-        assert_eq!(
-            OrderStatus::next_after_schedule_assignment(OrderStatus::Dispatching),
-            OrderStatus::Dispatching
-        );
-        assert_eq!(
-            OrderStatus::next_after_schedule_assignment(OrderStatus::InService),
-            OrderStatus::InService
-        );
+    fn completed_orders_cannot_update_core_fields() {
+        let mut order = sample_order();
+        order.status = OrderStatus::Completed;
+
+        let err = order
+            .update_details(OrderDetailsUpdate {
+                customer_uuid: "customer-2".to_string(),
+                amount_cents: 200,
+                notes: None,
+            })
+            .expect_err("completed orders should reject detail updates");
+        assert!(err.contains("cannot update core fields"));
+    }
+
+    #[test]
+    fn cancel_requires_reason() {
+        let mut order = sample_order();
+        assert!(order.cancel(" ".to_string()).is_err());
     }
 }

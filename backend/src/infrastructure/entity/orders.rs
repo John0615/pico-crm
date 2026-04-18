@@ -10,6 +10,8 @@ pub struct Model {
     pub uuid: Uuid,
     pub customer_uuid: Option<Uuid>,
     pub status: String,
+    pub cancellation_reason: Option<String>,
+    pub completed_at: Option<DateTime<Utc>>,
     pub amount_cents: i64,
     pub notes: Option<String>,
     pub request_id: Option<Uuid>,

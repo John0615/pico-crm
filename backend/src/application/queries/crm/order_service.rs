@@ -1,6 +1,6 @@
 use crate::domain::crm::order::OrderQuery as DomainOrderQuery;
 use shared::ListResult;
-use shared::order::{Order, OrderQuery};
+use shared::order::{Order, OrderChangeLogDto, OrderQuery};
 
 pub struct OrderQueryService<R: DomainOrderQuery> {
     query: R,
@@ -18,5 +18,12 @@ impl<R: DomainOrderQuery<Result = Order>> OrderQueryService<R> {
 
     pub async fn fetch_order(&self, uuid: String) -> Result<Option<Order>, String> {
         self.query.get_order(uuid).await
+    }
+
+    pub async fn fetch_order_change_logs(
+        &self,
+        uuid: String,
+    ) -> Result<Vec<OrderChangeLogDto>, String> {
+        self.query.list_order_change_logs(uuid).await
     }
 }

@@ -18,6 +18,8 @@ pub struct OrderState {
     pub scheduled_start_at: Option<DateTime<Utc>>,
     pub scheduled_end_at: Option<DateTime<Utc>>,
     pub status: Option<String>,
+    pub cancellation_reason: Option<String>,
+    pub completed_at: Option<DateTime<Utc>>,
     pub settlement_status: Option<String>,
     pub amount_cents: i64,
     pub notes: Option<String>,
@@ -65,6 +67,8 @@ impl OrderState {
             scheduled_start_at: self.scheduled_start_at,
             scheduled_end_at: self.scheduled_end_at,
             status,
+            cancellation_reason: self.cancellation_reason.clone(),
+            completed_at: self.completed_at,
             settlement_status,
             amount_cents: self.amount_cents,
             notes: self.notes.clone(),
@@ -87,6 +91,8 @@ impl StateMutate for OrderState {
                 scheduled_start_at,
                 scheduled_end_at,
                 status,
+                cancellation_reason,
+                completed_at,
                 settlement_status,
                 amount_cents,
                 notes,
@@ -94,6 +100,7 @@ impl StateMutate for OrderState {
                 settlement_note,
                 inserted_at,
                 updated_at,
+                ..
             } => {
                 self.exists = true;
                 self.tenant_schema = tenant_schema;
@@ -103,6 +110,8 @@ impl StateMutate for OrderState {
                 self.scheduled_start_at = scheduled_start_at;
                 self.scheduled_end_at = scheduled_end_at;
                 self.status = Some(status);
+                self.cancellation_reason = cancellation_reason;
+                self.completed_at = completed_at;
                 self.settlement_status = Some(settlement_status);
                 self.amount_cents = amount_cents;
                 self.notes = notes;
@@ -112,9 +121,35 @@ impl StateMutate for OrderState {
                 self.updated_at = Some(updated_at);
             }
             OrderEvent::OrderStatusChanged {
-                status, updated_at, ..
+                status,
+                completed_at,
+                updated_at,
+                ..
             } => {
                 self.status = Some(status);
+                self.completed_at = completed_at;
+                self.updated_at = Some(updated_at);
+            }
+            OrderEvent::OrderDetailsUpdated {
+                customer_uuid,
+                amount_cents,
+                notes,
+                updated_at,
+                ..
+            } => {
+                self.customer_uuid = customer_uuid;
+                self.amount_cents = amount_cents;
+                self.notes = notes;
+                self.updated_at = Some(updated_at);
+            }
+            OrderEvent::OrderCancelled {
+                cancellation_reason,
+                updated_at,
+                ..
+            } => {
+                self.status = Some(OrderStatus::Cancelled.as_str().to_string());
+                self.cancellation_reason = Some(cancellation_reason);
+                self.completed_at = None;
                 self.updated_at = Some(updated_at);
             }
             OrderEvent::OrderAssignmentUpdated {

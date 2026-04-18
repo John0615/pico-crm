@@ -4,9 +4,10 @@ pub mod query;
 pub mod repository;
 
 pub use es::{
-    CreateOrderDecision, OrderEventEnvelope, OrderState, UpdateOrderAssignmentDecision,
-    UpdateOrderSettlementDecision, UpdateOrderStatusDecision, seed_created_event,
+    CancelOrderDecision, CreateOrderDecision, OrderEventEnvelope, OrderState,
+    UpdateOrderAssignmentDecision, UpdateOrderDetailsDecision, UpdateOrderSettlementDecision,
+    UpdateOrderStatusDecision, seed_created_event,
 };
-pub use model::{Order, OrderAssignmentUpdate, OrderStatus, SettlementStatus};
+pub use model::{Order, OrderAssignmentUpdate, OrderDetailsUpdate, OrderStatus, SettlementStatus};
 pub use query::OrderQuery;
 pub use repository::OrderRepository;

@@ -106,7 +106,7 @@ pub async fn create_schedule(
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
-        .create_schedule(order_uuid, payload)
+        .create_schedule(order_uuid, payload, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)
@@ -137,7 +137,7 @@ pub async fn update_schedule(
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
-        .update_schedule(order_uuid, payload)
+        .update_schedule(order_uuid, payload, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)
@@ -165,7 +165,7 @@ pub async fn cancel_schedule(order_uuid: String) -> Result<Schedule, ServerFnErr
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
-        .cancel_schedule(order_uuid)
+        .cancel_schedule(order_uuid, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)
@@ -216,7 +216,7 @@ pub async fn update_schedule_status(
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
-        .update_schedule_status(order_uuid, payload)
+        .update_schedule_status(order_uuid, payload, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)

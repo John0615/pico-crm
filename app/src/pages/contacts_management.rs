@@ -203,8 +203,8 @@ pub fn ContactsManagement() -> impl IntoView {
     view! {
         <Title text="客户管理 - PicoCRM"/>
         <div class="space-y-4">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
+            <div class="flex flex-col items-start gap-3 text-left md:flex-row md:items-center md:justify-between">
+                <div class="text-left">
                     <h1 class="text-2xl font-semibold">"客户管理"</h1>
                     <p class="mt-1 text-sm text-base-content/60">"支持地址、标签、跟进状态和最近服务时间的客户资料管理"</p>
                 </div>

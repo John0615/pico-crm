@@ -10,6 +10,8 @@ pub struct Order {
     pub scheduled_start_at: Option<String>,
     pub scheduled_end_at: Option<String>,
     pub status: String,
+    pub cancellation_reason: Option<String>,
+    pub completed_at: Option<String>,
     pub settlement_status: String,
     pub amount_cents: i64,
     pub notes: Option<String>,
@@ -23,6 +25,18 @@ pub struct Order {
 pub struct CreateOrderFromRequest {
     pub request_id: String,
     pub notes: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UpdateOrderRequest {
+    pub customer_uuid: String,
+    pub amount_cents: i64,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CancelOrderRequest {
+    pub reason: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -42,6 +56,17 @@ pub struct UpdateOrderAssignment {
 pub struct UpdateOrderSettlement {
     pub settlement_status: String,
     pub settlement_note: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct OrderChangeLogDto {
+    pub uuid: String,
+    pub order_uuid: String,
+    pub action: String,
+    pub operator_uuid: Option<String>,
+    pub before_data: Option<serde_json::Value>,
+    pub after_data: Option<serde_json::Value>,
+    pub created_at: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
