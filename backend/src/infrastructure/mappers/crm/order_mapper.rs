@@ -1,12 +1,12 @@
-use chrono::{DateTime, Utc};
 use crate::domain::crm::order::{
     Order, OrderAssignmentUpdate, OrderDetailsUpdate, OrderStatus, SettlementStatus,
 };
 use crate::infrastructure::entity::orders::{ActiveModel, Model};
 use crate::infrastructure::utils::parse_date_time_to_string;
-use sea_orm::entity::prelude::*;
+use chrono::{DateTime, Utc};
 use sea_orm::ActiveValue::Set;
 use sea_orm::IntoActiveModel;
+use sea_orm::entity::prelude::*;
 use shared::order::Order as SharedOrder;
 
 pub struct OrderMapper;

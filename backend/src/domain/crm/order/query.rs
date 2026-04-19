@@ -1,5 +1,5 @@
-use shared::order::OrderQuery as OrderQueryParams;
 use shared::order::OrderChangeLogDto;
+use shared::order::OrderQuery as OrderQueryParams;
 
 pub trait OrderQuery: Send + Sync {
     type Result: std::fmt::Debug + Send + Sync;

@@ -140,7 +140,10 @@ pub fn OrdersPage() -> impl IntoView {
         if let Some(items) = contacts.get() {
             let mut map = HashMap::new();
             for contact in items {
-                map.insert(contact.contact_uuid.clone(), contact_display_label(&contact));
+                map.insert(
+                    contact.contact_uuid.clone(),
+                    contact_display_label(&contact),
+                );
             }
             contact_labels.set(map);
         }
@@ -197,7 +200,9 @@ pub fn OrdersPage() -> impl IntoView {
         move || detail_order.get().map(|order| order.uuid.clone()),
         |uuid| async move {
             match uuid {
-                Some(uuid) => call_api(get_order_change_logs(uuid)).await.unwrap_or_default(),
+                Some(uuid) => call_api(get_order_change_logs(uuid))
+                    .await
+                    .unwrap_or_default(),
                 None => Vec::new(),
             }
         },
@@ -839,7 +844,10 @@ fn order_log_action_label(action: &str) -> &'static str {
 
 fn order_log_diff_items(item: &OrderChangeLogDto) -> Vec<(String, String, String)> {
     let mut result = Vec::new();
-    let before = item.before_data.as_ref().and_then(|value| value.as_object());
+    let before = item
+        .before_data
+        .as_ref()
+        .and_then(|value| value.as_object());
     let after = item.after_data.as_ref().and_then(|value| value.as_object());
 
     let keys = [
@@ -907,8 +915,6 @@ fn format_json_field(value: Option<&serde_json::Value>) -> String {
                 "false".to_string()
             }
         }
-        Some(other) => {
-            serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string())
-        }
+        Some(other) => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
     }
 }

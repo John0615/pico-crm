@@ -3,15 +3,15 @@ use crate::domain::crm::order::{
     SettlementStatus,
 };
 use crate::domain::crm::schedule::{
-    validate_time_window, ScheduleAssignment, ScheduleRepository, ScheduleStatus,
+    ScheduleAssignment, ScheduleRepository, ScheduleStatus, validate_time_window,
 };
 use crate::domain::crm::service_request::{
     ServiceRequestQuery as ServiceRequestQueryTrait, ServiceRequestRepository,
 };
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use shared::order::{
-    CancelOrderRequest, CreateOrderFromRequest, Order as SharedOrder,
-    UpdateOrderAssignment, UpdateOrderRequest, UpdateOrderSettlement, UpdateOrderStatus,
+    CancelOrderRequest, CreateOrderFromRequest, Order as SharedOrder, UpdateOrderAssignment,
+    UpdateOrderRequest, UpdateOrderSettlement, UpdateOrderStatus,
 };
 use shared::service_request::ServiceRequest;
 
@@ -168,12 +168,7 @@ where
 
         if let Some(conflict) = self
             .schedule_repo
-            .find_conflict(
-                assigned_user_uuid.clone(),
-                start,
-                end,
-                Some(uuid.clone()),
-            )
+            .find_conflict(assigned_user_uuid.clone(), start, end, Some(uuid.clone()))
             .await?
         {
             return Err(format!(

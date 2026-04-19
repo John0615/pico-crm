@@ -143,7 +143,10 @@ pub async fn create_order_from_request(
     prefix = "/api",
     endpoint = "/update_order",
 )]
-pub async fn update_order(uuid: String, payload: UpdateOrderRequest) -> Result<Order, ServerFnError> {
+pub async fn update_order(
+    uuid: String,
+    payload: UpdateOrderRequest,
+) -> Result<Order, ServerFnError> {
     use self::ssr::*;
     use axum::Extension;
     use leptos_axum::extract;
@@ -172,7 +175,10 @@ pub async fn update_order(uuid: String, payload: UpdateOrderRequest) -> Result<O
     prefix = "/api",
     endpoint = "/cancel_order",
 )]
-pub async fn cancel_order(uuid: String, payload: CancelOrderRequest) -> Result<Order, ServerFnError> {
+pub async fn cancel_order(
+    uuid: String,
+    payload: CancelOrderRequest,
+) -> Result<Order, ServerFnError> {
     use self::ssr::*;
     use axum::Extension;
     use leptos_axum::extract;

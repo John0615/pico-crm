@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use disintegrate::{query, EventListener, PersistedEvent, StreamQuery};
+use disintegrate::{EventListener, PersistedEvent, StreamQuery, query};
 use disintegrate_postgres::{PgEventId, PgEventListener, PgEventListenerConfig};
-use sea_orm::entity::prelude::*;
 use sea_orm::ActiveValue::Set;
+use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel};
 use serde_json::Value;
 use uuid::Uuid;

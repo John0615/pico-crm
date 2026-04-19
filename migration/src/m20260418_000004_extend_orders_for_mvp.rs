@@ -73,7 +73,9 @@ mod tests {
             .build(
                 &Table::alter()
                     .table(Orders::Table)
-                    .add_column_if_not_exists(ColumnDef::new(Orders::CancellationReason).text().null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(Orders::CancellationReason).text().null(),
+                    )
                     .add_column_if_not_exists(
                         ColumnDef::new(Orders::CompletedAt)
                             .timestamp_with_time_zone()

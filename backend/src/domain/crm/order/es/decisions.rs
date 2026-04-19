@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
 use disintegrate::Decision;
 
-use super::events::{seed_created_event, OrderEventEnvelope};
+use super::events::{OrderEventEnvelope, seed_created_event};
 use super::state::OrderState;
 use crate::domain::crm::order::{
     Order, OrderAssignmentUpdate, OrderDetailsUpdate, OrderStatus, SettlementStatus,
 };
-use crate::domain::crm::schedule::{validate_time_window, ScheduleStatus};
+use crate::domain::crm::schedule::{ScheduleStatus, validate_time_window};
 
 pub struct CreateOrderDecision {
     tenant_schema: String,
@@ -439,23 +439,25 @@ mod tests {
             updated_at: ts(2),
         };
 
-        TestHarness::given([seed_created_event("tenant_a", &sample_order(), None), completed])
-            .when(UpdateOrderAssignmentDecision::new(
-                "tenant_a",
-                "order-1",
-                OrderAssignmentUpdate {
-                    assigned_user_uuid: Some("user-1".to_string()),
-                    scheduled_start_at: Some(ts(3)),
-                    scheduled_end_at: Some(ts(3) + chrono::Duration::hours(1)),
-                    dispatch_note: Some("dispatch".to_string()),
-                },
-                ts(3),
-                None,
-            ))
-            .then_err(
-                "schedule assignment can only be updated in planned status (current: done)"
-                    .to_string(),
-            );
+        TestHarness::given([
+            seed_created_event("tenant_a", &sample_order(), None),
+            completed,
+        ])
+        .when(UpdateOrderAssignmentDecision::new(
+            "tenant_a",
+            "order-1",
+            OrderAssignmentUpdate {
+                assigned_user_uuid: Some("user-1".to_string()),
+                scheduled_start_at: Some(ts(3)),
+                scheduled_end_at: Some(ts(3) + chrono::Duration::hours(1)),
+                dispatch_note: Some("dispatch".to_string()),
+            },
+            ts(3),
+            None,
+        ))
+        .then_err(
+            "schedule assignment can only be updated in planned status (current: done)".to_string(),
+        );
     }
 
     #[test]

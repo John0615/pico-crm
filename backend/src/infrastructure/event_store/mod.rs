@@ -47,10 +47,8 @@ pub async fn initialize() -> Result<(), String> {
 }
 
 async fn initialize_listener_infra(pool: sqlx::PgPool) -> Result<(), String> {
-    let event_store = PgEventStore::new_uninitialized(
-        pool,
-        Json::<ServiceRequestEventEnvelope>::default(),
-    );
+    let event_store =
+        PgEventStore::new_uninitialized(pool, Json::<ServiceRequestEventEnvelope>::default());
     Migrator::new(event_store)
         .init_listener()
         .await

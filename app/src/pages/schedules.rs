@@ -45,7 +45,7 @@ impl Identifiable for Schedule {
 pub fn SchedulesPage() -> impl IntoView {
     let query = use_query_map();
     let refresh_count = RwSignal::new(0);
-    let (view_mode, set_view_mode) = signal("calendar".to_string());
+    let (view_mode, set_view_mode) = signal("backlog".to_string());
     let (status_filter, set_status_filter) = signal(String::new());
     let (user_filter, set_user_filter) = signal(String::new());
     let date_start = RwSignal::new(String::new());
@@ -73,6 +73,7 @@ pub fn SchedulesPage() -> impl IntoView {
     let new_assigned_user_uuid = RwSignal::new(String::new());
     let creating_schedule = RwSignal::new(false);
     let detail_schedule: RwSignal<Option<Schedule>> = RwSignal::new(None);
+    let new_schedule_conflict_snapshot: RwSignal<Option<Vec<Schedule>>> = RwSignal::new(None);
     let contact_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
     let user_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
     let pending_contacts: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
@@ -126,9 +127,8 @@ pub fn SchedulesPage() -> impl IntoView {
         },
     );
 
-    let is_worker = RwSignal::new(false);
-    Effect::new(move |_| {
-        let worker = current_user.with(|value| {
+    let is_worker = Memo::new(move |_| {
+        current_user.with(|value| {
             value
                 .as_ref()
                 .map(|user| {
@@ -138,8 +138,13 @@ pub fn SchedulesPage() -> impl IntoView {
                         && user.role != "admin"
                 })
                 .unwrap_or(false)
-        });
-        is_worker.set(worker);
+        })
+    });
+
+    Effect::new(move |_| {
+        if is_worker.get() && view_mode.get() == "backlog" {
+            set_view_mode.set("list".to_string());
+        }
     });
 
     let data = Resource::new(
@@ -200,6 +205,18 @@ pub fn SchedulesPage() -> impl IntoView {
         },
     );
 
+    let new_schedule_time_window = Memo::new(move |_| {
+        let start_raw = new_expected_start_at.get();
+        let duration = new_duration_minutes.get();
+        if start_raw.trim().is_empty() || duration <= 0 {
+            return None;
+        }
+        let start = parse_calendar_datetime(&start_raw)?;
+        let end_raw = add_minutes_to_local(&start_raw, duration)?;
+        let end = parse_calendar_datetime(&end_raw)?;
+        Some((start, end))
+    });
+
     Effect::new(move || {
         let map = query.with(|value| value.clone());
         if let Some(status) = map.get("status") {
@@ -228,6 +245,44 @@ pub fn SchedulesPage() -> impl IntoView {
         }
     });
 
+    let new_schedule_conflicts = Resource::new(
+        move || {
+            (
+                show_new_modal.get(),
+                new_schedule_time_window.get(),
+                refresh_count.get(),
+            )
+        },
+        |(open, window, _)| async move {
+            if !open {
+                return Vec::new();
+            }
+            let Some((start, end)) = window else {
+                return Vec::new();
+            };
+            let (query_start, query_end) = schedule_conflict_query_range(start, end);
+            let params = ScheduleQuery {
+                page: 1,
+                page_size: 500,
+                status: None,
+                assigned_user_uuid: None,
+                start_date: Some(query_start),
+                end_date: Some(query_end),
+            };
+            match call_api(fetch_schedules(params)).await {
+                Ok(result) => result.items,
+                Err(err) => {
+                    logging::error!("Error loading schedule conflicts: {err}");
+                    Vec::new()
+                }
+            }
+        },
+    );
+
+    Effect::new(move || {
+        new_schedule_conflict_snapshot.set(new_schedule_conflicts.get());
+    });
+
     let contacts = Resource::new(
         move || (),
         |_| async move {
@@ -249,9 +304,9 @@ pub fn SchedulesPage() -> impl IntoView {
     );
 
     let available_orders = Resource::new(
-        move || show_new_modal.get(),
-        |open| async move {
-            if !open {
+        move || (show_new_modal.get(), view_mode.get(), refresh_count.get()),
+        |(open, mode, _)| async move {
+            if !open && mode != "backlog" {
                 return Vec::new();
             }
             let params = OrderQuery {
@@ -370,19 +425,19 @@ pub fn SchedulesPage() -> impl IntoView {
             let Some(request) = request else {
                 return;
             };
-            if !duration_overridden.get() {
+            if !duration_overridden.get_untracked() {
                 if let Some(minutes) = duration_minutes_between(
                     request.appointment_start_at.as_deref(),
                     request.appointment_end_at.as_deref(),
                 ) {
-                    if new_order_uuid.get() == order_uuid_guard {
+                    if new_order_uuid.get_untracked() == order_uuid_guard {
                         new_duration_minutes.set(minutes);
                     }
                 }
             }
-            if !expected_start_overridden.get()
-                && new_expected_start_at.get().trim().is_empty()
-                && new_order_uuid.get() == order_uuid_guard
+            if !expected_start_overridden.get_untracked()
+                && new_expected_start_at.get_untracked().trim().is_empty()
+                && new_order_uuid.get_untracked() == order_uuid_guard
             {
                 let start_value = to_datetime_local(request.appointment_start_at.clone());
                 if !start_value.trim().is_empty() {
@@ -397,25 +452,41 @@ pub fn SchedulesPage() -> impl IntoView {
         if cfg!(feature = "ssr") {
             return;
         }
-        let Some((items, _)) = data.get() else {
-            return;
-        };
 
         let existing = contact_labels.get();
         let mut pending = pending_contacts.get();
-        let mut missing_ids: Vec<String> = Vec::new();
-        for schedule in &items {
-            let Some(contact_id) = schedule.customer_uuid.clone() else {
-                continue;
-            };
-            if contact_id.is_empty() {
-                continue;
+        let mut missing_ids: HashSet<String> = HashSet::new();
+
+        if let Some((items, _)) = data.get() {
+            for schedule in &items {
+                let Some(contact_id) = schedule.customer_uuid.clone() else {
+                    continue;
+                };
+                if contact_id.is_empty()
+                    || existing.contains_key(&contact_id)
+                    || pending.contains(&contact_id)
+                {
+                    continue;
+                }
+                pending.insert(contact_id.clone());
+                missing_ids.insert(contact_id);
             }
-            if existing.contains_key(&contact_id) || pending.contains(&contact_id) {
-                continue;
+        }
+
+        if let Some(items) = available_orders.get() {
+            for order in &items {
+                let Some(contact_id) = order.customer_uuid.clone() else {
+                    continue;
+                };
+                if contact_id.is_empty()
+                    || existing.contains_key(&contact_id)
+                    || pending.contains(&contact_id)
+                {
+                    continue;
+                }
+                pending.insert(contact_id.clone());
+                missing_ids.insert(contact_id);
             }
-            pending.insert(contact_id.clone());
-            missing_ids.push(contact_id);
         }
         if missing_ids.is_empty() {
             return;
@@ -442,48 +513,20 @@ pub fn SchedulesPage() -> impl IntoView {
 
     let conflict_state = Memo::new(move |_| {
         let user_id = new_assigned_user_uuid.get();
-        let start_raw = new_expected_start_at.get();
-        let duration = new_duration_minutes.get();
-        if user_id.trim().is_empty() || start_raw.trim().is_empty() || duration <= 0 {
+        if user_id.trim().is_empty() {
             return ConflictState::Unknown;
         }
-        let Some(start) = parse_calendar_datetime(&start_raw) else {
+        let Some((start, end)) = new_schedule_time_window.get() else {
             return ConflictState::Unknown;
         };
-        let Some(end_raw) = add_minutes_to_local(&start_raw, duration) else {
-            return ConflictState::Unknown;
-        };
-        let Some(end) = parse_calendar_datetime(&end_raw) else {
-            return ConflictState::Unknown;
-        };
-        let Some((items, _)) = data.get() else {
+        let Some(items) = new_schedule_conflict_snapshot.get() else {
             return ConflictState::Unknown;
         };
         let labels = contact_labels.get();
         let pending = pending_contacts.get();
-        for schedule in items {
-            let Some(assigned) = schedule.assigned_user_uuid.clone() else {
-                continue;
-            };
-            if assigned != user_id {
-                continue;
-            }
-            let Some(existing_start_raw) = schedule.scheduled_start_at.clone() else {
-                continue;
-            };
-            let Some(existing_end_raw) = schedule.scheduled_end_at.clone() else {
-                continue;
-            };
-            let Some(existing_start) = parse_calendar_datetime(&existing_start_raw) else {
-                continue;
-            };
-            let Some(existing_end) = parse_calendar_datetime(&existing_end_raw) else {
-                continue;
-            };
-            if is_overlapping_window_naive(start, end, existing_start, existing_end) {
-                let label = schedule_contact_label(&schedule, &labels, &pending);
-                return ConflictState::Conflict(label);
-            }
+        if let Some(schedule) = find_conflicting_schedule_for_user(&user_id, start, end, &items) {
+            let label = schedule_contact_label(schedule, &labels, &pending);
+            return ConflictState::Conflict(label);
         }
         ConflictState::Available
     });
@@ -496,6 +539,23 @@ pub fn SchedulesPage() -> impl IntoView {
             && !new_expected_start_at.get().trim().is_empty()
             && !new_assigned_user_uuid.get().trim().is_empty()
             && matches!(conflict_state.get(), ConflictState::Available)
+    });
+
+    Effect::new(move || {
+        let selected_user = new_assigned_user_uuid.get();
+        if selected_user.trim().is_empty() {
+            return;
+        }
+        let Some((start, end)) = new_schedule_time_window.get() else {
+            new_assigned_user_uuid.set(String::new());
+            return;
+        };
+        let Some(items) = new_schedule_conflict_snapshot.get() else {
+            return;
+        };
+        if find_conflicting_schedule_for_user(&selected_user, start, end, &items).is_some() {
+            new_assigned_user_uuid.set(String::new());
+        }
     });
 
     Effect::new(move || {
@@ -555,8 +615,8 @@ pub fn SchedulesPage() -> impl IntoView {
         show_assignment_modal.set(true);
     };
 
-    let open_new_schedule = move |_| {
-        new_order_uuid.set(String::new());
+    let open_new_schedule_for_order = move |order_uuid: String| {
+        new_order_uuid.set(order_uuid);
         new_service_type.set(String::new());
         new_duration_minutes.set(0);
         duration_overridden.set(false);
@@ -767,6 +827,20 @@ pub fn SchedulesPage() -> impl IntoView {
                 <h1 class="text-2xl font-semibold">"排班管理"</h1>
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="tabs tabs-boxed">
+                        <Show when=move || !is_worker.get() fallback=|| ()>
+                            <button
+                                class=move || {
+                                    if view_mode.get() == "backlog" {
+                                        "tab tab-active"
+                                    } else {
+                                        "tab"
+                                    }
+                                }
+                                on:click=move |_| set_view_mode.set("backlog".to_string())
+                            >
+                                "未排班订单"
+                            </button>
+                        </Show>
                         <button
                             class=move || {
                                 if view_mode.get() == "list" {
@@ -792,75 +866,172 @@ pub fn SchedulesPage() -> impl IntoView {
                             "日历"
                         </button>
                     </div>
-                    <Show when=move || !is_worker.get() fallback=|| ()>
-                        <button class="btn btn-primary btn-sm" on:click=open_new_schedule>
-                            "+ 新增排班"
-                        </button>
-                    </Show>
                 </div>
             </div>
 
-            <div class="card bg-base-100 shadow-sm">
-                <div class="card-body p-4 flex flex-col gap-3 md:flex-row md:items-end">
-                    <div class="flex flex-col gap-1">
-                        <span class="text-xs text-base-content/60">"状态"</span>
-                        <select
-                            class="select select-bordered min-w-[160px]"
-                            prop:value=move || status_filter.get()
-                            on:change=move |ev| set_status_filter.set(event_target_value(&ev))
-                        >
-                            <option value="">"全部"</option>
-                            <option value="planned">"待排班"</option>
-                            <option value="in_service">"服务中"</option>
-                            <option value="done">"已完成"</option>
-                            <option value="cancelled">"已取消"</option>
-                        </select>
-                    </div>
-                    <Show when=move || !is_worker.get() fallback=|| ()>
+            <Show when=move || view_mode.get() != "backlog">
+                <div class="card bg-base-100 shadow-sm">
+                    <div class="card-body p-4 flex flex-col gap-3 md:flex-row md:items-end">
                         <div class="flex flex-col gap-1">
-                            <span class="text-xs text-base-content/60">"员工"</span>
-                            <Transition fallback=move || view! {
-                                <select
-                                    class="select select-bordered min-w-[200px]"
-                                    prop:value=move || user_filter.get()
-                                    on:change=move |ev| set_user_filter.set(event_target_value(&ev))
-                                >
-                                    <option value="">"全部"</option>
-                                </select>
-                            }>
-                                {move || {
-                                    let items = users.get().unwrap_or_default();
-                                    let options = items
-                                        .into_iter()
-                                        .map(|user| {
-                                            let label = user_display_label(&user);
-                                            view! { <option value={user.uuid}>{label}</option> }
-                                        })
-                                        .collect::<Vec<_>>();
-                                    view! {
-                                        <select
-                                            class="select select-bordered min-w-[200px]"
-                                            prop:value=move || user_filter.get()
-                                            on:change=move |ev| set_user_filter.set(event_target_value(&ev))
-                                        >
-                                            <option value="">"全部"</option>
-                                            {options}
-                                        </select>
-                                    }
-                                }}
-                            </Transition>
+                            <span class="text-xs text-base-content/60">"状态"</span>
+                            <select
+                                class="select select-bordered min-w-[160px]"
+                                prop:value=move || status_filter.get()
+                                on:change=move |ev| set_status_filter.set(event_target_value(&ev))
+                            >
+                                <option value="">"全部"</option>
+                                <option value="planned">"待排班"</option>
+                                <option value="in_service">"服务中"</option>
+                                <option value="done">"已完成"</option>
+                                <option value="cancelled">"已取消"</option>
+                            </select>
                         </div>
-                    </Show>
-                    <div class="flex flex-col gap-1">
-                        <span class="text-xs text-base-content/60">"服务开始"</span>
-                        <FlyonDatePicker value=date_start class="input input-bordered".to_string() />
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <span class="text-xs text-base-content/60">"服务结束"</span>
-                        <FlyonDatePicker value=date_end class="input input-bordered".to_string() />
+                        <Show when=move || !is_worker.get() fallback=|| ()>
+                            <div class="flex flex-col gap-1">
+                                <span class="text-xs text-base-content/60">"员工"</span>
+                                <Transition fallback=move || view! {
+                                    <select
+                                        class="select select-bordered min-w-[200px]"
+                                        prop:value=move || user_filter.get()
+                                        on:change=move |ev| set_user_filter.set(event_target_value(&ev))
+                                    >
+                                        <option value="">"全部"</option>
+                                    </select>
+                                }>
+                                    {move || {
+                                        let items = users.get().unwrap_or_default();
+                                        let options = items
+                                            .into_iter()
+                                            .map(|user| {
+                                                let label = user_display_label(&user);
+                                                view! { <option value={user.uuid}>{label}</option> }
+                                            })
+                                            .collect::<Vec<_>>();
+                                        view! {
+                                            <select
+                                                class="select select-bordered min-w-[200px]"
+                                                prop:value=move || user_filter.get()
+                                                on:change=move |ev| set_user_filter.set(event_target_value(&ev))
+                                            >
+                                                <option value="">"全部"</option>
+                                                {options}
+                                            </select>
+                                        }
+                                    }}
+                                </Transition>
+                            </div>
+                        </Show>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs text-base-content/60">"服务开始"</span>
+                            <FlyonDatePicker value=date_start class="input input-bordered".to_string() />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs text-base-content/60">"服务结束"</span>
+                            <FlyonDatePicker value=date_end class="input input-bordered".to_string() />
+                        </div>
                     </div>
                 </div>
-            </div>
+            </Show>
+
+            <Show when=move || view_mode.get() == "backlog">
+                <div class="overflow-x-auto overflow-y-auto h-[calc(100vh-260px)] bg-base-100 rounded-lg shadow">
+                    <Transition fallback=move || view! {
+                        <div class="p-6 text-sm text-base-content/60">"加载中..."</div>
+                    }>
+                        {move || {
+                            let mut orders = available_orders
+                                .get()
+                                .unwrap_or_default()
+                                .into_iter()
+                                .filter(order_is_schedulable)
+                                .collect::<Vec<_>>();
+                            orders.sort_by(|left, right| right.inserted_at.cmp(&left.inserted_at));
+
+                            if orders.is_empty() {
+                                return view! {
+                                    <div class="p-6 text-sm text-base-content/60 space-y-2">
+                                        <div class="font-medium text-base-content">"暂无待排班订单"</div>
+                                        <div>"当前可派工订单都已处理，可以切换到列表或日历查看已排班结果。"</div>
+                                    </div>
+                                }
+                                .into_any();
+                            }
+
+                            let contact_labels_store = StoredValue::new(contact_labels.get());
+                            let pending_contacts_store = StoredValue::new(pending_contacts.get());
+
+                            view! {
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>"订单"</th>
+                                            <th>"客户"</th>
+                                            <th>"状态"</th>
+                                            <th>"金额"</th>
+                                            <th>"创建时间"</th>
+                                            <th>"备注"</th>
+                                            <th class="text-right">"操作"</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <For
+                                            each=move || orders.clone()
+                                            key=|order| order.uuid.clone()
+                                            children=move |order| {
+                                                let order_uuid = order.uuid.clone();
+                                                let short_id = shorten_uuid(&order.uuid);
+                                                let contact_label = contact_labels_store.with_value(|labels| {
+                                                    pending_contacts_store.with_value(|pending| {
+                                                        order_contact_label(&order, labels, pending)
+                                                    })
+                                                });
+                                                let status_label = order_status_label(&order.status).to_string();
+                                                let status_class = order_status_badge_class(&order.status).to_string();
+                                                let amount_label = if order.amount_cents > 0 {
+                                                    format!("{} 分", order.amount_cents)
+                                                } else {
+                                                    "-".to_string()
+                                                };
+                                                let created_at = display_optional(Some(order.inserted_at.clone()));
+                                                let notes = display_optional(order.notes.clone());
+
+                                                view! {
+                                                    <tr class="hover">
+                                                        <td>
+                                                            <div class="font-medium">{format!("订单 {}", short_id)}</div>
+                                                            <div class="text-xs text-base-content/50 break-all">{order.uuid}</div>
+                                                        </td>
+                                                        <td class="max-w-[220px]">
+                                                            <div class="font-medium break-words">{contact_label}</div>
+                                                        </td>
+                                                        <td>
+                                                            <span class=format!("badge {}", status_class)>{status_label}</span>
+                                                        </td>
+                                                        <td class="text-xs">{amount_label}</td>
+                                                        <td class="text-xs">{created_at}</td>
+                                                        <td class="max-w-[260px] text-xs whitespace-pre-wrap break-words">
+                                                            {notes}
+                                                        </td>
+                                                        <td class="text-right">
+                                                            <button
+                                                                class="btn btn-primary btn-xs"
+                                                                on:click=move |_| open_new_schedule_for_order(order_uuid.clone())
+                                                            >
+                                                                "去排班"
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        />
+                                    </tbody>
+                                </table>
+                            }
+                            .into_any()
+                        }}
+                    </Transition>
+                </div>
+            </Show>
 
             <Show when=move || view_mode.get() == "calendar">
                 {move || {
@@ -911,11 +1082,6 @@ pub fn SchedulesPage() -> impl IntoView {
                                             return view! {
                                                 <div class="p-6 text-sm text-base-content/60 space-y-3">
                                                     <div>"本周暂无排班"</div>
-                                                    <Show when=move || !is_worker.get() fallback=|| ()>
-                                                        <button class="btn btn-primary btn-sm" on:click=open_new_schedule>
-                                                            "+ 新增排班"
-                                                        </button>
-                                                    </Show>
                                                 </div>
                                             }.into_any();
                                         }
@@ -1125,7 +1291,7 @@ pub fn SchedulesPage() -> impl IntoView {
                 }}
             </Show>
 
-            <Show when=move || view_mode.get() != "calendar">
+            <Show when=move || view_mode.get() == "list">
             <div class="overflow-x-auto overflow-y-auto h-[calc(100vh-260px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data>
                     <Column
@@ -1367,179 +1533,217 @@ pub fn SchedulesPage() -> impl IntoView {
         </div>
 
         <Modal show=show_new_modal>
-            <h3 class="text-lg font-semibold mb-4">"新增排班"</h3>
-            <div class="space-y-3">
-                <label class="form-control w-full">
-                    <div class="label"><span class="label-text">"客户（未排班订单）"</span></div>
+            <Show when=move || show_new_modal.get() fallback=|| ()>
+                <h3 class="text-lg font-semibold mb-4">"安排订单"</h3>
+                <div class="space-y-3">
                     <Transition fallback=move || view! {
-                        <select class="select select-bordered w-full" disabled=true>
-                            <option value="">"加载中..."</option>
-                        </select>
+                        <label class="form-control w-full">
+                            <div class="label"><span class="label-text">"订单"</span></div>
+                            <input class="input input-bordered w-full" value="加载中..." readonly=true />
+                        </label>
                     }>
                         {move || {
+                            let order_uuid = new_order_uuid.get();
                             let items = available_orders.get().unwrap_or_default();
                             let contact_labels_snapshot = contact_labels.get();
                             let pending_snapshot = pending_contacts.get();
-                            let mut options = Vec::new();
-                            for order in items.into_iter().filter(order_is_schedulable) {
-                                let label = order_option_label(&order, &contact_labels_snapshot, &pending_snapshot);
-                                options.push(view! { <option value={order.uuid.clone()}>{label}</option> });
-                            }
-                            let is_empty = options.is_empty();
+                            let label = items
+                                .iter()
+                                .find(|order| order.uuid == order_uuid)
+                                .map(|order| {
+                                    order_option_label(
+                                        order,
+                                        &contact_labels_snapshot,
+                                        &pending_snapshot,
+                                    )
+                                })
+                                .unwrap_or_else(|| {
+                                    if order_uuid.trim().is_empty() {
+                                        "未选择订单".to_string()
+                                    } else {
+                                        format!("订单 {}", shorten_uuid(&order_uuid))
+                                    }
+                                });
+
                             view! {
-                                <select
-                                    class="select select-bordered w-full"
-                                    prop:value=move || new_order_uuid.get()
-                                    disabled=is_empty
-                                    on:change=move |ev| new_order_uuid.set(event_target_value(&ev))
-                                >
-                                    <option value="">
-                                        {if is_empty { "暂无可排班订单" } else { "请选择客户" }}
-                                    </option>
-                                    {options}
-                                </select>
+                                <label class="form-control w-full">
+                                    <div class="label"><span class="label-text">"当前订单"</span></div>
+                                    <input
+                                        class="input input-bordered w-full"
+                                        prop:value=label
+                                        readonly=true
+                                    />
+                                </label>
                             }
+                            .into_any()
                         }}
                     </Transition>
-                </label>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <label class="form-control w-full">
-                        <div class="label"><span class="label-text">"服务类型"</span></div>
-                        {move || {
-                            let options = SERVICE_TYPE_OPTIONS
-                                .iter()
-                                .map(|value| view! { <option value={*value}>{*value}</option> })
-                                .collect::<Vec<_>>();
-                            view! {
-                                <select
-                                    class="select select-bordered w-full"
-                                    prop:value=move || new_service_type.get()
-                                    on:change=move |ev| new_service_type.set(event_target_value(&ev))
-                                >
-                                    <option value="">"请选择服务类型"</option>
-                                    {options}
-                                </select>
-                            }
-                        }}
-                    </label>
-                    <label class="form-control w-full">
-                        <div class="label"><span class="label-text">"服务时长"</span></div>
-                        {move || {
-                            let mut options: Vec<(i64, String)> = DURATION_OPTIONS
-                                .iter()
-                                .map(|(value, label)| (*value, (*label).to_string()))
-                                .collect();
-                            let current = new_duration_minutes.get();
-                            if current > 0 && !options.iter().any(|(value, _)| *value == current) {
-                                options.insert(0, (current, duration_label(current)));
-                            }
-                            let options = options
-                                .into_iter()
-                                .map(|(value, label)| {
-                                    view! { <option value={value.to_string()}>{label}</option> }
-                                })
-                                .collect::<Vec<_>>();
-                            view! {
-                                <select
-                                    class="select select-bordered w-full"
-                                    prop:value=move || {
-                                        let value = new_duration_minutes.get();
-                                        if value <= 0 {
-                                            String::new()
-                                        } else {
-                                            value.to_string()
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label class="form-control w-full">
+                            <div class="label"><span class="label-text">"服务类型"</span></div>
+                            {move || {
+                                let options = SERVICE_TYPE_OPTIONS
+                                    .iter()
+                                    .map(|value| view! { <option value={*value}>{*value}</option> })
+                                    .collect::<Vec<_>>();
+                                view! {
+                                    <select
+                                        class="select select-bordered w-full"
+                                        prop:value=move || new_service_type.get()
+                                        on:change=move |ev| new_service_type.set(event_target_value(&ev))
+                                    >
+                                        <option value="">"请选择服务类型"</option>
+                                        {options}
+                                    </select>
+                                }
+                            }}
+                        </label>
+                        <label class="form-control w-full">
+                            <div class="label"><span class="label-text">"服务时长"</span></div>
+                            {move || {
+                                let mut options: Vec<(i64, String)> = DURATION_OPTIONS
+                                    .iter()
+                                    .map(|(value, label)| (*value, (*label).to_string()))
+                                    .collect();
+                                let current = new_duration_minutes.get();
+                                if current > 0 && !options.iter().any(|(value, _)| *value == current) {
+                                    options.insert(0, (current, duration_label(current)));
+                                }
+                                let options = options
+                                    .into_iter()
+                                    .map(|(value, label)| {
+                                        view! { <option value={value.to_string()}>{label}</option> }
+                                    })
+                                    .collect::<Vec<_>>();
+                                view! {
+                                    <select
+                                        class="select select-bordered w-full"
+                                        prop:value=move || {
+                                            let value = new_duration_minutes.get();
+                                            if value <= 0 {
+                                                String::new()
+                                            } else {
+                                                value.to_string()
+                                            }
                                         }
-                                    }
-                                    on:change=move |ev| {
-                                        let value = event_target_value(&ev);
-                                        let minutes = value.parse::<i64>().unwrap_or(0);
-                                        new_duration_minutes.set(minutes);
-                                        duration_overridden.set(true);
-                                    }
-                                >
-                                    <option value="">"请选择服务时长"</option>
-                                    {options}
-                                </select>
-                            }
-                        }}
-                    </label>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        on:change=move |ev| {
+                                            let value = event_target_value(&ev);
+                                            let minutes = value.parse::<i64>().unwrap_or(0);
+                                            new_duration_minutes.set(minutes);
+                                            duration_overridden.set(true);
+                                        }
+                                    >
+                                        <option value="">"请选择服务时长"</option>
+                                        {options}
+                                    </select>
+                                }
+                            }}
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label class="form-control w-full">
+                            <div class="label"><span class="label-text">"期望时间"</span></div>
+                            <FlyonDateTimePicker
+                                value=new_expected_start_at
+                                class="input input-bordered".to_string()
+                            />
+                        </label>
+                        <label class="form-control w-full">
+                            <div class="label"><span class="label-text">"服务结束"</span></div>
+                            <input
+                                class="input input-bordered w-full"
+                                prop:value=move || new_expected_end_at.get()
+                                placeholder="自动计算"
+                                readonly
+                            />
+                        </label>
+                    </div>
                     <label class="form-control w-full">
-                        <div class="label"><span class="label-text">"期望时间"</span></div>
-                        <FlyonDateTimePicker
-                            value=new_expected_start_at
-                            class="input input-bordered".to_string()
-                        />
+                        <div class="label"><span class="label-text">"指派员工"</span></div>
+                        <Transition fallback=move || view! {
+                            <select class="select select-bordered w-full" disabled=true>
+                                <option value="">"加载中..."</option>
+                            </select>
+                        }>
+                            {move || {
+                                let items = users.get().unwrap_or_default();
+                                let Some((start, end)) = new_schedule_time_window.get() else {
+                                    return view! {
+                                        <select class="select select-bordered w-full" disabled=true>
+                                            <option value="">"请先选择期望时间"</option>
+                                        </select>
+                                    }.into_any();
+                                };
+                                let Some(conflict_items) = new_schedule_conflict_snapshot.get() else {
+                                    return view! {
+                                        <select class="select select-bordered w-full" disabled=true>
+                                            <option value="">"可排班员工加载中..."</option>
+                                        </select>
+                                    }.into_any();
+                                };
+                                let options = items
+                                    .into_iter()
+                                    .filter(|user| {
+                                        find_conflicting_schedule_for_user(
+                                            &user.uuid,
+                                            start,
+                                            end,
+                                            &conflict_items,
+                                        )
+                                        .is_none()
+                                    })
+                                    .map(|user| {
+                                        let label = user_display_label(&user);
+                                        view! { <option value={user.uuid}>{label}</option> }
+                                    })
+                                    .collect::<Vec<_>>();
+                                let is_empty = options.is_empty();
+                                view! {
+                                    <select
+                                        class="select select-bordered w-full"
+                                        disabled=is_empty
+                                        prop:value=move || new_assigned_user_uuid.get()
+                                        on:change=move |ev| new_assigned_user_uuid.set(event_target_value(&ev))
+                                    >
+                                        <option value="">
+                                            {if is_empty { "该时段暂无空闲员工" } else { "请选择员工" }}
+                                        </option>
+                                        {options}
+                                    </select>
+                                }.into_any()
+                            }}
+                        </Transition>
                     </label>
-                    <label class="form-control w-full">
-                        <div class="label"><span class="label-text">"服务结束"</span></div>
-                        <input
-                            class="input input-bordered w-full"
-                            prop:value=move || new_expected_end_at.get()
-                            placeholder="自动计算"
-                            readonly
-                        />
-                    </label>
-                </div>
-                <label class="form-control w-full">
-                    <div class="label"><span class="label-text">"指派员工"</span></div>
-                    <Transition fallback=move || view! {
-                        <select class="select select-bordered w-full" disabled=true>
-                            <option value="">"加载中..."</option>
-                        </select>
-                    }>
+                    <div class="text-sm">
                         {move || {
-                            let items = users.get().unwrap_or_default();
-                            let options = items
-                                .into_iter()
-                                .map(|user| {
-                                    let label = user_display_label(&user);
-                                    view! { <option value={user.uuid}>{label}</option> }
-                                })
-                                .collect::<Vec<_>>();
-                            view! {
-                                <select
-                                    class="select select-bordered w-full"
-                                    prop:value=move || new_assigned_user_uuid.get()
-                                    on:change=move |ev| new_assigned_user_uuid.set(event_target_value(&ev))
-                                >
-                                    <option value="">"请选择员工"</option>
-                                    {options}
-                                </select>
-                            }
+                            let (class, text) = match conflict_state.get() {
+                                ConflictState::Unknown => ("text-base-content/60", "选择员工与时间后自动校验冲突".to_string()),
+                                ConflictState::Available => ("text-success", "可排班".to_string()),
+                                ConflictState::Conflict(label) => ("text-error", format!("该时段已排客户 {}，是否更换员工 / 时间？", label)),
+                            };
+                            view! { <span class=class>{text}</span> }
                         }}
-                    </Transition>
-                </label>
-                <div class="text-sm">
-                    {move || {
-                        let (class, text) = match conflict_state.get() {
-                            ConflictState::Unknown => ("text-base-content/60", "选择员工与时间后自动校验冲突".to_string()),
-                            ConflictState::Available => ("text-success", "可排班".to_string()),
-                            ConflictState::Conflict(label) => ("text-error", format!("该时段已排客户 {}，是否更换员工 / 时间？", label)),
-                        };
-                        view! { <span class=class>{text}</span> }
-                    }}
-                </div>
-                <div class="flex justify-end gap-2">
-                    <button class="btn" on:click=move |_| show_new_modal.set(false)>
-                        "取消"
-                    </button>
-                    <button
-                        class=move || {
-                            if can_submit_new.get() {
-                                "btn btn-primary"
-                            } else {
-                                "btn btn-primary btn-disabled"
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button class="btn" on:click=move |_| show_new_modal.set(false)>
+                            "取消"
+                        </button>
+                        <button
+                            class=move || {
+                                if can_submit_new.get() {
+                                    "btn btn-primary"
+                                } else {
+                                    "btn btn-primary btn-disabled"
+                                }
                             }
-                        }
-                        disabled=move || !can_submit_new.get()
-                        on:click=submit_new_schedule
-                    >
-                        {move || if creating_schedule.get() { "创建中..." } else { "确认排班" }}
-                    </button>
+                            disabled=move || !can_submit_new.get()
+                            on:click=submit_new_schedule
+                        >
+                            {move || if creating_schedule.get() { "创建中..." } else { "确认排班" }}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </Show>
         </Modal>
 
         <Modal show=show_assignment_modal>
@@ -1737,7 +1941,23 @@ fn order_option_label(
     contact_labels: &HashMap<String, String>,
     pending_contacts: &HashSet<String>,
 ) -> String {
-    let contact_label = order
+    let contact_label = order_contact_label(order, contact_labels, pending_contacts);
+    let short_id = shorten_uuid(&order.uuid);
+    format!("{} · 订单 {}", contact_label, short_id)
+}
+
+fn order_contact_label(
+    order: &Order,
+    contact_labels: &HashMap<String, String>,
+    pending_contacts: &HashSet<String>,
+) -> String {
+    if let Some(name) = order.customer_name.as_ref().map(|value| value.trim()) {
+        if !name.is_empty() {
+            return name.to_string();
+        }
+    }
+
+    order
         .customer_uuid
         .as_ref()
         .map(|id| {
@@ -1749,9 +1969,31 @@ fn order_option_label(
                 }
             })
         })
-        .unwrap_or_else(|| "未知客户".to_string());
-    let short_id = shorten_uuid(&order.uuid);
-    format!("{} · 订单 {}", contact_label, short_id)
+        .unwrap_or_else(|| "未知客户".to_string())
+}
+
+fn order_status_label(status: &str) -> &'static str {
+    match status {
+        "pending" => "待确认",
+        "confirmed" => "已确认",
+        "dispatching" => "派工中",
+        "in_service" => "服务中",
+        "completed" => "已完成",
+        "cancelled" => "已取消",
+        _ => "未知",
+    }
+}
+
+fn order_status_badge_class(status: &str) -> &'static str {
+    match status {
+        "pending" => "badge-warning",
+        "confirmed" => "badge-info",
+        "dispatching" => "badge-warning",
+        "in_service" => "badge-warning",
+        "completed" => "badge-success",
+        "cancelled" => "badge-error",
+        _ => "badge-info",
+    }
 }
 
 fn shorten_uuid(value: &str) -> String {
@@ -2229,6 +2471,45 @@ fn is_overlapping_window_naive(
     end_b: NaiveDateTime,
 ) -> bool {
     start_a < end_b && end_a > start_b
+}
+
+fn schedule_conflict_query_range(start: NaiveDateTime, end: NaiveDateTime) -> (String, String) {
+    (
+        format!("{} 00:00:00", start.date().format("%Y-%m-%d")),
+        format!("{} 23:59:59", end.date().format("%Y-%m-%d")),
+    )
+}
+
+fn find_conflicting_schedule_for_user<'a>(
+    user_id: &str,
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+    items: &'a [Schedule],
+) -> Option<&'a Schedule> {
+    for schedule in items {
+        let Some(assigned) = schedule.assigned_user_uuid.as_deref() else {
+            continue;
+        };
+        if assigned != user_id {
+            continue;
+        }
+        let Some(existing_start_raw) = schedule.scheduled_start_at.as_deref() else {
+            continue;
+        };
+        let Some(existing_end_raw) = schedule.scheduled_end_at.as_deref() else {
+            continue;
+        };
+        let Some(existing_start) = parse_calendar_datetime(existing_start_raw) else {
+            continue;
+        };
+        let Some(existing_end) = parse_calendar_datetime(existing_end_raw) else {
+            continue;
+        };
+        if is_overlapping_window_naive(start, end, existing_start, existing_end) {
+            return Some(schedule);
+        }
+    }
+    None
 }
 
 fn calendar_event_position(

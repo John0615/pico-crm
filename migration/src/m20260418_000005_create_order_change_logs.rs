@@ -21,8 +21,16 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(OrderChangeLogs::OrderUuid).uuid().not_null())
                     .col(ColumnDef::new(OrderChangeLogs::Action).string().not_null())
                     .col(ColumnDef::new(OrderChangeLogs::OperatorUuid).uuid().null())
-                    .col(ColumnDef::new(OrderChangeLogs::BeforeData).json_binary().null())
-                    .col(ColumnDef::new(OrderChangeLogs::AfterData).json_binary().null())
+                    .col(
+                        ColumnDef::new(OrderChangeLogs::BeforeData)
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(OrderChangeLogs::AfterData)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(OrderChangeLogs::CreatedAt)
                             .timestamp_with_time_zone()
@@ -107,8 +115,16 @@ mod tests {
                     .col(ColumnDef::new(OrderChangeLogs::OrderUuid).uuid().not_null())
                     .col(ColumnDef::new(OrderChangeLogs::Action).string().not_null())
                     .col(ColumnDef::new(OrderChangeLogs::OperatorUuid).uuid().null())
-                    .col(ColumnDef::new(OrderChangeLogs::BeforeData).json_binary().null())
-                    .col(ColumnDef::new(OrderChangeLogs::AfterData).json_binary().null())
+                    .col(
+                        ColumnDef::new(OrderChangeLogs::BeforeData)
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(OrderChangeLogs::AfterData)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(OrderChangeLogs::CreatedAt)
                             .timestamp_with_time_zone()
