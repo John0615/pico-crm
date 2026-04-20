@@ -48,8 +48,10 @@ pub fn SchedulesPage() -> impl IntoView {
     let (view_mode, set_view_mode) = signal("backlog".to_string());
     let (status_filter, set_status_filter) = signal(String::new());
     let (user_filter, set_user_filter) = signal(String::new());
-    let date_start = RwSignal::new(String::new());
-    let date_end = RwSignal::new(String::new());
+    let list_date_start = RwSignal::new(String::new());
+    let list_date_end = RwSignal::new(String::new());
+    let calendar_date_start = RwSignal::new(String::new());
+    let calendar_date_end = RwSignal::new(String::new());
 
     let show_assignment_modal = RwSignal::new(false);
     let show_new_modal = RwSignal::new(false);
@@ -83,12 +85,12 @@ pub fn SchedulesPage() -> impl IntoView {
         if view_mode.get() != "calendar" {
             return;
         }
-        if !date_start.get().is_empty() || !date_end.get().is_empty() {
+        if !calendar_date_start.get().is_empty() || !calendar_date_end.get().is_empty() {
             return;
         }
         let (start, end) = calendar_week_range_strings("", "");
-        date_start.set(start);
-        date_end.set(end);
+        calendar_date_start.set(start);
+        calendar_date_end.set(end);
     });
 
     Effect::new(move |_| {
@@ -153,19 +155,23 @@ pub fn SchedulesPage() -> impl IntoView {
                 view_mode.get(),
                 status_filter.get(),
                 user_filter.get(),
-                date_start.get(),
-                date_end.get(),
+                list_date_start.get(),
+                list_date_end.get(),
+                calendar_date_start.get(),
+                calendar_date_end.get(),
                 *refresh_count.read(),
                 query.with(|value| value.clone()),
             )
         },
-        |(view_mode, status, user, start, end, _, query)| async move {
+        |(view_mode, status, user, list_start, list_end, calendar_start, calendar_end, _, query)| async move {
             let is_calendar = view_mode == "calendar";
-            let (start_date, end_date) = if is_calendar {
-                calendar_week_range_strings(&start, &end)
-            } else {
-                (start.clone(), end.clone())
-            };
+            let (start_date, end_date) = active_schedule_date_range(
+                &view_mode,
+                &list_start,
+                &list_end,
+                &calendar_start,
+                &calendar_end,
+            );
             let page = if is_calendar {
                 1
             } else {
@@ -226,21 +232,21 @@ pub fn SchedulesPage() -> impl IntoView {
             set_view_mode.set("list".to_string());
         }
         if let Some(start) = map.get("start_date") {
-            if date_start.get() != start {
-                date_start.set(start);
+            if list_date_start.get() != start {
+                list_date_start.set(start);
             }
             set_view_mode.set("list".to_string());
         }
         if let Some(end) = map.get("end_date") {
-            if date_end.get() != end {
-                date_end.set(end);
+            if list_date_end.get() != end {
+                list_date_end.set(end);
             }
             set_view_mode.set("list".to_string());
         }
         if map.get("upcoming").is_some() {
             let (start, end) = upcoming_date_range();
-            date_start.set(start);
-            date_end.set(end);
+            list_date_start.set(start);
+            list_date_end.set(end);
             set_view_mode.set("list".to_string());
         }
     });
@@ -304,24 +310,42 @@ pub fn SchedulesPage() -> impl IntoView {
     );
 
     let available_orders = Resource::new(
-        move || (show_new_modal.get(), view_mode.get(), refresh_count.get()),
-        |(open, mode, _)| async move {
+        move || {
+            (
+                show_new_modal.get(),
+                view_mode.get(),
+                *refresh_count.read(),
+                query.with(|value| value.clone()),
+            )
+        },
+        |(open, mode, _, query)| async move {
             if !open && mode != "backlog" {
-                return Vec::new();
+                return (Vec::new(), 0);
             }
+            let page = query
+                .get("page")
+                .unwrap_or_default()
+                .parse::<u64>()
+                .unwrap_or(1);
+            let page_size = query
+                .get("page_size")
+                .unwrap_or_default()
+                .parse::<u64>()
+                .unwrap_or(10);
             let params = OrderQuery {
-                page: 1,
-                page_size: 200,
+                page,
+                page_size,
                 status: None,
+                statuses: Some(vec!["pending".to_string(), "confirmed".to_string()]),
                 customer_uuid: None,
                 start_date: None,
                 end_date: None,
             };
             match call_api(fetch_orders(params)).await {
-                Ok(result) => result.items,
+                Ok(result) => (result.items, result.total),
                 Err(err) => {
                     logging::error!("Error loading orders: {err}");
-                    Vec::new()
+                    (Vec::new(), 0)
                 }
             }
         },
@@ -395,7 +419,7 @@ pub fn SchedulesPage() -> impl IntoView {
                 return;
             }
         }
-        let Some(items) = available_orders.get() else {
+        let Some((items, _)) = available_orders.get() else {
             return;
         };
         let Some(order) = items.into_iter().find(|order| order.uuid == order_uuid) else {
@@ -473,7 +497,7 @@ pub fn SchedulesPage() -> impl IntoView {
             }
         }
 
-        if let Some(items) = available_orders.get() {
+        if let Some((items, _)) = available_orders.get() {
             for order in &items {
                 let Some(contact_id) = order.customer_uuid.clone() else {
                     continue;
@@ -880,7 +904,7 @@ pub fn SchedulesPage() -> impl IntoView {
                                 on:change=move |ev| set_status_filter.set(event_target_value(&ev))
                             >
                                 <option value="">"全部"</option>
-                                <option value="planned">"待排班"</option>
+                                <option value="planned">"已排班"</option>
                                 <option value="in_service">"服务中"</option>
                                 <option value="done">"已完成"</option>
                                 <option value="cancelled">"已取消"</option>
@@ -921,14 +945,64 @@ pub fn SchedulesPage() -> impl IntoView {
                                 </Transition>
                             </div>
                         </Show>
-                        <div class="flex flex-col gap-1">
-                            <span class="text-xs text-base-content/60">"服务开始"</span>
-                            <FlyonDatePicker value=date_start class="input input-bordered".to_string() />
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <span class="text-xs text-base-content/60">"服务结束"</span>
-                            <FlyonDatePicker value=date_end class="input input-bordered".to_string() />
-                        </div>
+                        <Show
+                            when=move || view_mode.get() == "calendar"
+                            fallback=move || view! {
+                                <>
+                                    <div class="flex flex-col gap-1">
+                                        <span class="text-xs text-base-content/60">"服务开始"</span>
+                                        <div class="relative">
+                                            <FlyonDatePicker
+                                                value=list_date_start
+                                                class="input input-bordered pr-9 w-full".to_string()
+                                            />
+                                            <Show when=move || !list_date_start.get().trim().is_empty()>
+                                                <button
+                                                    type="button"
+                                                    class="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content text-lg leading-none"
+                                                    on:click=move |_| list_date_start.set(String::new())
+                                                >
+                                                    "×"
+                                                </button>
+                                            </Show>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <span class="text-xs text-base-content/60">"服务结束"</span>
+                                        <div class="relative">
+                                            <FlyonDatePicker
+                                                value=list_date_end
+                                                class="input input-bordered pr-9 w-full".to_string()
+                                            />
+                                            <Show when=move || !list_date_end.get().trim().is_empty()>
+                                                <button
+                                                    type="button"
+                                                    class="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content text-lg leading-none"
+                                                    on:click=move |_| list_date_end.set(String::new())
+                                                >
+                                                    "×"
+                                                </button>
+                                            </Show>
+                                        </div>
+                                    </div>
+                                </>
+                            }
+                        >
+                            <div class="flex flex-col gap-1">
+                                <span class="text-xs text-base-content/60">"周开始"</span>
+                                <FlyonDatePicker
+                                    value=calendar_date_start
+                                    class="input input-bordered".to_string()
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <span class="text-xs text-base-content/60">"周结束"</span>
+                                <FlyonDatePicker
+                                    value=calendar_date_end
+                                    class="input input-bordered".to_string()
+                                />
+                            </div>
+                        </Show>
                     </div>
                 </div>
             </Show>
@@ -939,13 +1013,9 @@ pub fn SchedulesPage() -> impl IntoView {
                         <div class="p-6 text-sm text-base-content/60">"加载中..."</div>
                     }>
                         {move || {
-                            let mut orders = available_orders
+                            let (orders, _) = available_orders
                                 .get()
-                                .unwrap_or_default()
-                                .into_iter()
-                                .filter(order_is_schedulable)
-                                .collect::<Vec<_>>();
-                            orders.sort_by(|left, right| right.inserted_at.cmp(&left.inserted_at));
+                                .unwrap_or_default();
 
                             if orders.is_empty() {
                                 return view! {
@@ -1031,11 +1101,21 @@ pub fn SchedulesPage() -> impl IntoView {
                         }}
                     </Transition>
                 </div>
+
+                <Transition>
+                    {move || {
+                        available_orders.with(|data| {
+                            data.as_ref()
+                                .map(|(_, total)| view! { <Pagination total_items=*total /> })
+                        })
+                    }}
+                </Transition>
             </Show>
 
             <Show when=move || view_mode.get() == "calendar">
                 {move || {
-                    let (week_start, week_end) = calendar_week_range(&date_start.get(), &date_end.get());
+                    let (week_start, week_end) =
+                        calendar_week_range(&calendar_date_start.get(), &calendar_date_end.get());
                     let week_label = format!(
                         "{} ~ {}",
                         format_date(week_start),
@@ -1049,13 +1129,25 @@ pub fn SchedulesPage() -> impl IntoView {
                                 <div class="flex items-center gap-2">
                                     <button
                                         class="btn btn-sm"
-                                        on:click=move |_| shift_week_range(-1, date_start, date_end)
+                                        on:click=move |_| {
+                                            shift_week_range(
+                                                -1,
+                                                calendar_date_start,
+                                                calendar_date_end,
+                                            )
+                                        }
                                     >
                                         "上一周"
                                     </button>
                                     <button
                                         class="btn btn-sm"
-                                        on:click=move |_| shift_week_range(1, date_start, date_end)
+                                        on:click=move |_| {
+                                            shift_week_range(
+                                                1,
+                                                calendar_date_start,
+                                                calendar_date_end,
+                                            )
+                                        }
                                     >
                                         "下一周"
                                     </button>
@@ -1544,7 +1636,10 @@ pub fn SchedulesPage() -> impl IntoView {
                     }>
                         {move || {
                             let order_uuid = new_order_uuid.get();
-                            let items = available_orders.get().unwrap_or_default();
+                            let items = available_orders
+                                .get()
+                                .map(|(items, _)| items)
+                                .unwrap_or_default();
                             let contact_labels_snapshot = contact_labels.get();
                             let pending_snapshot = pending_contacts.get();
                             let label = items
@@ -1921,19 +2016,9 @@ fn schedule_has_assignment(schedule: &Schedule) -> bool {
 }
 
 fn order_is_schedulable(order: &Order) -> bool {
-    let status = order.status.as_str();
-    let status_ok = matches!(status, "pending" | "confirmed" | "dispatching");
-    let start_missing = order
-        .scheduled_start_at
-        .as_ref()
-        .map(|value| value.trim().is_empty())
-        .unwrap_or(true);
-    let end_missing = order
-        .scheduled_end_at
-        .as_ref()
-        .map(|value| value.trim().is_empty())
-        .unwrap_or(true);
-    status_ok && start_missing && end_missing
+    // Orders can already carry the request's appointment window before an actual
+    // schedule assignment is created, so time fields are not a reliable signal.
+    matches!(order.status.as_str(), "pending" | "confirmed")
 }
 
 fn order_option_label(
@@ -2274,6 +2359,20 @@ fn calendar_week_range(start: &str, end: &str) -> (NaiveDate, NaiveDate) {
     (week_start, week_end)
 }
 
+fn active_schedule_date_range(
+    view_mode: &str,
+    list_start: &str,
+    list_end: &str,
+    calendar_start: &str,
+    calendar_end: &str,
+) -> (String, String) {
+    if view_mode == "calendar" {
+        calendar_week_range_strings(calendar_start, calendar_end)
+    } else {
+        (list_start.to_string(), list_end.to_string())
+    }
+}
+
 fn calendar_week_range_strings(start: &str, end: &str) -> (String, String) {
     let (week_start, week_end) = calendar_week_range(start, end);
     (format_date(week_start), format_date(week_end))
@@ -2355,6 +2454,61 @@ fn calendar_time_bounds(items: &[CalendarItem]) -> (u32, u32) {
         end_hour = (start_hour + 1).min(24);
     }
     (start_hour, end_hour)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_order(status: &str) -> Order {
+        let mut order = Order::default();
+        order.status = status.to_string();
+        order
+    }
+
+    #[test]
+    fn unscheduled_order_remains_schedulable_even_with_appointment_window() {
+        let mut order = sample_order("pending");
+        order.scheduled_start_at = Some("2026-04-20 09:00:00".to_string());
+        order.scheduled_end_at = Some("2026-04-20 11:00:00".to_string());
+
+        assert!(order_is_schedulable(&order));
+    }
+
+    #[test]
+    fn dispatching_order_is_not_in_unscheduled_backlog() {
+        let mut order = sample_order("dispatching");
+        order.scheduled_start_at = Some("2026-04-20 09:00:00".to_string());
+        order.scheduled_end_at = Some("2026-04-20 11:00:00".to_string());
+
+        assert!(!order_is_schedulable(&order));
+    }
+
+    #[test]
+    fn list_view_keeps_its_own_date_filters() {
+        let dates = active_schedule_date_range(
+            "list",
+            "2026-04-01",
+            "2026-04-30",
+            "2026-04-14",
+            "2026-04-20",
+        );
+
+        assert_eq!(dates, ("2026-04-01".to_string(), "2026-04-30".to_string()));
+    }
+
+    #[test]
+    fn calendar_view_uses_calendar_week_range_only() {
+        let dates = active_schedule_date_range(
+            "calendar",
+            "2026-04-01",
+            "2026-04-30",
+            "2026-04-16",
+            "2026-04-18",
+        );
+
+        assert_eq!(dates, ("2026-04-13".to_string(), "2026-04-19".to_string()));
+    }
 }
 
 fn calendar_columns(

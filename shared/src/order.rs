@@ -74,6 +74,7 @@ pub struct OrderQuery {
     pub page: u64,
     pub page_size: u64,
     pub status: Option<String>,
+    pub statuses: Option<Vec<String>>,
     pub customer_uuid: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,

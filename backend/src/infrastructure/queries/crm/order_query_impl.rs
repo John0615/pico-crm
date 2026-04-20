@@ -43,6 +43,17 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                     let mut select = Entity::find();
                     let mut condition = Condition::all();
 
+                    if let Some(statuses) = query.statuses {
+                        let statuses = statuses
+                            .into_iter()
+                            .map(|value| value.trim().to_string())
+                            .filter(|value| !value.is_empty())
+                            .collect::<Vec<_>>();
+                        if !statuses.is_empty() {
+                            condition = condition.add(Column::Status.is_in(statuses));
+                        }
+                    }
+
                     if let Some(status) = query.status {
                         if !status.is_empty() {
                             condition = condition.add(Column::Status.eq(status));

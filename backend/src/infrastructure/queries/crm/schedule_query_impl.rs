@@ -40,7 +40,7 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
                 Box::pin(async move {
                     let mut select = OrderEntity::find().find_also_related(ScheduleEntity);
                     let mut condition = Condition::all();
-                    condition = condition.add(OrderColumn::Status.ne("pending"));
+                    condition = condition.add(ScheduleColumn::Uuid.is_not_null());
 
                     if let Some(status) = query.status {
                         if !status.is_empty() {
@@ -64,10 +64,10 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
                     }
 
                     if let Some(start) = query.start_date.as_deref().and_then(parse_datetime) {
-                        condition = condition.add(ScheduleColumn::StartAt.gte(start));
+                        condition = condition.add(OrderColumn::ScheduledStartAt.gte(start));
                     }
                     if let Some(end) = query.end_date.as_deref().and_then(parse_datetime) {
-                        condition = condition.add(ScheduleColumn::StartAt.lte(end));
+                        condition = condition.add(OrderColumn::ScheduledStartAt.lte(end));
                     }
 
                     select = select.filter(condition);

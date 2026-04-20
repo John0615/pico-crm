@@ -81,6 +81,7 @@ pub fn OrdersPage() -> impl IntoView {
                 page,
                 page_size,
                 status: (!status.is_empty()).then_some(status),
+                statuses: None,
                 customer_uuid: (!contact.is_empty()).then_some(contact),
                 start_date: (!start.is_empty()).then_some(start),
                 end_date: (!end.is_empty()).then_some(end),
