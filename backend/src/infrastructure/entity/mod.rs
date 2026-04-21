@@ -4,6 +4,7 @@ pub mod prelude;
 
 pub mod admin_users;
 pub mod audit_logs;
+pub mod contact_follow_records;
 pub mod contacts;
 pub mod merchant;
 pub mod order_change_logs;

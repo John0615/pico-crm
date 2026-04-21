@@ -27,6 +27,7 @@ mod m20260418_000003_extend_users_employee_fields;
 mod m20260418_000004_extend_orders_for_mvp;
 mod m20260418_000005_create_order_change_logs;
 mod m20260418_000006_drop_order_service_type;
+mod m20260420_000001_create_contact_follow_records;
 
 pub struct Migrator;
 
@@ -55,6 +56,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260418_000004_extend_orders_for_mvp::Migration),
             Box::new(m20260418_000005_create_order_change_logs::Migration),
             Box::new(m20260418_000006_drop_order_service_type::Migration),
+            Box::new(m20260420_000001_create_contact_follow_records::Migration),
         ]
     }
 }
@@ -105,6 +107,7 @@ impl MigratorTrait for TenantMigrator {
             Box::new(m20260418_000004_extend_orders_for_mvp::Migration),
             Box::new(m20260418_000005_create_order_change_logs::Migration),
             Box::new(m20260418_000006_drop_order_service_type::Migration),
+            Box::new(m20260420_000001_create_contact_follow_records::Migration),
         ]
     }
 }

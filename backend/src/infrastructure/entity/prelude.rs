@@ -2,6 +2,7 @@
 
 pub use super::admin_users::Entity as AdminUsers;
 pub use super::audit_logs::Entity as AuditLogs;
+pub use super::contact_follow_records::Entity as ContactFollowRecords;
 pub use super::contacts::Entity as Contacts;
 pub use super::merchant::Entity as Merchant;
 pub use super::order_change_logs::Entity as OrderChangeLogs;

@@ -1,8 +1,13 @@
 use crate::components::ui::drawer::DaisyDrawer;
-use crate::server::contact_handlers::get_contact;
+use crate::components::ui::date_picker::FlyonDateTimePicker;
+use crate::components::ui::toast::{error, success};
+use crate::server::contact_handlers::{
+    create_contact_follow_record, fetch_contact_follow_records, get_contact,
+};
 use crate::utils::api::call_api;
+use leptos::task::spawn_local;
 use leptos::prelude::*;
-use shared::contact::Contact;
+use shared::contact::{Contact, ContactFollowRecord, CreateContactFollowRecordRequest};
 
 #[component]
 pub fn ContactDetail(
@@ -56,6 +61,12 @@ pub fn ContactDetail(
 
 #[component]
 fn ContactDetailContent(contact: Contact) -> impl IntoView {
+    let refresh_count = RwSignal::new(0u32);
+    let follow_content = RwSignal::new(String::new());
+    let next_follow_up_at = RwSignal::new(String::new());
+    let creating_follow_record = RwSignal::new(false);
+    let contact_uuid = contact.contact_uuid.clone();
+    let contact_uuid_for_create = contact.contact_uuid.clone();
     let address = build_contact_address(&contact);
     let service_need = contact
         .service_need
@@ -65,6 +76,47 @@ fn ContactDetailContent(contact: Contact) -> impl IntoView {
         vec!["未设置".to_string()]
     } else {
         contact.tags.clone()
+    };
+    let follow_records = Resource::new(
+        move || (contact_uuid.clone(), refresh_count.get()),
+        |(contact_uuid, _)| async move {
+            if contact_uuid.trim().is_empty() {
+                Vec::new()
+            } else {
+                call_api(fetch_contact_follow_records(contact_uuid))
+                    .await
+                    .unwrap_or_default()
+            }
+        },
+    );
+
+    let submit_follow_record = move |_| {
+        if creating_follow_record.get() {
+            return;
+        }
+        let content = follow_content.get();
+        if content.trim().is_empty() {
+            error("请填写跟进内容".to_string());
+            return;
+        }
+        let payload = CreateContactFollowRecordRequest {
+            contact_uuid: contact_uuid_for_create.clone(),
+            content,
+            next_follow_up_at: normalize_optional(&next_follow_up_at.get()),
+        };
+        creating_follow_record.set(true);
+        spawn_local(async move {
+            match call_api(create_contact_follow_record(payload)).await {
+                Ok(_) => {
+                    success("跟进记录已保存".to_string());
+                    follow_content.set(String::new());
+                    next_follow_up_at.set(String::new());
+                    refresh_count.update(|value| *value += 1);
+                }
+                Err(err) => error(format!("保存失败: {}", err)),
+            }
+            creating_follow_record.set(false);
+        });
     };
 
     view! {
@@ -136,6 +188,103 @@ fn ContactDetailContent(contact: Contact) -> impl IntoView {
                     />
                 </div>
             </section>
+
+            <section class="space-y-4">
+                <div class="text-sm font-semibold text-base-content/70">"新增跟进"</div>
+                <div class="rounded-box border border-base-200 bg-base-50 p-4 space-y-3">
+                    <label class="form-control w-full">
+                        <div class="label">
+                            <span class="label-text">"跟进内容"</span>
+                        </div>
+                        <textarea
+                            class="textarea textarea-bordered w-full"
+                            rows="4"
+                            prop:value=move || follow_content.get()
+                            on:input=move |ev| follow_content.set(event_target_value(&ev))
+                            placeholder="记录本次沟通内容、客户反馈或后续安排"
+                        ></textarea>
+                    </label>
+                    <label class="form-control w-full">
+                        <div class="label">
+                            <span class="label-text">"下次跟进时间"</span>
+                        </div>
+                        <FlyonDateTimePicker
+                            value=next_follow_up_at
+                            class="input input-bordered".to_string()
+                        />
+                    </label>
+                    <div class="flex justify-end">
+                        <button
+                            class=move || {
+                                if creating_follow_record.get() {
+                                    "btn btn-primary btn-disabled"
+                                } else {
+                                    "btn btn-primary"
+                                }
+                            }
+                            disabled=move || creating_follow_record.get()
+                            on:click=submit_follow_record
+                        >
+                            {move || {
+                                if creating_follow_record.get() {
+                                    "保存中..."
+                                } else {
+                                    "保存跟进"
+                                }
+                            }}
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="space-y-3">
+                <div class="text-sm font-semibold text-base-content/70">"跟进记录"</div>
+                <div class="space-y-3">
+                    <Transition fallback=move || view! {
+                        <div class="rounded-box border border-base-200 bg-base-50 p-4 text-sm text-base-content/60">
+                            "跟进记录加载中..."
+                        </div>
+                    }>
+                        {move || {
+                            let records = follow_records.get().unwrap_or_default();
+                            if records.is_empty() {
+                                return view! {
+                                    <div class="rounded-box border border-base-200 bg-base-50 p-4 text-sm text-base-content/60">
+                                        "暂无跟进记录"
+                                    </div>
+                                }
+                                .into_any();
+                            }
+
+                            view! {
+                                <div class="space-y-3">
+                                    <For
+                                        each=move || records.clone().into_iter().enumerate()
+                                        key=|(idx, item)| format!("{}-{}", idx, item.uuid)
+                                        children=move |(_, item)| {
+                                            let operator = follow_record_operator_label(&item);
+                                            let next_follow = display_optional(item.next_follow_up_at.clone());
+                                            view! {
+                                                <div class="rounded-box border border-base-200 bg-base-50 p-4 space-y-2">
+                                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60">
+                                                        <span>{operator}</span>
+                                                        <span>{item.created_at.clone()}</span>
+                                                    </div>
+                                                    <div class="text-sm whitespace-pre-wrap">{item.content.clone()}</div>
+                                                    <div class="text-xs text-base-content/60">
+                                                        {format!("下次跟进：{}", next_follow)}
+                                                    </div>
+                                                </div>
+                                            }
+                                        }
+                                    />
+                                </div>
+                            }
+                            .into_any()
+                        }}
+                    </Transition>
+                </div>
+            </section>
         </div>
     }
 }
@@ -204,4 +353,40 @@ fn empty_dash(value: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+fn normalize_optional(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn display_optional(value: Option<String>) -> String {
+    value
+        .and_then(|value| {
+            let trimmed = value.trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        })
+        .unwrap_or_else(|| "-".to_string())
+}
+
+fn follow_record_operator_label(record: &ContactFollowRecord) -> String {
+    if let Some(name) = record.operator_name.as_ref().map(|value| value.trim()) {
+        if !name.is_empty() {
+            return format!("跟进人：{}", name);
+        }
+    }
+    if let Some(uuid) = record.operator_uuid.as_ref().map(|value| value.trim()) {
+        if !uuid.is_empty() {
+            return format!("跟进人：{}", uuid);
+        }
+    }
+    "跟进人：系统".to_string()
 }

@@ -32,6 +32,25 @@ pub struct UpdateContact {
     pub follow_up_status: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct ContactFollowRecord {
+    pub uuid: String,
+    pub contact_uuid: String,
+    pub operator_uuid: Option<String>,
+    #[serde(default)]
+    pub operator_name: Option<String>,
+    pub content: String,
+    pub next_follow_up_at: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct CreateContactFollowRecordRequest {
+    pub contact_uuid: String,
+    pub content: String,
+    pub next_follow_up_at: Option<String>,
+}
+
 // 允许的排序字段枚举
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]

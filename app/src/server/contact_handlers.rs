@@ -1,20 +1,27 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::{
-    contact::{Contact, ContactQuery, UpdateContact},
+    contact::{
+        Contact, ContactFollowRecord, ContactQuery, CreateContactFollowRecordRequest,
+        UpdateContact,
+    },
     ListResult,
 };
 
 #[cfg(feature = "ssr")]
 mod ssr {
     pub use backend::application::{
+        commands::crm::contact_follow_record_service::ContactFollowRecordAppService,
         commands::crm::contact_service::ContactAppService,
+        queries::crm::contact_follow_record_service::ContactFollowRecordQueryService,
         queries::crm::contact_service::ContactAppService as ContactQueryService,
     };
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::tenant::TenantContext;
     pub use backend::infrastructure::{
+        queries::crm::contact_follow_record_query_impl::SeaOrmContactFollowRecordQuery,
         queries::crm::contact_query_impl::SeaOrmContactQuery,
+        repositories::crm::contact_follow_record_repository_impl::SeaOrmContactFollowRecordRepository,
         repositories::crm::contact_repository_impl::SeaOrmContactRepository,
     };
 }
@@ -160,6 +167,54 @@ pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
 
     println!("Deleting contact result {:?}", res);
     Ok(res)
+}
+
+#[server(
+    name = FetchContactFollowRecordsFn,
+    prefix = "/api",
+    endpoint = "/fetch_contact_follow_records",
+)]
+pub async fn fetch_contact_follow_records(
+    contact_uuid: String,
+) -> Result<Vec<ContactFollowRecord>, ServerFnError> {
+    use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
+
+    let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
+    let pool = expect_context::<Database>();
+    let query = SeaOrmContactFollowRecordQuery::new(pool.connection.clone(), tenant.schema_name);
+    let service = ContactFollowRecordQueryService::new(query);
+
+    service
+        .fetch_follow_records(contact_uuid)
+        .await
+        .map_err(ServerFnError::new)
+}
+
+#[server(
+    name = CreateContactFollowRecordFn,
+    prefix = "/api",
+    endpoint = "/create_contact_follow_record",
+)]
+pub async fn create_contact_follow_record(
+    payload: CreateContactFollowRecordRequest,
+) -> Result<ContactFollowRecord, ServerFnError> {
+    use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
+
+    let Extension(current_user): Extension<shared::user::User> = extract().await?;
+    let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
+    let pool = expect_context::<Database>();
+    let repo =
+        SeaOrmContactFollowRecordRepository::new(pool.connection.clone(), tenant.schema_name);
+    let service = ContactFollowRecordAppService::new(repo);
+
+    service
+        .create_follow_record(payload, Some(current_user.uuid))
+        .await
+        .map_err(ServerFnError::new)
 }
 
 // 导出联系人
