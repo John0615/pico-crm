@@ -20,7 +20,7 @@ mod ssr {
     endpoint = "/fetch_service_catalogs",
 )]
 pub async fn fetch_service_catalogs(
-    params: ServiceCatalogQuery,
+    active_only: Option<bool>,
 ) -> Result<Vec<ServiceCatalog>, ServerFnError> {
     use self::ssr::*;
     use axum::Extension;
@@ -30,6 +30,7 @@ pub async fn fetch_service_catalogs(
     let pool = expect_context::<Database>();
     let query = SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name);
     let service = ServiceCatalogQueryService::new(query);
+    let params = ServiceCatalogQuery { active_only };
     service
         .fetch_service_catalogs(params)
         .await

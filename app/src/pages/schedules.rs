@@ -23,7 +23,7 @@ use shared::schedule::{
     CreateScheduleAssignment, Schedule, ScheduleQuery, UpdateScheduleAssignment,
     UpdateScheduleStatus,
 };
-use shared::service_catalog::ServiceCatalogQuery;
+
 use shared::user::{User, UserListQuery};
 use shared::ListResult;
 use std::collections::{HashMap, HashSet};
@@ -409,11 +409,7 @@ pub fn SchedulesPage() -> impl IntoView {
     let service_catalogs = Resource::new(
         move || (),
         |_| async move {
-            match call_api(fetch_service_catalogs(ServiceCatalogQuery {
-                active_only: Some(true),
-            }))
-            .await
-            {
+            match call_api(fetch_service_catalogs(Some(true))).await {
                 Ok(items) => items,
                 Err(err) => {
                     logging::error!("Error loading service catalogs: {err}");

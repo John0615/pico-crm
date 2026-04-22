@@ -10,7 +10,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
 use shared::service_catalog::{
-    CreateServiceCatalogRequest, ServiceCatalog, ServiceCatalogQuery, UpdateServiceCatalogRequest,
+    CreateServiceCatalogRequest, ServiceCatalog, UpdateServiceCatalogRequest,
 };
 
 impl Identifiable for ServiceCatalog {
@@ -35,14 +35,12 @@ pub fn ServiceCatalogsPage() -> impl IntoView {
     let data = Resource::new(
         move || refresh_count.get(),
         |_| async move {
-            let items = call_api(fetch_service_catalogs(ServiceCatalogQuery {
-                active_only: None,
-            }))
-            .await
-            .unwrap_or_else(|e| {
-                logging::error!("Error loading service catalogs: {e}");
-                Vec::new()
-            });
+            let items = call_api(fetch_service_catalogs(None))
+                .await
+                .unwrap_or_else(|e| {
+                    logging::error!("Error loading service catalogs: {e}");
+                    Vec::new()
+                });
             let total = items.len() as u64;
             (items, total)
         },
@@ -152,7 +150,7 @@ pub fn ServiceCatalogsPage() -> impl IntoView {
         <div class="space-y-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 class="text-2xl font-semibold">"服务项目"</h1>
+                    <h1 class="text-2xl font-semibold text-left">"服务项目"</h1>
                     <p class="mt-1 text-sm text-base-content/60">
                         "维护服务项目、基础价格和默认时长，供排班和后续报价使用"
                     </p>

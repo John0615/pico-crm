@@ -19,7 +19,7 @@ use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::contact::{Contact, ContactQuery};
 use shared::order::CreateOrderFromRequest;
-use shared::service_catalog::{ServiceCatalog, ServiceCatalogQuery};
+use shared::service_catalog::ServiceCatalog;
 use shared::service_request::{
     CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
     UpdateServiceRequestStatus,
@@ -102,11 +102,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     let service_catalogs = Resource::new(
         move || (),
         |_| async move {
-            match call_api(fetch_service_catalogs(ServiceCatalogQuery {
-                active_only: Some(true),
-            }))
-            .await
-            {
+            match call_api(fetch_service_catalogs(Some(true))).await {
                 Ok(items) => items,
                 Err(err) => {
                     logging::error!("Error loading service catalogs: {err}");
