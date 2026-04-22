@@ -49,7 +49,9 @@ impl ContactFollowRecordMapper {
             .operator_uuid
             .as_deref()
             .filter(|value| !value.trim().is_empty())
-            .map(|value| Uuid::parse_str(value).map_err(|e| format!("invalid operator_uuid: {}", e)))
+            .map(|value| {
+                Uuid::parse_str(value).map_err(|e| format!("invalid operator_uuid: {}", e))
+            })
             .transpose()?;
 
         Ok(ActiveContactFollowRecordEntity {

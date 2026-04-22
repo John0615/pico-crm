@@ -11,7 +11,8 @@ use components::layouts::*;
 use components::ui::{message_box::MessageBox, toast::Toast};
 use lazy_routes::{
     AdminAnalyticsRoute, AdminMerchantsRoute, ContactsManagementRoute, LoginRoute, OrdersRoute,
-    SchedulesRoute, ServiceRequestsRoute, SystemSettingsRoute, TenantMaintenanceRoute, UsersRoute,
+    SchedulesRoute, ServiceCatalogsRoute, ServiceRequestsRoute, SystemSettingsRoute,
+    TenantMaintenanceRoute, UsersRoute,
 };
 use pages::{Dashboard, NotFoundPage};
 
@@ -72,6 +73,11 @@ pub fn App() -> impl IntoView {
                             <Outlet/>
                         }>
                             <Route path=path!("") view={Lazy::<ServiceRequestsRoute>::new()}/>
+                        </ParentRoute>
+                        <ParentRoute path=path!("/service-catalog") view=|| view! {
+                            <Outlet/>
+                        }>
+                            <Route path=path!("") view={Lazy::<ServiceCatalogsRoute>::new()}/>
                         </ParentRoute>
                         <ParentRoute path=path!("/orders") view=|| view! {
                             <Outlet/>

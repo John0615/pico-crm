@@ -2,8 +2,7 @@ use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::{
     contact::{
-        Contact, ContactFollowRecord, ContactQuery, CreateContactFollowRecordRequest,
-        UpdateContact,
+        Contact, ContactFollowRecord, ContactQuery, CreateContactFollowRecordRequest, UpdateContact,
     },
     ListResult,
 };

@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
+use shared::order::{CreateOrderFeedbackRequest, OrderFeedback};
 use shared::schedule::{
     CreateScheduleAssignment, Schedule, ScheduleQuery, UpdateScheduleAssignment,
     UpdateScheduleStatus,
@@ -10,10 +11,14 @@ use shared::ListResult;
 
 #[cfg(feature = "ssr")]
 mod ssr {
+    pub use backend::application::commands::crm::order_feedback_service::OrderFeedbackAppService;
     pub use backend::application::commands::crm::schedule_service::ScheduleAppService;
+    pub use backend::application::queries::crm::order_feedback_service::OrderFeedbackQueryService;
     pub use backend::application::queries::crm::schedule_service::ScheduleQueryService;
     pub use backend::infrastructure::db::Database;
+    pub use backend::infrastructure::queries::crm::order_feedback_query_impl::SeaOrmOrderFeedbackQuery;
     pub use backend::infrastructure::queries::crm::schedule_query_impl::SeaOrmScheduleQuery;
+    pub use backend::infrastructure::repositories::crm::order_feedback_repository_impl::SeaOrmOrderFeedbackRepository;
     pub use backend::infrastructure::repositories::crm::order_repository_impl::SeaOrmOrderRepository;
     pub use backend::infrastructure::repositories::crm::schedule_repository_impl::SeaOrmScheduleRepository;
     pub use backend::infrastructure::tenant::TenantContext;
@@ -220,6 +225,95 @@ pub async fn update_schedule_status(
         .await
         .map_err(|e| ServerFnError::new(e))?;
     Ok(result)
+}
+
+#[server(
+    name = FetchScheduleFeedbacksFn,
+    prefix = "/api",
+    endpoint = "/fetch_schedule_feedbacks",
+)]
+pub async fn fetch_schedule_feedbacks(
+    order_uuid: String,
+) -> Result<Vec<OrderFeedback>, ServerFnError> {
+    use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
+
+    let Extension(current_user): Extension<User> = extract().await?;
+    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let pool = expect_context::<Database>();
+
+    if is_worker(&current_user) {
+        let query = SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        let schedule_service = ScheduleQueryService::new(query);
+        let schedule = schedule_service
+            .fetch_schedule(order_uuid.clone())
+            .await
+            .map_err(ServerFnError::new)?;
+        let Some(schedule) = schedule else {
+            return Err(ServerFnError::new("排班不存在".to_string()));
+        };
+        if schedule.assigned_user_uuid.as_deref() != Some(current_user.uuid.as_str()) {
+            return Err(ServerFnError::new("无权限查看该服务反馈".to_string()));
+        }
+    } else {
+        ensure_operator(&current_user)?;
+    }
+
+    let query = SeaOrmOrderFeedbackQuery::new(pool.connection.clone(), tenant.schema_name);
+    let service = OrderFeedbackQueryService::new(query);
+    service
+        .fetch_feedbacks(order_uuid)
+        .await
+        .map_err(ServerFnError::new)
+}
+
+#[server(
+    name = CreateScheduleFeedbackFn,
+    prefix = "/api",
+    endpoint = "/create_schedule_feedback",
+)]
+pub async fn create_schedule_feedback(
+    order_uuid: String,
+    payload: CreateOrderFeedbackRequest,
+) -> Result<OrderFeedback, ServerFnError> {
+    use self::ssr::*;
+    use axum::Extension;
+    use leptos_axum::extract;
+
+    let Extension(current_user): Extension<User> = extract().await?;
+    if !is_worker(&current_user) {
+        return Err(ServerFnError::new("仅家政人员可提交服务反馈".to_string()));
+    }
+
+    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let pool = expect_context::<Database>();
+
+    let schedule_query =
+        SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_service = ScheduleQueryService::new(schedule_query);
+    let schedule = schedule_service
+        .fetch_schedule(order_uuid.clone())
+        .await
+        .map_err(ServerFnError::new)?;
+    let Some(schedule) = schedule else {
+        return Err(ServerFnError::new("排班不存在".to_string()));
+    };
+    if schedule.assigned_user_uuid.as_deref() != Some(current_user.uuid.as_str()) {
+        return Err(ServerFnError::new("无权限提交该服务反馈".to_string()));
+    }
+    if schedule.schedule_status != "done" || schedule.order_status != "completed" {
+        return Err(ServerFnError::new(
+            "仅已完成服务的订单可提交反馈".to_string(),
+        ));
+    }
+
+    let repo = SeaOrmOrderFeedbackRepository::new(pool.connection.clone(), tenant.schema_name);
+    let service = OrderFeedbackAppService::new(repo);
+    service
+        .create_feedback(order_uuid, payload, Some(current_user.uuid))
+        .await
+        .map_err(ServerFnError::new)
 }
 
 #[cfg(feature = "ssr")]

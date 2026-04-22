@@ -28,6 +28,16 @@ mod m20260418_000004_extend_orders_for_mvp;
 mod m20260418_000005_create_order_change_logs;
 mod m20260418_000006_drop_order_service_type;
 mod m20260420_000001_create_contact_follow_records;
+mod m20260421_000001_extend_orders_settlement_fields;
+mod m20260421_000002_extend_order_feedback_for_users;
+mod m20260421_000003_unique_order_feedback_per_user;
+mod m20260421_000004_extend_users_credential_fields;
+mod m20260421_000005_create_service_catalogs;
+mod m20260421_000006_extend_service_requests_with_catalog;
+mod m20260421_000007_create_after_sales_cases;
+mod m20260421_000008_create_after_sales_case_records;
+mod m20260421_000009_create_after_sales_reworks;
+mod m20260421_000010_extend_after_sales_cases_refund_fields;
 
 pub struct Migrator;
 
@@ -57,6 +67,16 @@ impl MigratorTrait for Migrator {
             Box::new(m20260418_000005_create_order_change_logs::Migration),
             Box::new(m20260418_000006_drop_order_service_type::Migration),
             Box::new(m20260420_000001_create_contact_follow_records::Migration),
+            Box::new(m20260421_000001_extend_orders_settlement_fields::Migration),
+            Box::new(m20260421_000002_extend_order_feedback_for_users::Migration),
+            Box::new(m20260421_000003_unique_order_feedback_per_user::Migration),
+            Box::new(m20260421_000004_extend_users_credential_fields::Migration),
+            Box::new(m20260421_000005_create_service_catalogs::Migration),
+            Box::new(m20260421_000006_extend_service_requests_with_catalog::Migration),
+            Box::new(m20260421_000007_create_after_sales_cases::Migration),
+            Box::new(m20260421_000008_create_after_sales_case_records::Migration),
+            Box::new(m20260421_000009_create_after_sales_reworks::Migration),
+            Box::new(m20260421_000010_extend_after_sales_cases_refund_fields::Migration),
         ]
     }
 }
@@ -108,6 +128,16 @@ impl MigratorTrait for TenantMigrator {
             Box::new(m20260418_000005_create_order_change_logs::Migration),
             Box::new(m20260418_000006_drop_order_service_type::Migration),
             Box::new(m20260420_000001_create_contact_follow_records::Migration),
+            Box::new(m20260421_000001_extend_orders_settlement_fields::Migration),
+            Box::new(m20260421_000002_extend_order_feedback_for_users::Migration),
+            Box::new(m20260421_000003_unique_order_feedback_per_user::Migration),
+            Box::new(m20260421_000004_extend_users_credential_fields::Migration),
+            Box::new(m20260421_000005_create_service_catalogs::Migration),
+            Box::new(m20260421_000006_extend_service_requests_with_catalog::Migration),
+            Box::new(m20260421_000007_create_after_sales_cases::Migration),
+            Box::new(m20260421_000008_create_after_sales_case_records::Migration),
+            Box::new(m20260421_000009_create_after_sales_reworks::Migration),
+            Box::new(m20260421_000010_extend_after_sales_cases_refund_fields::Migration),
         ]
     }
 }

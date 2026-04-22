@@ -5,6 +5,9 @@ pub struct ServiceRequest {
     pub uuid: String,
     pub customer_uuid: String,
     pub creator_uuid: String,
+    pub service_catalog_uuid: Option<String>,
+    #[serde(default)]
+    pub service_catalog_name: Option<String>,
     #[serde(default)]
     pub contact_name: Option<String>,
     #[serde(default)]
@@ -22,6 +25,7 @@ pub struct ServiceRequest {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CreateServiceRequest {
     pub customer_uuid: String,
+    pub service_catalog_uuid: Option<String>,
     pub service_content: String,
     pub appointment_start_at: Option<String>,
     pub appointment_end_at: Option<String>,
@@ -31,6 +35,7 @@ pub struct CreateServiceRequest {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UpdateServiceRequest {
     pub uuid: String,
+    pub service_catalog_uuid: Option<String>,
     pub service_content: String,
     pub appointment_start_at: Option<String>,
     pub appointment_end_at: Option<String>,

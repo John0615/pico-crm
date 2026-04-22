@@ -5,6 +5,7 @@ use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
 use crate::server::contact_handlers::fetch_contacts;
 use crate::server::order_handlers::create_order_from_request;
+use crate::server::service_catalog_handlers::fetch_service_catalogs;
 use crate::server::service_request_handlers::{
     create_service_request, fetch_service_requests, update_service_request,
     update_service_request_status,
@@ -18,6 +19,7 @@ use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::contact::{Contact, ContactQuery};
 use shared::order::CreateOrderFromRequest;
+use shared::service_catalog::{ServiceCatalog, ServiceCatalogQuery};
 use shared::service_request::{
     CreateServiceRequest, ServiceRequest, ServiceRequestQuery, UpdateServiceRequest,
     UpdateServiceRequestStatus,
@@ -45,6 +47,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     let show_modal = RwSignal::new(false);
     let editing_request: RwSignal<Option<ServiceRequest>> = RwSignal::new(None);
     let customer_uuid = RwSignal::new(String::new());
+    let service_catalog_uuid = RwSignal::new(String::new());
     let service_content = RwSignal::new(String::new());
     let appointment_start_at = RwSignal::new(String::new());
     let appointment_end_at = RwSignal::new(String::new());
@@ -90,6 +93,23 @@ pub fn ServiceRequestsPage() -> impl IntoView {
                 Ok(result) => result.items,
                 Err(err) => {
                     logging::error!("Error loading users: {err}");
+                    Vec::new()
+                }
+            }
+        },
+    );
+
+    let service_catalogs = Resource::new(
+        move || (),
+        |_| async move {
+            match call_api(fetch_service_catalogs(ServiceCatalogQuery {
+                active_only: Some(true),
+            }))
+            .await
+            {
+                Ok(items) => items,
+                Err(err) => {
+                    logging::error!("Error loading service catalogs: {err}");
                     Vec::new()
                 }
             }
@@ -271,6 +291,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
     let open_create_modal = move |_| {
         editing_request.set(None);
         customer_uuid.set(String::new());
+        service_catalog_uuid.set(String::new());
         service_content.set(String::new());
         appointment_start_at.set(String::new());
         appointment_end_at.set(String::new());
@@ -280,6 +301,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
 
     let open_edit_modal = move |request: ServiceRequest| {
         customer_uuid.set(request.customer_uuid.clone());
+        service_catalog_uuid.set(request.service_catalog_uuid.clone().unwrap_or_default());
         service_content.set(request.service_content.clone());
         appointment_start_at.set(to_datetime_local(request.appointment_start_at.clone()));
         appointment_end_at.set(to_datetime_local(request.appointment_end_at.clone()));
@@ -310,6 +332,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         let payload = if let Some(editing) = editing {
             UpdateServiceRequest {
                 uuid: editing.uuid,
+                service_catalog_uuid: normalize_optional(&service_catalog_uuid.get()),
                 service_content: service_content.get(),
                 appointment_start_at: normalize_datetime_local(&appointment_start_at.get()),
                 appointment_end_at: normalize_datetime_local(&appointment_end_at.get()),
@@ -319,6 +342,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
         } else {
             CreateServiceRequest {
                 customer_uuid: customer_uuid.get(),
+                service_catalog_uuid: normalize_optional(&service_catalog_uuid.get()),
                 service_content: service_content.get(),
                 appointment_start_at: normalize_datetime_local(&appointment_start_at.get()),
                 appointment_end_at: normalize_datetime_local(&appointment_end_at.get()),
@@ -455,6 +479,22 @@ pub fn ServiceRequestsPage() -> impl IntoView {
 
             <div class="overflow-x-auto overflow-y-auto h-[calc(100vh-260px)] bg-base-100 rounded-lg shadow">
                 <DaisyTable data=data>
+                    <Column
+                        slot:columns
+                        freeze=true
+                        prop="service_catalog".to_string()
+                        label="服务项目".to_string()
+                        class="font-semibold"
+                    >
+                        {
+                            let item: Option<ServiceRequest> = use_context::<ServiceRequest>();
+                            let label = item
+                                .as_ref()
+                                .and_then(|v| v.service_catalog_name.clone())
+                                .unwrap_or_else(|| "-".to_string());
+                            view! { <span>{label}</span> }
+                        }
+                    </Column>
                     <Column
                         slot:columns
                         freeze=true
@@ -612,9 +652,42 @@ pub fn ServiceRequestsPage() -> impl IntoView {
 
         <Modal show=show_modal>
             <h3 class="text-lg font-semibold mb-4">"需求单"</h3>
-            <div class="space-y-3">
-                <label class="form-control w-full">
-                    <div class="label"><span class="label-text">"客户"</span></div>
+                <div class="space-y-3">
+                    <label class="form-control w-full">
+                        <div class="label"><span class="label-text">"服务项目"</span></div>
+                        <Transition fallback=move || view! {
+                            <select class="select select-bordered w-full" disabled=true>
+                                <option value="">"加载中..."</option>
+                            </select>
+                        }>
+                            {move || {
+                                let items = service_catalogs.get().unwrap_or_default();
+                                let options = items
+                                    .into_iter()
+                                    .map(|item: ServiceCatalog| {
+                                        let label = if item.base_price_cents > 0 {
+                                            format!("{} ({} 分)", item.name, item.base_price_cents)
+                                        } else {
+                                            item.name.clone()
+                                        };
+                                        view! { <option value={item.uuid}>{label}</option> }
+                                    })
+                                    .collect::<Vec<_>>();
+                                view! {
+                                    <select
+                                        class="select select-bordered w-full"
+                                        prop:value=move || service_catalog_uuid.get()
+                                        on:change=move |ev| service_catalog_uuid.set(event_target_value(&ev))
+                                    >
+                                        <option value="">"请选择服务项目"</option>
+                                        {options}
+                                    </select>
+                                }.into_any()
+                            }}
+                        </Transition>
+                    </label>
+                    <label class="form-control w-full">
+                        <div class="label"><span class="label-text">"客户"</span></div>
                     <Transition fallback=move || view! {
                         <select
                             class="select select-bordered w-full"

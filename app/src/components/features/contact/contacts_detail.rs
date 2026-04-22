@@ -1,12 +1,12 @@
-use crate::components::ui::drawer::DaisyDrawer;
 use crate::components::ui::date_picker::FlyonDateTimePicker;
+use crate::components::ui::drawer::DaisyDrawer;
 use crate::components::ui::toast::{error, success};
 use crate::server::contact_handlers::{
     create_contact_follow_record, fetch_contact_follow_records, get_contact,
 };
 use crate::utils::api::call_api;
-use leptos::task::spawn_local;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use shared::contact::{Contact, ContactFollowRecord, CreateContactFollowRecordRequest};
 
 #[component]
@@ -185,6 +185,28 @@ fn ContactDetailContent(contact: Contact) -> impl IntoView {
                         each=move || tags.clone().into_iter().enumerate()
                         key=|(idx, tag)| format!("{}-{}", idx, tag)
                         children=move |(_, tag)| view! { <span class="badge badge-outline">{tag}</span> }
+                    />
+                </div>
+            </section>
+
+            <section class="space-y-3">
+                <div class="text-sm font-semibold text-base-content/70">"售后画像"</div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <InfoCard
+                        label="售后工单"
+                        value=contact.after_sales_case_count.map(|value| value.to_string()).unwrap_or_else(|| "0".to_string())
+                    />
+                    <InfoCard
+                        label="投诉次数"
+                        value=contact.complaint_case_count.map(|value| value.to_string()).unwrap_or_else(|| "0".to_string())
+                    />
+                    <InfoCard
+                        label="退款次数"
+                        value=contact.refund_case_count.map(|value| value.to_string()).unwrap_or_else(|| "0".to_string())
+                    />
+                    <InfoCard
+                        label="返工次数"
+                        value=contact.rework_count.map(|value| value.to_string()).unwrap_or_else(|| "0".to_string())
                     />
                 </div>
             </section>

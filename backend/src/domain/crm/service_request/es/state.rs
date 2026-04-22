@@ -17,6 +17,7 @@ pub struct ServiceRequestState {
     pub exists: bool,
     pub customer_uuid: Option<String>,
     pub creator_uuid: Option<String>,
+    pub service_catalog_uuid: Option<String>,
     pub service_content: String,
     pub appointment_start_at: Option<DateTime<Utc>>,
     pub appointment_end_at: Option<DateTime<Utc>>,
@@ -70,6 +71,7 @@ impl ServiceRequestState {
             uuid: self.request_uuid.clone(),
             customer_uuid,
             creator_uuid,
+            service_catalog_uuid: self.service_catalog_uuid.clone(),
             service_content: self.service_content.clone(),
             appointment_start_at: self.appointment_start_at,
             appointment_end_at: self.appointment_end_at,
@@ -90,6 +92,7 @@ impl StateMutate for ServiceRequestState {
                 request_uuid,
                 customer_uuid,
                 creator_uuid,
+                service_catalog_uuid,
                 service_content,
                 appointment_start_at,
                 appointment_end_at,
@@ -104,6 +107,7 @@ impl StateMutate for ServiceRequestState {
                 self.request_uuid = request_uuid;
                 self.customer_uuid = Some(customer_uuid);
                 self.creator_uuid = Some(creator_uuid);
+                self.service_catalog_uuid = service_catalog_uuid;
                 self.service_content = service_content;
                 self.appointment_start_at = appointment_start_at;
                 self.appointment_end_at = appointment_end_at;
@@ -114,6 +118,7 @@ impl StateMutate for ServiceRequestState {
                 self.updated_at = Some(updated_at);
             }
             ServiceRequestEvent::ServiceRequestDetailsUpdated {
+                service_catalog_uuid,
                 service_content,
                 appointment_start_at,
                 appointment_end_at,
@@ -121,6 +126,7 @@ impl StateMutate for ServiceRequestState {
                 updated_at,
                 ..
             } => {
+                self.service_catalog_uuid = service_catalog_uuid;
                 self.service_content = service_content;
                 self.appointment_start_at = appointment_start_at;
                 self.appointment_end_at = appointment_end_at;

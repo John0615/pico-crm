@@ -55,7 +55,11 @@ fn create_table_stmt() -> TableCreateStatement {
                 .uuid()
                 .null(),
         )
-        .col(ColumnDef::new(ContactFollowRecords::Content).text().not_null())
+        .col(
+            ColumnDef::new(ContactFollowRecords::Content)
+                .text()
+                .not_null(),
+        )
         .col(
             ColumnDef::new(ContactFollowRecords::NextFollowUpAt)
                 .timestamp_with_time_zone()
@@ -70,14 +74,20 @@ fn create_table_stmt() -> TableCreateStatement {
         .foreign_key(
             ForeignKey::create()
                 .name("fk_contact_follow_records_contact")
-                .from(ContactFollowRecords::Table, ContactFollowRecords::ContactUuid)
+                .from(
+                    ContactFollowRecords::Table,
+                    ContactFollowRecords::ContactUuid,
+                )
                 .to(Customers::Table, Customers::Uuid)
                 .on_delete(ForeignKeyAction::Cascade),
         )
         .foreign_key(
             ForeignKey::create()
                 .name("fk_contact_follow_records_operator")
-                .from(ContactFollowRecords::Table, ContactFollowRecords::OperatorUuid)
+                .from(
+                    ContactFollowRecords::Table,
+                    ContactFollowRecords::OperatorUuid,
+                )
                 .to(Users::Table, Users::Uuid)
                 .on_delete(ForeignKeyAction::SetNull),
         )
@@ -149,9 +159,8 @@ mod tests {
             .build(&next_follow_up_at_index())
             .to_string();
 
-        assert!(contact_sql.contains(
-            r#"CREATE INDEX IF NOT EXISTS "idx_contact_follow_records_contact_uuid""#
-        ));
+        assert!(contact_sql
+            .contains(r#"CREATE INDEX IF NOT EXISTS "idx_contact_follow_records_contact_uuid""#));
         assert!(contact_sql.contains(r#"("contact_uuid")"#));
         assert!(follow_up_sql.contains(
             r#"CREATE INDEX IF NOT EXISTS "idx_contact_follow_records_next_follow_up_at""#

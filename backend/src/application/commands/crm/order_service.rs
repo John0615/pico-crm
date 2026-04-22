@@ -5,6 +5,7 @@ use crate::domain::crm::order::{
 use crate::domain::crm::schedule::{
     ScheduleAssignment, ScheduleRepository, ScheduleStatus, validate_time_window,
 };
+use crate::domain::crm::service_catalog::ServiceCatalogQuery as ServiceCatalogQueryTrait;
 use crate::domain::crm::service_request::{
     ServiceRequestQuery as ServiceRequestQueryTrait, ServiceRequestRepository,
 };
@@ -15,32 +16,42 @@ use shared::order::{
 };
 use shared::service_request::ServiceRequest;
 
-pub struct OrderAppService<R, Q, SR, S>
+pub struct OrderAppService<R, Q, SR, S, C>
 where
     R: OrderRepository,
     Q: ServiceRequestQueryTrait<Result = ServiceRequest>,
     SR: ServiceRequestRepository,
     S: ScheduleRepository,
+    C: ServiceCatalogQueryTrait<Result = shared::service_catalog::ServiceCatalog>,
 {
     order_repo: R,
     request_query: Q,
     request_repo: SR,
     schedule_repo: S,
+    service_catalog_query: C,
 }
 
-impl<R, Q, SR, S> OrderAppService<R, Q, SR, S>
+impl<R, Q, SR, S, C> OrderAppService<R, Q, SR, S, C>
 where
     R: OrderRepository,
     Q: ServiceRequestQueryTrait<Result = ServiceRequest>,
     SR: ServiceRequestRepository,
     S: ScheduleRepository,
+    C: ServiceCatalogQueryTrait<Result = shared::service_catalog::ServiceCatalog>,
 {
-    pub fn new(order_repo: R, request_query: Q, request_repo: SR, schedule_repo: S) -> Self {
+    pub fn new(
+        order_repo: R,
+        request_query: Q,
+        request_repo: SR,
+        schedule_repo: S,
+        service_catalog_query: C,
+    ) -> Self {
         Self {
             order_repo,
             request_query,
             request_repo,
             schedule_repo,
+            service_catalog_query,
         }
     }
 
@@ -59,13 +70,22 @@ where
             return Err("service request must be confirmed before creating order".to_string());
         }
 
-        let order = DomainOrder::new_from_request(
+        let mut order = DomainOrder::new_from_request(
             payload.request_id.clone(),
             request.customer_uuid.clone(),
             parse_datetime(request.appointment_start_at.as_deref()),
             parse_datetime(request.appointment_end_at.as_deref()),
             payload.notes,
         );
+        if let Some(service_catalog_uuid) = request.service_catalog_uuid.clone() {
+            if let Some(service_catalog) = self
+                .service_catalog_query
+                .get_service_catalog(service_catalog_uuid)
+                .await?
+            {
+                order.amount_cents = service_catalog.base_price_cents;
+            }
+        }
         order.verify()?;
 
         let created = self.order_repo.create_order(order, operator_uuid).await?;
@@ -238,12 +258,20 @@ where
         operator_uuid: Option<String>,
     ) -> Result<SharedOrder, String> {
         SettlementStatus::parse(&payload.settlement_status)?;
+        if let Some(amount) = payload.paid_amount_cents {
+            if amount < 0 {
+                return Err("paid_amount_cents must be non-negative".to_string());
+            }
+        }
         let updated = self
             .order_repo
             .update_order_settlement(
                 uuid,
                 payload.settlement_status,
                 payload.settlement_note,
+                payload.paid_amount_cents,
+                normalize_optional(payload.payment_method),
+                parse_optional_datetime(payload.paid_at.as_deref(), "paid_at")?,
                 operator_uuid,
             )
             .await?;
@@ -262,10 +290,40 @@ fn parse_datetime(value: Option<&str>) -> Option<DateTime<Utc>> {
     if let Ok(dt) = NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S") {
         return Some(Utc.from_utc_datetime(&dt));
     }
+    if let Ok(dt) = NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S") {
+        return Some(Utc.from_utc_datetime(&dt));
+    }
+    if let Ok(dt) = NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M") {
+        return Some(Utc.from_utc_datetime(&dt));
+    }
     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y-%m-%d") {
         if let Some(dt) = date.and_hms_opt(0, 0, 0) {
             return Some(Utc.from_utc_datetime(&dt));
         }
     }
     None
+}
+
+fn normalize_optional(value: Option<String>) -> Option<String> {
+    value.and_then(|raw| {
+        let trimmed = raw.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    })
+}
+
+fn parse_optional_datetime(
+    value: Option<&str>,
+    field: &str,
+) -> Result<Option<DateTime<Utc>>, String> {
+    let Some(value) = value else { return Ok(None) };
+    if value.trim().is_empty() {
+        return Ok(None);
+    }
+    parse_datetime(Some(value))
+        .ok_or_else(|| format!("invalid {}", field))
+        .map(Some)
 }

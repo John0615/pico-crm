@@ -42,6 +42,7 @@ pub fn Sidebar() -> impl IntoView {
         location.pathname.with(|current| {
             current.starts_with("/contacts")
                 || current.starts_with("/service-requests")
+                || current.starts_with("/service-catalog")
                 || current.starts_with("/orders")
                 || current.starts_with("/schedules")
                 || current.starts_with("/users")
@@ -156,6 +157,15 @@ pub fn Sidebar() -> impl IntoView {
                                 </li>
                                 <li>
                                     <a
+                                        href="/service-catalog"
+                                        class=move || if is_active("/service-catalog") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--box] size-5"></span>
+                                        "服务项目"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
                                         href="/orders"
                                         class=move || if is_active("/orders") { "menu-active w-full" } else { "w-full" }
                                     >
@@ -216,6 +226,15 @@ pub fn Sidebar() -> impl IntoView {
                                     >
                                         <span class="icon-[tabler--calendar-event] size-5"></span>
                                         "预约/需求"
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="/service-catalog"
+                                        class=move || if is_active("/service-catalog") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--box] size-5"></span>
+                                        "服务项目"
                                     </a>
                                 </li>
                                 <li>

@@ -6,6 +6,7 @@ pub struct ServiceRequest {
     pub uuid: String,
     pub customer_uuid: String,
     pub creator_uuid: String,
+    pub service_catalog_uuid: Option<String>,
     pub service_content: String,
     pub appointment_start_at: Option<DateTime<Utc>>,
     pub appointment_end_at: Option<DateTime<Utc>>,
@@ -19,6 +20,7 @@ pub struct ServiceRequest {
 #[derive(Debug, Clone)]
 pub struct UpdateServiceRequest {
     pub uuid: String,
+    pub service_catalog_uuid: Option<String>,
     pub service_content: String,
     pub appointment_start_at: Option<DateTime<Utc>>,
     pub appointment_end_at: Option<DateTime<Utc>>,
@@ -87,6 +89,7 @@ impl ServiceRequest {
     pub fn new(
         customer_uuid: String,
         creator_uuid: String,
+        service_catalog_uuid: Option<String>,
         service_content: String,
         appointment_start_at: Option<DateTime<Utc>>,
         appointment_end_at: Option<DateTime<Utc>>,
@@ -97,6 +100,7 @@ impl ServiceRequest {
             uuid: Uuid::new_v4().to_string(),
             customer_uuid,
             creator_uuid,
+            service_catalog_uuid,
             service_content,
             appointment_start_at,
             appointment_end_at,
@@ -116,6 +120,14 @@ impl ServiceRequest {
         }
         if self.creator_uuid.trim().is_empty() {
             return Err("Creator is required".to_string());
+        }
+        if let Some(service_catalog_uuid) = self
+            .service_catalog_uuid
+            .as_ref()
+            .filter(|value| !value.trim().is_empty())
+        {
+            Uuid::parse_str(service_catalog_uuid.trim())
+                .map_err(|e| format!("Invalid service catalog uuid: {}", e))?;
         }
         if self.service_content.trim().is_empty() {
             return Err("Service content is required".to_string());

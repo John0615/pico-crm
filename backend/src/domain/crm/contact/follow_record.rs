@@ -45,7 +45,11 @@ impl CreateContactFollowRecord {
         Uuid::parse_str(self.contact_uuid.trim())
             .map_err(|e| format!("invalid contact_uuid: {}", e))?;
 
-        if let Some(operator_uuid) = self.operator_uuid.as_ref().filter(|value| !value.trim().is_empty()) {
+        if let Some(operator_uuid) = self
+            .operator_uuid
+            .as_ref()
+            .filter(|value| !value.trim().is_empty())
+        {
             Uuid::parse_str(operator_uuid.trim())
                 .map_err(|e| format!("invalid operator_uuid: {}", e))?;
         }

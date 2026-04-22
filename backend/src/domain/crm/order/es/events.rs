@@ -35,6 +35,12 @@ pub enum OrderEventEnvelope {
         completed_at: Option<DateTime<Utc>>,
         settlement_status: String,
         amount_cents: i64,
+        #[serde(default)]
+        paid_amount_cents: Option<i64>,
+        #[serde(default)]
+        payment_method: Option<String>,
+        #[serde(default)]
+        paid_at: Option<DateTime<Utc>>,
         notes: Option<String>,
         dispatch_note: Option<String>,
         settlement_note: Option<String>,
@@ -96,6 +102,12 @@ pub enum OrderEventEnvelope {
         operator_uuid: Option<String>,
         settlement_status: String,
         settlement_note: Option<String>,
+        #[serde(default)]
+        paid_amount_cents: Option<i64>,
+        #[serde(default)]
+        payment_method: Option<String>,
+        #[serde(default)]
+        paid_at: Option<DateTime<Utc>>,
         updated_at: DateTime<Utc>,
     },
 }
@@ -118,6 +130,9 @@ pub fn seed_created_event(
         completed_at: order.completed_at,
         settlement_status: order.settlement_status.as_str().to_string(),
         amount_cents: order.amount_cents,
+        paid_amount_cents: order.paid_amount_cents,
+        payment_method: order.payment_method.clone(),
+        paid_at: order.paid_at,
         notes: order.notes.clone(),
         dispatch_note: order.dispatch_note.clone(),
         settlement_note: order.settlement_note.clone(),

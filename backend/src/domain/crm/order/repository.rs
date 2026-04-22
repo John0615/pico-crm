@@ -38,6 +38,9 @@ pub trait OrderRepository: Send + Sync {
         uuid: String,
         settlement_status: String,
         settlement_note: Option<String>,
+        paid_amount_cents: Option<i64>,
+        payment_method: Option<String>,
+        paid_at: Option<chrono::DateTime<chrono::Utc>>,
         operator_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send;
 

@@ -21,6 +21,7 @@ pub enum ServiceRequestEventEnvelope {
         request_uuid: String,
         customer_uuid: String,
         creator_uuid: String,
+        service_catalog_uuid: Option<String>,
         service_content: String,
         appointment_start_at: Option<DateTime<Utc>>,
         appointment_end_at: Option<DateTime<Utc>>,
@@ -35,6 +36,7 @@ pub enum ServiceRequestEventEnvelope {
         tenant_schema: String,
         #[id]
         request_uuid: String,
+        service_catalog_uuid: Option<String>,
         service_content: String,
         appointment_start_at: Option<DateTime<Utc>>,
         appointment_end_at: Option<DateTime<Utc>>,
@@ -60,6 +62,7 @@ pub fn seed_created_event(
         request_uuid: request.uuid.clone(),
         customer_uuid: request.customer_uuid.clone(),
         creator_uuid: request.creator_uuid.clone(),
+        service_catalog_uuid: request.service_catalog_uuid.clone(),
         service_content: request.service_content.clone(),
         appointment_start_at: request.appointment_start_at,
         appointment_end_at: request.appointment_end_at,

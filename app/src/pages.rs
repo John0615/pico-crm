@@ -5,6 +5,7 @@ pub mod login;
 pub mod not_found;
 pub mod orders;
 pub mod schedules;
+pub mod service_catalogs;
 pub mod service_requests;
 
 pub use admin::*;
@@ -14,4 +15,5 @@ pub use login::*;
 pub use not_found::*;
 pub use orders::*;
 pub use schedules::*;
+pub use service_catalogs::*;
 pub use service_requests::*;

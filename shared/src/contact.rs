@@ -13,6 +13,10 @@ pub struct Contact {
     pub tags: Vec<String>,
     pub last_service_at: Option<String>,
     pub follow_up_status: Option<String>,
+    pub after_sales_case_count: Option<u64>,
+    pub complaint_case_count: Option<u64>,
+    pub refund_case_count: Option<u64>,
+    pub rework_count: Option<u64>,
     pub inserted_at: String,
     pub updated_at: String,
 }

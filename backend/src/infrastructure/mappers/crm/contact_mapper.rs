@@ -26,6 +26,10 @@ impl ContactMapper {
             tags: json_to_tags(&entity.tags),
             last_service_at: entity.last_service_at.map(parse_date_time_to_string),
             follow_up_status: Some(entity.follow_up_status),
+            after_sales_case_count: None,
+            complaint_case_count: None,
+            refund_case_count: None,
+            rework_count: None,
             inserted_at: parse_date_time_to_string(entity.inserted_at),
             updated_at: parse_date_time_to_string(entity.updated_at),
         }

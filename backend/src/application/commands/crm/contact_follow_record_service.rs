@@ -1,7 +1,6 @@
 use crate::domain::crm::contact::{ContactFollowRecordRepository, CreateContactFollowRecord};
 use shared::contact::{
-    ContactFollowRecord as SharedContactFollowRecord,
-    CreateContactFollowRecordRequest,
+    ContactFollowRecord as SharedContactFollowRecord, CreateContactFollowRecordRequest,
 };
 
 pub struct ContactFollowRecordAppService<R: ContactFollowRecordRepository> {

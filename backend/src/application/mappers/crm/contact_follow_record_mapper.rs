@@ -1,12 +1,16 @@
 use crate::application::utils::parse_utc_time_to_string;
-use crate::domain::crm::contact::{ContactFollowRecord as DomainContactFollowRecord, CreateContactFollowRecord};
+use crate::domain::crm::contact::{
+    ContactFollowRecord as DomainContactFollowRecord, CreateContactFollowRecord,
+};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use shared::contact::{
     ContactFollowRecord as SharedContactFollowRecord,
     CreateContactFollowRecordRequest as SharedCreateContactFollowRecordRequest,
 };
 
-impl TryFrom<(SharedCreateContactFollowRecordRequest, Option<String>)> for CreateContactFollowRecord {
+impl TryFrom<(SharedCreateContactFollowRecordRequest, Option<String>)>
+    for CreateContactFollowRecord
+{
     type Error = String;
 
     fn try_from(

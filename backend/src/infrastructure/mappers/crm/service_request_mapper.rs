@@ -17,6 +17,8 @@ impl ServiceRequestMapper {
             uuid: entity.uuid.to_string(),
             customer_uuid: entity.customer_uuid.to_string(),
             creator_uuid: entity.creator_uuid.to_string(),
+            service_catalog_uuid: entity.service_catalog_uuid.map(|value| value.to_string()),
+            service_catalog_name: None,
             contact_name: None,
             creator_name: None,
             service_content: entity.service_content,
@@ -39,6 +41,7 @@ impl ServiceRequestMapper {
             uuid: entity.uuid.to_string(),
             customer_uuid: entity.customer_uuid.to_string(),
             creator_uuid: entity.creator_uuid.to_string(),
+            service_catalog_uuid: entity.service_catalog_uuid.map(|value| value.to_string()),
             service_content: entity.service_content,
             appointment_start_at: entity.appointment_start_at,
             appointment_end_at: entity.appointment_end_at,
@@ -57,6 +60,10 @@ impl ServiceRequestMapper {
                 Uuid::parse_str(&request.customer_uuid).expect("Invalid customer UUID")
             ),
             creator_uuid: Set(Uuid::parse_str(&request.creator_uuid).expect("Invalid creator UUID")),
+            service_catalog_uuid: Set(request
+                .service_catalog_uuid
+                .as_ref()
+                .map(|value| Uuid::parse_str(value).expect("Invalid service catalog UUID"))),
             service_content: Set(request.service_content),
             appointment_start_at: Set(request.appointment_start_at),
             appointment_end_at: Set(request.appointment_end_at),
@@ -75,6 +82,10 @@ impl ServiceRequestMapper {
         updated_at: DateTime<Utc>,
     ) -> ActiveModel {
         let mut active = original.clone().into_active_model();
+        active.service_catalog_uuid = Set(update
+            .service_catalog_uuid
+            .as_ref()
+            .map(|value| Uuid::parse_str(value).expect("Invalid service catalog UUID")));
         active.service_content = Set(update.service_content);
         active.appointment_start_at = Set(update.appointment_start_at);
         active.appointment_end_at = Set(update.appointment_end_at);

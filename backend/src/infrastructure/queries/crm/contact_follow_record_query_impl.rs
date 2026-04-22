@@ -58,8 +58,9 @@ impl ContactFollowRecordQuery for SeaOrmContactFollowRecordQuery {
                     Ok(items
                         .into_iter()
                         .map(|item| {
-                            let operator_name =
-                                item.operator_uuid.and_then(|uuid| operator_names.get(&uuid).cloned());
+                            let operator_name = item
+                                .operator_uuid
+                                .and_then(|uuid| operator_names.get(&uuid).cloned());
                             ContactFollowRecordMapper::to_view(item, operator_name)
                         })
                         .collect())

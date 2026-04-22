@@ -22,6 +22,9 @@ pub struct OrderState {
     pub completed_at: Option<DateTime<Utc>>,
     pub settlement_status: Option<String>,
     pub amount_cents: i64,
+    pub paid_amount_cents: Option<i64>,
+    pub payment_method: Option<String>,
+    pub paid_at: Option<DateTime<Utc>>,
     pub notes: Option<String>,
     pub dispatch_note: Option<String>,
     pub settlement_note: Option<String>,
@@ -71,6 +74,9 @@ impl OrderState {
             completed_at: self.completed_at,
             settlement_status,
             amount_cents: self.amount_cents,
+            paid_amount_cents: self.paid_amount_cents,
+            payment_method: self.payment_method.clone(),
+            paid_at: self.paid_at,
             notes: self.notes.clone(),
             dispatch_note: self.dispatch_note.clone(),
             settlement_note: self.settlement_note.clone(),
@@ -95,6 +101,9 @@ impl StateMutate for OrderState {
                 completed_at,
                 settlement_status,
                 amount_cents,
+                paid_amount_cents,
+                payment_method,
+                paid_at,
                 notes,
                 dispatch_note,
                 settlement_note,
@@ -114,6 +123,9 @@ impl StateMutate for OrderState {
                 self.completed_at = completed_at;
                 self.settlement_status = Some(settlement_status);
                 self.amount_cents = amount_cents;
+                self.paid_amount_cents = paid_amount_cents;
+                self.payment_method = payment_method;
+                self.paid_at = paid_at;
                 self.notes = notes;
                 self.dispatch_note = dispatch_note;
                 self.settlement_note = settlement_note;
@@ -167,11 +179,17 @@ impl StateMutate for OrderState {
             OrderEvent::OrderSettlementUpdated {
                 settlement_status,
                 settlement_note,
+                paid_amount_cents,
+                payment_method,
+                paid_at,
                 updated_at,
                 ..
             } => {
                 self.settlement_status = Some(settlement_status);
                 self.settlement_note = settlement_note;
+                self.paid_amount_cents = paid_amount_cents;
+                self.payment_method = payment_method;
+                self.paid_at = paid_at;
                 self.updated_at = Some(updated_at);
             }
         }

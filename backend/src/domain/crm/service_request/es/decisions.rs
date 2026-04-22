@@ -94,6 +94,7 @@ impl Decision for UpdateServiceRequestDecision {
             ServiceRequestEventEnvelope::ServiceRequestDetailsUpdated {
                 tenant_schema: self.tenant_schema.clone(),
                 request_uuid: self.update.uuid.clone(),
+                service_catalog_uuid: self.update.service_catalog_uuid.clone(),
                 service_content: self.update.service_content.clone(),
                 appointment_start_at: self.update.appointment_start_at,
                 appointment_end_at: self.update.appointment_end_at,
@@ -185,6 +186,7 @@ mod tests {
             uuid: "request-1".to_string(),
             customer_uuid: "customer-1".to_string(),
             creator_uuid: "user-1".to_string(),
+            service_catalog_uuid: Some("11111111-1111-1111-1111-111111111111".to_string()),
             service_content: "Initial visit".to_string(),
             appointment_start_at: Some(ts(1)),
             appointment_end_at: Some(ts(1) + chrono::Duration::hours(1)),
@@ -212,6 +214,7 @@ mod tests {
     fn it_updates_service_request_details() {
         let update = UpdateServiceRequest {
             uuid: "request-1".to_string(),
+            service_catalog_uuid: Some("22222222-2222-2222-2222-222222222222".to_string()),
             service_content: "Updated visit".to_string(),
             appointment_start_at: Some(ts(2)),
             appointment_end_at: Some(ts(2) + chrono::Duration::hours(2)),
@@ -223,6 +226,7 @@ mod tests {
             .then([ServiceRequestEventEnvelope::ServiceRequestDetailsUpdated {
                 tenant_schema: "tenant_a".to_string(),
                 request_uuid: "request-1".to_string(),
+                service_catalog_uuid: Some("22222222-2222-2222-2222-222222222222".to_string()),
                 service_content: "Updated visit".to_string(),
                 appointment_start_at: Some(ts(2)),
                 appointment_end_at: Some(ts(2) + chrono::Duration::hours(2)),

@@ -10,6 +10,7 @@ pub struct Model {
     pub uuid: Uuid,
     pub customer_uuid: Uuid,
     pub creator_uuid: Uuid,
+    pub service_catalog_uuid: Option<Uuid>,
     pub service_content: String,
     pub appointment_start_at: Option<DateTime<Utc>>,
     pub appointment_end_at: Option<DateTime<Utc>>,

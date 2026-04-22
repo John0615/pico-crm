@@ -5,7 +5,14 @@ use crate::{
         },
         shared::pagination::Pagination,
     },
+    infrastructure::entity::after_sales_cases::{
+        Column as AfterSalesColumn, Entity as AfterSalesEntity,
+    },
+    infrastructure::entity::after_sales_reworks::{
+        Column as AfterSalesReworkColumn, Entity as AfterSalesReworkEntity,
+    },
     infrastructure::entity::contacts::{Column, Entity},
+    infrastructure::entity::orders::{Column as OrderColumn, Entity as OrderEntity},
     infrastructure::mappers::crm::contact_mapper::ContactMapper,
     infrastructure::tenant::with_tenant_txn,
 };
@@ -15,6 +22,7 @@ use shared::contact::Contact;
 use async_trait::async_trait;
 use sea_orm::sea_query::{Condition, Expr};
 use sea_orm::{DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Select};
+use std::collections::HashMap;
 
 pub struct SeaOrmContactQuery {
     db: DatabaseConnection,
@@ -113,6 +121,19 @@ impl ContactQuery for SeaOrmContactQuery {
                         .await
                         .map_err(|e| format!("查询失败: {}", e))?
                         .map(|item| ContactMapper::to_view(item));
+                    let contact = match contact {
+                        Some(mut contact) => {
+                            let stats = load_contact_after_sales_stats(txn, &[uuid]).await?;
+                            if let Some(stat) = stats.get(&uuid) {
+                                contact.after_sales_case_count = Some(stat.after_sales_case_count);
+                                contact.complaint_case_count = Some(stat.complaint_case_count);
+                                contact.refund_case_count = Some(stat.refund_case_count);
+                                contact.rework_count = Some(stat.rework_count);
+                            }
+                            Some(contact)
+                        }
+                        None => None,
+                    };
                     Ok(contact)
                 })
             })
@@ -164,6 +185,88 @@ fn apply_contact_sorting(mut query: Select<Entity>, sort: Vec<SortOption>) -> Se
     }
 
     query
+}
+
+#[derive(Debug, Clone, Default)]
+struct ContactAfterSalesStats {
+    after_sales_case_count: u64,
+    complaint_case_count: u64,
+    refund_case_count: u64,
+    rework_count: u64,
+}
+
+async fn load_contact_after_sales_stats<C>(
+    txn: &C,
+    contact_ids: &[Uuid],
+) -> Result<HashMap<Uuid, ContactAfterSalesStats>, String>
+where
+    C: sea_orm::ConnectionTrait,
+{
+    if contact_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let orders = OrderEntity::find()
+        .filter(OrderColumn::CustomerUuid.is_in(contact_ids.iter().copied()))
+        .all(txn)
+        .await
+        .map_err(|e| format!("query contact orders error: {}", e))?;
+
+    let mut order_contact_map = HashMap::<Uuid, Uuid>::new();
+    for order in orders {
+        if let Some(customer_uuid) = order.customer_uuid {
+            order_contact_map.insert(order.uuid, customer_uuid);
+        }
+    }
+    if order_contact_map.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let order_ids = order_contact_map.keys().copied().collect::<Vec<_>>();
+    let cases = AfterSalesEntity::find()
+        .filter(AfterSalesColumn::OrderUuid.is_in(order_ids))
+        .all(txn)
+        .await
+        .map_err(|e| format!("query contact after sales cases error: {}", e))?;
+
+    let mut stats = HashMap::<Uuid, ContactAfterSalesStats>::new();
+    let mut case_contact_map = HashMap::<Uuid, Uuid>::new();
+    for case in cases {
+        let Some(contact_uuid) = order_contact_map.get(&case.order_uuid).copied() else {
+            continue;
+        };
+        case_contact_map.insert(case.uuid, contact_uuid);
+        let entry = stats.entry(contact_uuid).or_default();
+        entry.after_sales_case_count += 1;
+        if case.case_type == "complaint" {
+            entry.complaint_case_count += 1;
+        }
+        if case
+            .refund_amount_cents
+            .map(|value| value > 0)
+            .unwrap_or(false)
+            || case.case_type == "refund"
+        {
+            entry.refund_case_count += 1;
+        }
+    }
+
+    if !case_contact_map.is_empty() {
+        let case_ids = case_contact_map.keys().copied().collect::<Vec<_>>();
+        let reworks = AfterSalesReworkEntity::find()
+            .filter(AfterSalesReworkColumn::CaseUuid.is_in(case_ids))
+            .all(txn)
+            .await
+            .map_err(|e| format!("query contact after sales reworks error: {}", e))?;
+        for rework in reworks {
+            if let Some(contact_uuid) = case_contact_map.get(&rework.case_uuid).copied() {
+                let entry = stats.entry(contact_uuid).or_default();
+                entry.rework_count += 1;
+            }
+        }
+    }
+
+    Ok(stats)
 }
 
 #[cfg(test)]

@@ -274,6 +274,21 @@ pub fn AdminUsers() -> impl IntoView {
                     </Column>
                     <Column
                         slot:columns
+                        label="资质档案".to_string()
+                        prop="credentials".to_string()
+                    >
+                        {
+                            let user: Option<User> = use_context::<User>();
+                            let summary = user.as_ref().map(credential_summary).unwrap_or_else(|| "-".to_string());
+                            view! {
+                                <div class="max-w-56 whitespace-normal text-sm opacity-80">
+                                    {summary}
+                                </div>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
                         label="入职时间".to_string()
                         prop="joined_at".to_string()
                     >
@@ -283,6 +298,42 @@ pub fn AdminUsers() -> impl IntoView {
                                 <span class="text-sm opacity-70">
                                     {user.as_ref().and_then(|u| u.joined_at.clone()).unwrap_or_else(|| "-".to_string())}
                                 </span>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="服务表现".to_string()
+                        prop="performance".to_string()
+                    >
+                        {
+                            let user: Option<User> = use_context::<User>();
+                            let summary = user
+                                .as_ref()
+                                .map(service_performance_summary)
+                                .unwrap_or_else(|| "-".to_string());
+                            view! {
+                                <div class="max-w-48 whitespace-normal text-sm opacity-80">
+                                    {summary}
+                                </div>
+                            }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="售后影响".to_string()
+                        prop="after_sales".to_string()
+                    >
+                        {
+                            let user: Option<User> = use_context::<User>();
+                            let summary = user
+                                .as_ref()
+                                .map(after_sales_impact_summary)
+                                .unwrap_or_else(|| "-".to_string());
+                            view! {
+                                <div class="max-w-56 whitespace-normal text-sm opacity-80">
+                                    {summary}
+                                </div>
                             }
                         }
                     </Column>
@@ -403,6 +454,54 @@ fn summary_list(values: &[String]) -> String {
         values.join(" / ")
     } else {
         format!("{} / +{}", values[..3].join(" / "), values.len() - 3)
+    }
+}
+
+fn service_performance_summary(user: &User) -> String {
+    let completed = user.completed_service_count.unwrap_or(0);
+    let feedbacks = user.feedback_count.unwrap_or(0);
+    let rating = user
+        .average_rating
+        .map(|value| format!("{value:.1}"))
+        .unwrap_or_else(|| "-".to_string());
+    format!(
+        "已完成 {} 单 / 反馈 {} 条 / 平均评分 {}",
+        completed, feedbacks, rating
+    )
+}
+
+fn after_sales_impact_summary(user: &User) -> String {
+    let total = user.after_sales_case_count.unwrap_or(0);
+    let complaint = user.complaint_case_count.unwrap_or(0);
+    let refund = user.refund_case_count.unwrap_or(0);
+    let rework = user.rework_count.unwrap_or(0);
+    format!(
+        "售后 {} / 投诉 {} / 退款 {} / 返工 {}",
+        total, complaint, refund, rework
+    )
+}
+
+fn credential_summary(user: &User) -> String {
+    let health = health_status_label(&user.health_status);
+    let training = if user.training_records.is_empty() {
+        "培训 0".to_string()
+    } else {
+        format!("培训 {}", user.training_records.len())
+    };
+    let certificates = if user.certificates.is_empty() {
+        "证书 0".to_string()
+    } else {
+        format!("证书 {}", user.certificates.len())
+    };
+    format!("{} / {} / {}", health, training, certificates)
+}
+
+fn health_status_label(value: &str) -> &'static str {
+    match value {
+        "healthy" => "健康",
+        "attention" => "需关注",
+        "expired" => "已过期",
+        _ => "未知",
     }
 }
 

@@ -13,6 +13,9 @@ pub struct Order {
     pub completed_at: Option<DateTime<Utc>>,
     pub settlement_status: SettlementStatus,
     pub amount_cents: i64,
+    pub paid_amount_cents: Option<i64>,
+    pub payment_method: Option<String>,
+    pub paid_at: Option<DateTime<Utc>>,
     pub notes: Option<String>,
     pub dispatch_note: Option<String>,
     pub settlement_note: Option<String>,
@@ -147,6 +150,9 @@ impl Order {
             completed_at: None,
             settlement_status: SettlementStatus::Unsettled,
             amount_cents: 0,
+            paid_amount_cents: None,
+            payment_method: None,
+            paid_at: None,
             notes,
             dispatch_note: None,
             settlement_note: None,
@@ -227,10 +233,33 @@ impl Order {
         Ok(())
     }
 
-    pub fn update_settlement(&mut self, status: SettlementStatus, note: Option<String>) {
+    pub fn update_settlement(
+        &mut self,
+        status: SettlementStatus,
+        note: Option<String>,
+        paid_amount_cents: Option<i64>,
+        payment_method: Option<String>,
+        paid_at: Option<DateTime<Utc>>,
+    ) -> Result<(), String> {
+        if let Some(amount) = paid_amount_cents {
+            if amount < 0 {
+                return Err("paid amount cents must be non-negative".to_string());
+            }
+        }
         self.settlement_status = status;
         self.settlement_note = note;
+        self.paid_amount_cents = paid_amount_cents;
+        self.payment_method = payment_method.and_then(|value| {
+            let trimmed = value.trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        });
+        self.paid_at = paid_at;
         self.updated_at = Utc::now();
+        Ok(())
     }
 }
 
@@ -303,5 +332,36 @@ mod tests {
     fn cancel_requires_reason() {
         let mut order = sample_order();
         assert!(order.cancel(" ".to_string()).is_err());
+    }
+
+    #[test]
+    fn settlement_update_persists_payment_fields() {
+        let mut order = sample_order();
+        let paid_at = Utc::now();
+
+        order
+            .update_settlement(
+                SettlementStatus::Settled,
+                Some("微信收款".to_string()),
+                Some(29900),
+                Some("wechat".to_string()),
+                Some(paid_at),
+            )
+            .expect("settlement update should succeed");
+
+        assert_eq!(order.settlement_status, SettlementStatus::Settled);
+        assert_eq!(order.paid_amount_cents, Some(29900));
+        assert_eq!(order.payment_method.as_deref(), Some("wechat"));
+        assert_eq!(order.paid_at, Some(paid_at));
+    }
+
+    #[test]
+    fn settlement_update_rejects_negative_paid_amount() {
+        let mut order = sample_order();
+        let err = order
+            .update_settlement(SettlementStatus::Settled, None, Some(-1), None, None)
+            .expect_err("negative paid amount should be rejected");
+
+        assert!(err.contains("paid amount"));
     }
 }

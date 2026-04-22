@@ -52,6 +52,7 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                 request_uuid,
                 customer_uuid,
                 creator_uuid,
+                service_catalog_uuid,
                 service_content,
                 appointment_start_at,
                 appointment_end_at,
@@ -75,6 +76,10 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                                 uuid: Set(request_uuid),
                                 customer_uuid: Set(parse_uuid(&customer_uuid, "customer_uuid")?),
                                 creator_uuid: Set(parse_uuid(&creator_uuid, "creator_uuid")?),
+                                service_catalog_uuid: Set(parse_optional_uuid(
+                                    service_catalog_uuid.as_deref(),
+                                    "service_catalog_uuid",
+                                )?),
                                 service_content: Set(service_content),
                                 appointment_start_at: Set(appointment_start_at),
                                 appointment_end_at: Set(appointment_end_at),
@@ -97,6 +102,7 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
             ServiceRequestEventEnvelope::ServiceRequestDetailsUpdated {
                 tenant_schema,
                 request_uuid,
+                service_catalog_uuid,
                 service_content,
                 appointment_start_at,
                 appointment_end_at,
@@ -121,6 +127,10 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                         }
 
                         let mut active = model.into_active_model();
+                        active.service_catalog_uuid = Set(parse_optional_uuid(
+                            service_catalog_uuid.as_deref(),
+                            "service_catalog_uuid",
+                        )?);
                         active.service_content = Set(service_content);
                         active.appointment_start_at = Set(appointment_start_at);
                         active.appointment_end_at = Set(appointment_end_at);
@@ -255,4 +265,8 @@ async fn ensure_tenant_read_model(
 
 fn parse_uuid(value: &str, field: &str) -> Result<Uuid, String> {
     Uuid::parse_str(value).map_err(|e| format!("invalid {} uuid {}: {}", field, value, e))
+}
+
+fn parse_optional_uuid(value: Option<&str>, field: &str) -> Result<Option<Uuid>, String> {
+    value.map(|raw| parse_uuid(raw, field)).transpose()
 }

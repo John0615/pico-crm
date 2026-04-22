@@ -179,6 +179,9 @@ impl OrderRepository for SeaOrmOrderRepository {
         uuid: String,
         settlement_status: String,
         settlement_note: Option<String>,
+        paid_amount_cents: Option<i64>,
+        payment_method: Option<String>,
+        paid_at: Option<chrono::DateTime<chrono::Utc>>,
         operator_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
         let schema_name = self.schema_name.clone();
@@ -196,6 +199,9 @@ impl OrderRepository for SeaOrmOrderRepository {
                     uuid.clone(),
                     settlement_status,
                     settlement_note,
+                    paid_amount_cents,
+                    payment_method,
+                    paid_at,
                     Utc::now(),
                     operator_uuid,
                 ))

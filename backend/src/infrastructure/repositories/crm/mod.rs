@@ -1,5 +1,10 @@
+pub mod after_sales_record_repository_impl;
+pub mod after_sales_repository_impl;
+pub mod after_sales_rework_repository_impl;
 pub mod contact_follow_record_repository_impl;
 pub mod contact_repository_impl;
+pub mod order_feedback_repository_impl;
 pub mod order_repository_impl;
 pub mod schedule_repository_impl;
+pub mod service_catalog_repository_impl;
 pub mod service_request_repository_impl;

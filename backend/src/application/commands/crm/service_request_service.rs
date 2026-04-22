@@ -27,6 +27,7 @@ impl<R: ServiceRequestRepository> ServiceRequestAppService<R> {
         let service_request = DomainServiceRequest::new(
             request.customer_uuid,
             creator_uuid,
+            request.service_catalog_uuid,
             request.service_content,
             appointment_start_at,
             appointment_end_at,
@@ -53,6 +54,7 @@ impl<R: ServiceRequestRepository> ServiceRequestAppService<R> {
         }
         let update = UpdateServiceRequest {
             uuid: request.uuid,
+            service_catalog_uuid: request.service_catalog_uuid,
             service_content: request.service_content,
             appointment_start_at,
             appointment_end_at,

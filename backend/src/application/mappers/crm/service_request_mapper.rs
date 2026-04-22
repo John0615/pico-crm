@@ -8,6 +8,8 @@ impl From<DomainServiceRequest> for SharedServiceRequest {
             uuid: request.uuid,
             customer_uuid: request.customer_uuid,
             creator_uuid: request.creator_uuid,
+            service_catalog_uuid: request.service_catalog_uuid,
+            service_catalog_name: None,
             contact_name: None,
             creator_name: None,
             service_content: request.service_content,

@@ -3,13 +3,18 @@
 pub mod prelude;
 
 pub mod admin_users;
+pub mod after_sales_case_records;
+pub mod after_sales_cases;
+pub mod after_sales_reworks;
 pub mod audit_logs;
 pub mod contact_follow_records;
 pub mod contacts;
 pub mod merchant;
 pub mod order_change_logs;
+pub mod order_feedback;
 pub mod orders;
 pub mod schedules;
+pub mod service_catalogs;
 pub mod service_requests;
 pub mod system_config_categories;
 pub mod system_config_items;

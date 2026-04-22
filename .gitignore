@@ -9,6 +9,7 @@ pkg
 .claude
 .codex
 openspec
+docs
 
 # node e2e test tools and outputs
 node_modules/

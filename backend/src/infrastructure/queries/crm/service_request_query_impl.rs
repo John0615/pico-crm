@@ -8,6 +8,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::domain::crm::service_request::ServiceRequestQuery as DomainServiceRequestQuery;
 use crate::infrastructure::entity::contacts::{Column as ContactColumn, Entity as ContactEntity};
+use crate::infrastructure::entity::service_catalogs::{
+    Column as ServiceCatalogColumn, Entity as ServiceCatalogEntity,
+};
 use crate::infrastructure::entity::service_requests::{Column, Entity};
 use crate::infrastructure::entity::users::{Column as UserColumn, Entity as UserEntity};
 use crate::infrastructure::mappers::crm::service_request_mapper::ServiceRequestMapper;
@@ -82,6 +85,10 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                         models.iter().map(|model| model.customer_uuid).collect();
                     let user_ids: HashSet<Uuid> =
                         models.iter().map(|model| model.creator_uuid).collect();
+                    let service_catalog_ids: HashSet<Uuid> = models
+                        .iter()
+                        .filter_map(|model| model.service_catalog_uuid)
+                        .collect();
 
                     let mut contact_map: HashMap<Uuid, String> = HashMap::new();
                     if !customer_ids.is_empty() {
@@ -107,14 +114,29 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                         }
                     }
 
+                    let mut service_catalog_map: HashMap<Uuid, String> = HashMap::new();
+                    if !service_catalog_ids.is_empty() {
+                        let items = ServiceCatalogEntity::find()
+                            .filter(ServiceCatalogColumn::Uuid.is_in(service_catalog_ids.clone()))
+                            .all(txn)
+                            .await
+                            .map_err(|e| format!("query service catalogs error: {}", e))?;
+                        for item in items {
+                            service_catalog_map.insert(item.uuid, item.name);
+                        }
+                    }
+
                     let items = models
                         .into_iter()
                         .map(|model| {
                             let customer_uuid = model.customer_uuid;
                             let creator_uuid = model.creator_uuid;
+                            let service_catalog_uuid = model.service_catalog_uuid;
                             let mut view = ServiceRequestMapper::to_view(model);
                             view.contact_name = contact_map.get(&customer_uuid).cloned();
                             view.creator_name = user_map.get(&creator_uuid).cloned();
+                            view.service_catalog_name = service_catalog_uuid
+                                .and_then(|uuid| service_catalog_map.get(&uuid).cloned());
                             view
                         })
                         .collect();
@@ -159,9 +181,20 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
                         .map_err(|e| format!("query user error: {}", e))?
                         .map(|user| user.user_name);
 
+                    let service_catalog_name = match model.service_catalog_uuid {
+                        Some(service_catalog_uuid) => ServiceCatalogEntity::find()
+                            .filter(ServiceCatalogColumn::Uuid.eq(service_catalog_uuid))
+                            .one(txn)
+                            .await
+                            .map_err(|e| format!("query service catalog error: {}", e))?
+                            .map(|item| item.name),
+                        None => None,
+                    };
+
                     let mut view = ServiceRequestMapper::to_view(model);
                     view.contact_name = contact_name;
                     view.creator_name = creator_name;
+                    view.service_catalog_name = service_catalog_name;
                     Ok(Some(view))
                 })
             })

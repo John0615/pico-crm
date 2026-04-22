@@ -48,6 +48,32 @@ impl EmploymentStatus {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum HealthStatus {
+    Healthy,
+    Attention,
+    Expired,
+}
+
+impl HealthStatus {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "healthy" => Ok(Self::Healthy),
+            "attention" => Ok(Self::Attention),
+            "expired" => Ok(Self::Expired),
+            _ => Err(format!("Invalid health status: {}", value)),
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::Attention => "attention",
+            Self::Expired => "expired",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct User {
     pub uuid: String,
@@ -62,8 +88,18 @@ pub struct User {
     pub employment_status: EmploymentStatus,
     pub skills: Vec<String>,
     pub service_areas: Vec<String>,
+    pub training_records: Vec<String>,
+    pub certificates: Vec<String>,
+    pub health_status: HealthStatus,
     pub employee_note: Option<String>,
     pub joined_at: Option<DateTime<Utc>>,
+    pub completed_service_count: Option<u64>,
+    pub feedback_count: Option<u64>,
+    pub average_rating: Option<f64>,
+    pub after_sales_case_count: Option<u64>,
+    pub complaint_case_count: Option<u64>,
+    pub refund_case_count: Option<u64>,
+    pub rework_count: Option<u64>,
     pub avatar_url: Option<String>,
     pub last_login_at: Option<DateTime<Utc>>,
     pub email_verified_at: Option<DateTime<Utc>>,
@@ -92,8 +128,18 @@ impl User {
             employment_status: EmploymentStatus::Active,
             skills: Vec::new(),
             service_areas: Vec::new(),
+            training_records: Vec::new(),
+            certificates: Vec::new(),
+            health_status: HealthStatus::Healthy,
             employee_note: None,
             joined_at: None,
+            completed_service_count: None,
+            feedback_count: None,
+            average_rating: None,
+            after_sales_case_count: None,
+            complaint_case_count: None,
+            refund_case_count: None,
+            rework_count: None,
             avatar_url: None,
             last_login_at: None,
             email_verified_at: None,
@@ -123,6 +169,7 @@ impl User {
     pub fn can_be_dispatched(&self) -> bool {
         self.is_active()
             && self.employment_status.is_dispatchable()
+            && self.health_status == HealthStatus::Healthy
             && !self.is_admin()
             && self.role == "user"
     }
@@ -155,16 +202,30 @@ impl User {
         employment_status: Option<EmploymentStatus>,
         skills: Vec<String>,
         service_areas: Vec<String>,
+        training_records: Vec<String>,
+        certificates: Vec<String>,
+        health_status: Option<HealthStatus>,
         employee_note: Option<String>,
         joined_at: Option<DateTime<Utc>>,
     ) -> Result<(), String> {
-        validate_profile_fields(&skills, &service_areas, employee_note.as_deref())?;
+        validate_profile_fields(
+            &skills,
+            &service_areas,
+            &training_records,
+            &certificates,
+            employee_note.as_deref(),
+        )?;
 
         if let Some(employment_status) = employment_status {
             self.employment_status = employment_status;
         }
         self.skills = normalize_list(skills, 12)?;
         self.service_areas = normalize_list(service_areas, 12)?;
+        self.training_records = normalize_list(training_records, 12)?;
+        self.certificates = normalize_list(certificates, 12)?;
+        if let Some(health_status) = health_status {
+            self.health_status = health_status;
+        }
         self.employee_note = employee_note.and_then(|value| {
             let trimmed = value.trim();
             if trimmed.is_empty() {
@@ -274,6 +335,9 @@ impl User {
         employment_status: EmploymentStatus,
         skills: Vec<String>,
         service_areas: Vec<String>,
+        training_records: Vec<String>,
+        certificates: Vec<String>,
+        health_status: HealthStatus,
         employee_note: Option<String>,
         joined_at: Option<DateTime<Utc>>,
         avatar_url: Option<String>,
@@ -295,8 +359,18 @@ impl User {
             employment_status,
             skills,
             service_areas,
+            training_records,
+            certificates,
+            health_status,
             employee_note,
             joined_at,
+            completed_service_count: None,
+            feedback_count: None,
+            average_rating: None,
+            after_sales_case_count: None,
+            complaint_case_count: None,
+            refund_case_count: None,
+            rework_count: None,
             avatar_url,
             last_login_at,
             email_verified_at,
@@ -309,10 +383,14 @@ impl User {
 fn validate_profile_fields(
     skills: &[String],
     service_areas: &[String],
+    training_records: &[String],
+    certificates: &[String],
     employee_note: Option<&str>,
 ) -> Result<(), String> {
     let _ = normalize_list(skills.to_vec(), 12)?;
     let _ = normalize_list(service_areas.to_vec(), 12)?;
+    let _ = normalize_list(training_records.to_vec(), 12)?;
+    let _ = normalize_list(certificates.to_vec(), 12)?;
     if let Some(note) = employee_note {
         if note.chars().count() > 500 {
             return Err("employee_note length cannot exceed 500".to_string());
@@ -363,6 +441,16 @@ mod tests {
     }
 
     #[test]
+    fn employee_dispatch_requires_healthy_status() {
+        let mut user = User::new("worker".to_string(), "hash".to_string(), None, None);
+        user.set_role("user".to_string());
+        assert!(user.can_be_dispatched());
+
+        user.health_status = HealthStatus::Attention;
+        assert!(!user.can_be_dispatched());
+    }
+
+    #[test]
     fn employee_profile_normalizes_skill_lists() {
         let mut user = User::new("worker".to_string(), "hash".to_string(), None, None);
         user.update_employee_profile(
@@ -373,6 +461,9 @@ mod tests {
                 " 深度保洁 ".to_string(),
             ],
             vec!["朝阳".to_string(), "海淀".to_string()],
+            vec!["岗前培训".to_string()],
+            vec!["母婴护理证".to_string()],
+            Some(HealthStatus::Healthy),
             Some("  备注  ".to_string()),
             None,
         )
@@ -386,6 +477,9 @@ mod tests {
             user.service_areas,
             vec!["朝阳".to_string(), "海淀".to_string()]
         );
+        assert_eq!(user.training_records, vec!["岗前培训".to_string()]);
+        assert_eq!(user.certificates, vec!["母婴护理证".to_string()]);
+        assert_eq!(user.health_status, HealthStatus::Healthy);
         assert_eq!(user.employee_note.as_deref(), Some("备注"));
     }
 }

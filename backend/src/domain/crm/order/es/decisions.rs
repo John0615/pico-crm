@@ -298,6 +298,9 @@ pub struct UpdateOrderSettlementDecision {
     order_uuid: String,
     settlement_status: SettlementStatus,
     settlement_note: Option<String>,
+    paid_amount_cents: Option<i64>,
+    payment_method: Option<String>,
+    paid_at: Option<DateTime<Utc>>,
     updated_at: DateTime<Utc>,
     operator_uuid: Option<String>,
 }
@@ -308,6 +311,9 @@ impl UpdateOrderSettlementDecision {
         order_uuid: impl Into<String>,
         settlement_status: SettlementStatus,
         settlement_note: Option<String>,
+        paid_amount_cents: Option<i64>,
+        payment_method: Option<String>,
+        paid_at: Option<DateTime<Utc>>,
         updated_at: DateTime<Utc>,
         operator_uuid: Option<String>,
     ) -> Self {
@@ -316,6 +322,9 @@ impl UpdateOrderSettlementDecision {
             order_uuid: order_uuid.into(),
             settlement_status,
             settlement_note,
+            paid_amount_cents,
+            payment_method,
+            paid_at,
             updated_at,
             operator_uuid,
         }
@@ -332,9 +341,14 @@ impl Decision for UpdateOrderSettlementDecision {
     }
 
     fn process(&self, state: &Self::StateQuery) -> Result<Vec<Self::Event>, Self::Error> {
-        if !state.exists {
-            return Err(format!("order {} not found", self.order_uuid));
-        }
+        let mut order = state.to_domain()?;
+        order.update_settlement(
+            self.settlement_status,
+            self.settlement_note.clone(),
+            self.paid_amount_cents,
+            self.payment_method.clone(),
+            self.paid_at,
+        )?;
 
         Ok(vec![OrderEventEnvelope::OrderSettlementUpdated {
             tenant_schema: self.tenant_schema.clone(),
@@ -342,6 +356,9 @@ impl Decision for UpdateOrderSettlementDecision {
             operator_uuid: self.operator_uuid.clone(),
             settlement_status: self.settlement_status.as_str().to_string(),
             settlement_note: self.settlement_note.clone(),
+            paid_amount_cents: self.paid_amount_cents,
+            payment_method: self.payment_method.clone(),
+            paid_at: self.paid_at,
             updated_at: self.updated_at,
         }])
     }
@@ -372,6 +389,9 @@ mod tests {
             completed_at: None,
             settlement_status: SettlementStatus::Unsettled,
             amount_cents: 0,
+            paid_amount_cents: None,
+            payment_method: None,
+            paid_at: None,
             notes: Some("new".to_string()),
             dispatch_note: None,
             settlement_note: None,
@@ -471,5 +491,32 @@ mod tests {
                 None,
             ))
             .then_err("invalid order status transition: pending -> completed".to_string());
+    }
+
+    #[test]
+    fn it_updates_order_settlement_with_payment_fields() {
+        TestHarness::given([seed_created_event("tenant_a", &sample_order(), None)])
+            .when(UpdateOrderSettlementDecision::new(
+                "tenant_a",
+                "order-1",
+                SettlementStatus::Settled,
+                Some("wechat paid".to_string()),
+                Some(29900),
+                Some("wechat".to_string()),
+                Some(ts(2)),
+                ts(2),
+                None,
+            ))
+            .then([OrderEventEnvelope::OrderSettlementUpdated {
+                tenant_schema: "tenant_a".to_string(),
+                order_uuid: "order-1".to_string(),
+                operator_uuid: None,
+                settlement_status: SettlementStatus::Settled.as_str().to_string(),
+                settlement_note: Some("wechat paid".to_string()),
+                paid_amount_cents: Some(29900),
+                payment_method: Some("wechat".to_string()),
+                paid_at: Some(ts(2)),
+                updated_at: ts(2),
+            }]);
     }
 }

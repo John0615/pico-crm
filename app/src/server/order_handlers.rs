@@ -12,6 +12,7 @@ mod ssr {
     pub use backend::application::queries::crm::order_service::OrderQueryService;
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::queries::crm::order_query_impl::SeaOrmOrderQuery;
+    pub use backend::infrastructure::queries::crm::service_catalog_query_impl::SeaOrmServiceCatalogQuery;
     pub use backend::infrastructure::queries::crm::service_request_query_impl::SeaOrmServiceRequestQuery;
     pub use backend::infrastructure::repositories::crm::order_repository_impl::SeaOrmOrderRepository;
     pub use backend::infrastructure::repositories::crm::schedule_repository_impl::SeaOrmScheduleRepository;
@@ -124,9 +125,17 @@ pub async fn create_order_from_request(
     let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), schema_name.clone());
+    let service_catalog_query =
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), schema_name.clone());
-    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
+    let service = OrderAppService::new(
+        order_repo,
+        request_query,
+        request_repo,
+        schedule_repo,
+        service_catalog_query,
+    );
 
     let result = service
         .create_from_request(payload, Some(current_user.uuid))
@@ -160,9 +169,17 @@ pub async fn update_order(
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let service_catalog_query =
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
+    let service = OrderAppService::new(
+        order_repo,
+        request_query,
+        request_repo,
+        schedule_repo,
+        service_catalog_query,
+    );
 
     service
         .update_order(uuid, payload, Some(current_user.uuid))
@@ -192,9 +209,17 @@ pub async fn cancel_order(
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let service_catalog_query =
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
+    let service = OrderAppService::new(
+        order_repo,
+        request_query,
+        request_repo,
+        schedule_repo,
+        service_catalog_query,
+    );
 
     service
         .cancel_order(uuid, payload, Some(current_user.uuid))
@@ -224,9 +249,17 @@ pub async fn update_order_status(
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let service_catalog_query =
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
+    let service = OrderAppService::new(
+        order_repo,
+        request_query,
+        request_repo,
+        schedule_repo,
+        service_catalog_query,
+    );
 
     let result = service
         .update_status(uuid, payload, Some(current_user.uuid))
@@ -257,9 +290,17 @@ pub async fn update_order_assignment(
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let service_catalog_query =
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
+    let service = OrderAppService::new(
+        order_repo,
+        request_query,
+        request_repo,
+        schedule_repo,
+        service_catalog_query,
+    );
 
     let result = service
         .update_assignment(uuid, payload, Some(current_user.uuid))
@@ -290,9 +331,17 @@ pub async fn update_order_settlement(
         SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_query =
         SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let service_catalog_query =
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
     let request_repo =
         SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
-    let service = OrderAppService::new(order_repo, request_query, request_repo, schedule_repo);
+    let service = OrderAppService::new(
+        order_repo,
+        request_query,
+        request_repo,
+        schedule_repo,
+        service_catalog_query,
+    );
 
     let result = service
         .update_settlement(uuid, payload, Some(current_user.uuid))

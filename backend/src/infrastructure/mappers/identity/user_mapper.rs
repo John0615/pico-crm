@@ -1,4 +1,4 @@
-use crate::domain::identity::user::{EmploymentStatus, Status, User};
+use crate::domain::identity::user::{EmploymentStatus, HealthStatus, Status, User};
 use crate::infrastructure::entity::users::{ActiveModel, Model};
 use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveValue, IntoActiveModel};
@@ -28,6 +28,9 @@ impl UserMapper {
             employment_status: ActiveValue::Set(user.employment_status.as_str().to_string()),
             skills: ActiveValue::Set(Json::from(json!(user.skills))),
             service_areas: ActiveValue::Set(Json::from(json!(user.service_areas))),
+            training_records: ActiveValue::Set(Json::from(json!(user.training_records))),
+            certificates: ActiveValue::Set(Json::from(json!(user.certificates))),
+            health_status: ActiveValue::Set(user.health_status.as_str().to_string()),
             employee_note: ActiveValue::Set(user.employee_note),
             joined_at: ActiveValue::Set(user.joined_at),
             avatar_url: ActiveValue::Set(user.avatar_url),
@@ -46,6 +49,8 @@ impl UserMapper {
         };
         let employment_status =
             EmploymentStatus::parse(&model.employment_status).unwrap_or(EmploymentStatus::Active);
+        let health_status =
+            HealthStatus::parse(&model.health_status).unwrap_or(HealthStatus::Healthy);
 
         let role = if model.is_admin.unwrap_or(false) {
             "admin".to_string()
@@ -66,6 +71,9 @@ impl UserMapper {
             employment_status,
             json_to_vec(&model.skills),
             json_to_vec(&model.service_areas),
+            json_to_vec(&model.training_records),
+            json_to_vec(&model.certificates),
+            health_status,
             model.employee_note,
             model.joined_at,
             model.avatar_url,
@@ -97,6 +105,9 @@ impl UserMapper {
             ActiveValue::Set(user.employment_status.as_str().to_string());
         active_model.skills = ActiveValue::Set(Json::from(json!(user.skills)));
         active_model.service_areas = ActiveValue::Set(Json::from(json!(user.service_areas)));
+        active_model.training_records = ActiveValue::Set(Json::from(json!(user.training_records)));
+        active_model.certificates = ActiveValue::Set(Json::from(json!(user.certificates)));
+        active_model.health_status = ActiveValue::Set(user.health_status.as_str().to_string());
         active_model.employee_note = ActiveValue::Set(user.employee_note);
         active_model.joined_at = ActiveValue::Set(user.joined_at);
         active_model.avatar_url = ActiveValue::Set(user.avatar_url);

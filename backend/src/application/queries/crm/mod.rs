@@ -1,5 +1,10 @@
+pub mod after_sales_record_service;
+pub mod after_sales_rework_service;
+pub mod after_sales_service;
 pub mod contact_follow_record_service;
 pub mod contact_service;
+pub mod order_feedback_service;
 pub mod order_service;
 pub mod schedule_service;
+pub mod service_catalog_service;
 pub mod service_request_service;

@@ -1,4 +1,6 @@
-use crate::domain::identity::user::{EmploymentStatus, User as DomainUser, UserRepository};
+use crate::domain::identity::user::{
+    EmploymentStatus, HealthStatus, User as DomainUser, UserRepository,
+};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use shared::user::{CreateUserRequest, User};
 
@@ -44,6 +46,9 @@ impl<R: UserRepository> UserCommandService<R> {
             employment_status,
             skills,
             service_areas,
+            training_records,
+            certificates,
+            health_status,
             employee_note,
             joined_at,
             avatar_url,
@@ -67,6 +72,9 @@ impl<R: UserRepository> UserCommandService<R> {
             Some(parse_employment_status(employment_status.as_deref())?),
             skills,
             service_areas,
+            training_records,
+            certificates,
+            Some(parse_health_status(health_status.as_deref())?),
             employee_note,
             parse_optional_datetime(joined_at.as_deref())?,
         )?;
@@ -130,6 +138,9 @@ impl<R: UserRepository> UserCommandService<R> {
             employment_status,
             skills,
             service_areas,
+            training_records,
+            certificates,
+            health_status,
             employee_note,
             joined_at,
             avatar_url,
@@ -149,6 +160,9 @@ impl<R: UserRepository> UserCommandService<R> {
             Some(parse_employment_status(employment_status.as_deref())?),
             skills,
             service_areas,
+            training_records,
+            certificates,
+            Some(parse_health_status(health_status.as_deref())?),
             employee_note,
             parse_optional_datetime(joined_at.as_deref())?,
         )?;
@@ -235,6 +249,10 @@ impl<R: UserRepository> UserCommandService<R> {
 
 fn parse_employment_status(value: Option<&str>) -> Result<EmploymentStatus, String> {
     EmploymentStatus::parse(value.unwrap_or("active").trim())
+}
+
+fn parse_health_status(value: Option<&str>) -> Result<HealthStatus, String> {
+    HealthStatus::parse(value.unwrap_or("healthy").trim())
 }
 
 fn parse_optional_datetime(value: Option<&str>) -> Result<Option<DateTime<Utc>>, String> {

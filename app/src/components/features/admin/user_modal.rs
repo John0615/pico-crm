@@ -34,6 +34,9 @@ where
             employment_status: optional_field_value(&fields, "employment_status"),
             skills: parse_list_input(&field_value(&fields, "skills")),
             service_areas: parse_list_input(&field_value(&fields, "service_areas")),
+            training_records: parse_list_input(&field_value(&fields, "training_records")),
+            certificates: parse_list_input(&field_value(&fields, "certificates")),
+            health_status: optional_field_value(&fields, "health_status"),
             employee_note: optional_field_value(&fields, "employee_note"),
             joined_at: optional_field_value(&fields, "joined_at"),
             avatar_url: (!avatar.is_empty()).then_some(avatar),
@@ -177,6 +180,41 @@ fn build_user_form_fields(
             }))),
         },
         FormField {
+            name: "training_records".to_string(),
+            label: "培训记录".to_string(),
+            field_type: FieldType::Text,
+            required: false,
+            value: ArcRwSignal::new(
+                user.map(|u| u.training_records.join(", "))
+                    .unwrap_or_default(),
+            ),
+            placeholder: Some("多个培训记录用逗号分隔".into()),
+            error_message: ArcRwSignal::new(None),
+            validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
+                if parse_list_input(val).len() > 12 {
+                    Err("最多输入12条培训记录".into())
+                } else {
+                    Ok(())
+                }
+            }))),
+        },
+        FormField {
+            name: "certificates".to_string(),
+            label: "证书".to_string(),
+            field_type: FieldType::Text,
+            required: false,
+            value: ArcRwSignal::new(user.map(|u| u.certificates.join(", ")).unwrap_or_default()),
+            placeholder: Some("多个证书用逗号分隔".into()),
+            error_message: ArcRwSignal::new(None),
+            validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
+                if parse_list_input(val).len() > 12 {
+                    Err("最多输入12个证书".into())
+                } else {
+                    Ok(())
+                }
+            }))),
+        },
+        FormField {
             name: "service_areas".to_string(),
             label: "服务范围".to_string(),
             field_type: FieldType::Text,
@@ -191,6 +229,20 @@ fn build_user_form_fields(
                     Ok(())
                 }
             }))),
+        },
+        FormField {
+            name: "health_status".to_string(),
+            label: "健康状态".to_string(),
+            field_type: FieldType::Select(health_status_options()),
+            required: true,
+            value: ArcRwSignal::new(
+                user.map(|u| u.health_status.clone())
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or_else(|| "healthy".to_string()),
+            ),
+            placeholder: None,
+            error_message: ArcRwSignal::new(None),
+            validation: None,
         },
         FormField {
             name: "employee_note".to_string(),
@@ -259,6 +311,14 @@ fn employment_status_options() -> Vec<(String, String)> {
         ("active".to_string(), "在岗".to_string()),
         ("on_leave".to_string(), "休假".to_string()),
         ("resigned".to_string(), "离职".to_string()),
+    ]
+}
+
+fn health_status_options() -> Vec<(String, String)> {
+    vec![
+        ("healthy".to_string(), "健康".to_string()),
+        ("attention".to_string(), "需关注".to_string()),
+        ("expired".to_string(), "已过期".to_string()),
     ]
 }
 

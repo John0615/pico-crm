@@ -17,6 +17,8 @@ impl OrderMapper {
             uuid: entity.uuid.to_string(),
             request_id: entity.request_id.map(|value| value.to_string()),
             customer_uuid: entity.customer_uuid.map(|value| value.to_string()),
+            service_catalog_uuid: None,
+            service_catalog_name: None,
             customer_name: None,
             scheduled_start_at: entity.scheduled_start_at.map(parse_date_time_to_string),
             scheduled_end_at: entity.scheduled_end_at.map(parse_date_time_to_string),
@@ -25,6 +27,9 @@ impl OrderMapper {
             completed_at: entity.completed_at.map(parse_date_time_to_string),
             settlement_status: entity.settlement_status,
             amount_cents: entity.amount_cents,
+            paid_amount_cents: entity.paid_amount_cents,
+            payment_method: entity.payment_method,
+            paid_at: entity.paid_at.map(parse_date_time_to_string),
             notes: entity.notes,
             dispatch_note: entity.dispatch_note,
             settlement_note: entity.settlement_note,
@@ -48,6 +53,9 @@ impl OrderMapper {
             completed_at: entity.completed_at,
             settlement_status,
             amount_cents: entity.amount_cents,
+            paid_amount_cents: entity.paid_amount_cents,
+            payment_method: entity.payment_method,
+            paid_at: entity.paid_at,
             notes: entity.notes,
             dispatch_note: entity.dispatch_note,
             settlement_note: entity.settlement_note,
@@ -67,6 +75,9 @@ impl OrderMapper {
             cancellation_reason: Set(order.cancellation_reason),
             completed_at: Set(order.completed_at),
             amount_cents: Set(order.amount_cents),
+            paid_amount_cents: Set(order.paid_amount_cents),
+            payment_method: Set(order.payment_method),
+            paid_at: Set(order.paid_at),
             notes: Set(order.notes),
             request_id: Set(order
                 .request_id
@@ -133,10 +144,16 @@ impl OrderMapper {
         original: Model,
         settlement_status: SettlementStatus,
         settlement_note: Option<String>,
+        paid_amount_cents: Option<i64>,
+        payment_method: Option<String>,
+        paid_at: Option<DateTime<Utc>>,
     ) -> ActiveModel {
         let mut active = original.into_active_model();
         active.settlement_status = Set(settlement_status.as_str().to_string());
         active.settlement_note = Set(settlement_note);
+        active.paid_amount_cents = Set(paid_amount_cents);
+        active.payment_method = Set(payment_method);
+        active.paid_at = Set(paid_at);
         active.updated_at = Set(Utc::now());
         active
     }

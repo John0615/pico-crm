@@ -12,6 +12,12 @@ use crate::infrastructure::entity::order_change_logs::{
     Column as OrderChangeLogColumn, Entity as OrderChangeLogEntity,
 };
 use crate::infrastructure::entity::orders::{Column, Entity};
+use crate::infrastructure::entity::service_catalogs::{
+    Column as ServiceCatalogColumn, Entity as ServiceCatalogEntity,
+};
+use crate::infrastructure::entity::service_requests::{
+    Column as ServiceRequestColumn, Entity as ServiceRequestEntity,
+};
 use crate::infrastructure::mappers::crm::order_mapper::OrderMapper;
 use crate::infrastructure::tenant::with_tenant_txn;
 use crate::infrastructure::utils::parse_date_time_to_string;
@@ -60,6 +66,13 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                         }
                     }
 
+                    if let Some(settlement_status) = query.settlement_status {
+                        if !settlement_status.is_empty() {
+                            condition =
+                                condition.add(Column::SettlementStatus.eq(settlement_status));
+                        }
+                    }
+
                     if let Some(customer_uuid) = query.customer_uuid {
                         if !customer_uuid.is_empty() {
                             let customer_uuid = Uuid::parse_str(&customer_uuid)
@@ -95,6 +108,8 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                         .iter()
                         .filter_map(|model| model.customer_uuid)
                         .collect();
+                    let request_ids: HashSet<Uuid> =
+                        models.iter().filter_map(|model| model.request_id).collect();
 
                     let mut customer_map: HashMap<Uuid, String> = HashMap::new();
                     if !customer_ids.is_empty() {
@@ -108,13 +123,55 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                         }
                     }
 
+                    let mut request_service_catalog_map: HashMap<Uuid, Option<Uuid>> =
+                        HashMap::new();
+                    if !request_ids.is_empty() {
+                        let requests = ServiceRequestEntity::find()
+                            .filter(ServiceRequestColumn::Uuid.is_in(request_ids.clone()))
+                            .all(txn)
+                            .await
+                            .map_err(|e| format!("query service requests error: {}", e))?;
+                        for request in requests {
+                            request_service_catalog_map
+                                .insert(request.uuid, request.service_catalog_uuid);
+                        }
+                    }
+
+                    let service_catalog_ids: HashSet<Uuid> = request_service_catalog_map
+                        .values()
+                        .filter_map(|value| *value)
+                        .collect();
+                    let mut service_catalog_map: HashMap<Uuid, String> = HashMap::new();
+                    if !service_catalog_ids.is_empty() {
+                        let catalogs = ServiceCatalogEntity::find()
+                            .filter(ServiceCatalogColumn::Uuid.is_in(service_catalog_ids.clone()))
+                            .all(txn)
+                            .await
+                            .map_err(|e| format!("query service catalogs error: {}", e))?;
+                        for catalog in catalogs {
+                            service_catalog_map.insert(catalog.uuid, catalog.name);
+                        }
+                    }
+
                     let items = models
                         .into_iter()
                         .map(|model| {
                             let customer_uuid = model.customer_uuid;
+                            let request_id = model.request_id;
                             let mut view = OrderMapper::to_view(model);
                             if let Some(customer_uuid) = customer_uuid {
                                 view.customer_name = customer_map.get(&customer_uuid).cloned();
+                            }
+                            if let Some(request_id) = request_id {
+                                if let Some(service_catalog_uuid) = request_service_catalog_map
+                                    .get(&request_id)
+                                    .and_then(|value| *value)
+                                {
+                                    view.service_catalog_uuid =
+                                        Some(service_catalog_uuid.to_string());
+                                    view.service_catalog_name =
+                                        service_catalog_map.get(&service_catalog_uuid).cloned();
+                                }
                             }
                             view
                         })
@@ -156,8 +213,36 @@ impl DomainOrderQuery for SeaOrmOrderQuery {
                         None => None,
                     };
 
+                    let service_catalog = match model.request_id {
+                        Some(request_id) => {
+                            let request = ServiceRequestEntity::find()
+                                .filter(ServiceRequestColumn::Uuid.eq(request_id))
+                                .one(txn)
+                                .await
+                                .map_err(|e| format!("query service request error: {}", e))?;
+                            match request.and_then(|value| value.service_catalog_uuid) {
+                                Some(service_catalog_uuid) => {
+                                    let item = ServiceCatalogEntity::find()
+                                        .filter(ServiceCatalogColumn::Uuid.eq(service_catalog_uuid))
+                                        .one(txn)
+                                        .await
+                                        .map_err(|e| {
+                                            format!("query service catalog error: {}", e)
+                                        })?;
+                                    item.map(|item| (service_catalog_uuid, item.name))
+                                }
+                                None => None,
+                            }
+                        }
+                        None => None,
+                    };
+
                     let mut view = OrderMapper::to_view(model);
                     view.customer_name = customer_name;
+                    if let Some((service_catalog_uuid, service_catalog_name)) = service_catalog {
+                        view.service_catalog_uuid = Some(service_catalog_uuid.to_string());
+                        view.service_catalog_name = Some(service_catalog_name);
+                    }
                     Ok(Some(view))
                 })
             })

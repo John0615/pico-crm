@@ -22,6 +22,9 @@ pub struct Model {
     pub employment_status: String,
     pub skills: Json,
     pub service_areas: Json,
+    pub training_records: Json,
+    pub certificates: Json,
+    pub health_status: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub employee_note: Option<String>,
     pub joined_at: Option<DateTime<Utc>>,

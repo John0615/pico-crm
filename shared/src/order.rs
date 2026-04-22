@@ -5,6 +5,9 @@ pub struct Order {
     pub uuid: String,
     pub request_id: Option<String>,
     pub customer_uuid: Option<String>,
+    pub service_catalog_uuid: Option<String>,
+    #[serde(default)]
+    pub service_catalog_name: Option<String>,
     #[serde(default)]
     pub customer_name: Option<String>,
     pub scheduled_start_at: Option<String>,
@@ -14,6 +17,9 @@ pub struct Order {
     pub completed_at: Option<String>,
     pub settlement_status: String,
     pub amount_cents: i64,
+    pub paid_amount_cents: Option<i64>,
+    pub payment_method: Option<String>,
+    pub paid_at: Option<String>,
     pub notes: Option<String>,
     pub dispatch_note: Option<String>,
     pub settlement_note: Option<String>,
@@ -56,6 +62,9 @@ pub struct UpdateOrderAssignment {
 pub struct UpdateOrderSettlement {
     pub settlement_status: String,
     pub settlement_note: Option<String>,
+    pub paid_amount_cents: Option<i64>,
+    pub payment_method: Option<String>,
+    pub paid_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -69,12 +78,31 @@ pub struct OrderChangeLogDto {
     pub created_at: String,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct OrderFeedback {
+    pub uuid: String,
+    pub order_uuid: String,
+    pub user_uuid: Option<String>,
+    #[serde(default)]
+    pub user_name: Option<String>,
+    pub rating: Option<i32>,
+    pub content: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct CreateOrderFeedbackRequest {
+    pub rating: Option<i32>,
+    pub content: String,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OrderQuery {
     pub page: u64,
     pub page_size: u64,
     pub status: Option<String>,
     pub statuses: Option<Vec<String>>,
+    pub settlement_status: Option<String>,
     pub customer_uuid: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,

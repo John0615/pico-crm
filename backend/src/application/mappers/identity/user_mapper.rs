@@ -1,5 +1,5 @@
 use crate::application::utils::parse_utc_time_to_string;
-use crate::domain::identity::user::{EmploymentStatus, Status, User as DomainUser};
+use crate::domain::identity::user::{EmploymentStatus, HealthStatus, Status, User as DomainUser};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use shared::user::{CreateUserRequest, User};
 
@@ -22,8 +22,18 @@ impl From<DomainUser> for User {
             employment_status: user.employment_status.as_str().to_string(),
             skills: user.skills,
             service_areas: user.service_areas,
+            training_records: user.training_records,
+            certificates: user.certificates,
+            health_status: user.health_status.as_str().to_string(),
             employee_note: user.employee_note,
             joined_at: user.joined_at.map(parse_utc_time_to_string),
+            completed_service_count: user.completed_service_count,
+            feedback_count: user.feedback_count,
+            average_rating: user.average_rating,
+            after_sales_case_count: user.after_sales_case_count,
+            complaint_case_count: user.complaint_case_count,
+            refund_case_count: user.refund_case_count,
+            rework_count: user.rework_count,
             avatar_url: user.avatar_url,
             last_login_at: user.last_login_at.map(parse_utc_time_to_string),
             email_verified_at: user.email_verified_at.map(parse_utc_time_to_string),
@@ -55,10 +65,18 @@ impl From<CreateUserRequest> for DomainUser {
             .as_deref()
             .and_then(|value| EmploymentStatus::parse(value).ok())
             .unwrap_or(EmploymentStatus::Active);
+        let health_status = request
+            .health_status
+            .as_deref()
+            .and_then(|value| HealthStatus::parse(value).ok())
+            .unwrap_or(HealthStatus::Healthy);
         let _ = user.update_employee_profile(
             Some(employment_status),
             request.skills,
             request.service_areas,
+            request.training_records,
+            request.certificates,
+            Some(health_status),
             request.employee_note,
             parse_datetime(request.joined_at.as_deref()),
         );
@@ -107,6 +125,9 @@ mod tests {
             Some(EmploymentStatus::OnLeave),
             vec!["保洁".to_string(), "深度保洁".to_string()],
             vec!["朝阳".to_string()],
+            vec!["岗前培训".to_string()],
+            vec!["养老护理证".to_string()],
+            Some(HealthStatus::Attention),
             Some("临时请假".to_string()),
             Some(Utc.with_ymd_and_hms(2026, 4, 1, 9, 0, 0).unwrap()),
         )
@@ -119,6 +140,9 @@ mod tests {
             vec!["保洁".to_string(), "深度保洁".to_string()]
         );
         assert_eq!(shared.service_areas, vec!["朝阳".to_string()]);
+        assert_eq!(shared.training_records, vec!["岗前培训".to_string()]);
+        assert_eq!(shared.certificates, vec!["养老护理证".to_string()]);
+        assert_eq!(shared.health_status, "attention");
         assert_eq!(shared.employee_note.as_deref(), Some("临时请假"));
         assert!(shared.joined_at.is_some());
     }

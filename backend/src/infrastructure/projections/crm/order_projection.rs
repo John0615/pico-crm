@@ -62,6 +62,9 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 completed_at,
                 settlement_status,
                 amount_cents,
+                paid_amount_cents,
+                payment_method,
+                paid_at,
                 notes,
                 dispatch_note,
                 settlement_note,
@@ -86,6 +89,9 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                                 cancellation_reason: Set(cancellation_reason),
                                 completed_at: Set(completed_at),
                                 amount_cents: Set(amount_cents),
+                                paid_amount_cents: Set(paid_amount_cents),
+                                payment_method: Set(payment_method),
+                                paid_at: Set(paid_at),
                                 notes: Set(notes),
                                 request_id: Set(parse_optional_uuid(
                                     request_id.as_deref(),
@@ -321,6 +327,9 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 operator_uuid,
                 settlement_status,
                 settlement_note,
+                paid_amount_cents,
+                payment_method,
+                paid_at,
                 updated_at,
             } => {
                 with_tenant_txn(&self.db, &tenant_schema, |txn| {
@@ -341,6 +350,9 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                         let mut active = model.into_active_model();
                         active.settlement_status = Set(settlement_status);
                         active.settlement_note = Set(settlement_note);
+                        active.paid_amount_cents = Set(paid_amount_cents);
+                        active.payment_method = Set(payment_method);
+                        active.paid_at = Set(paid_at);
                         active.updated_at = Set(updated_at);
                         active.event_id = Set(event_id);
                         let updated = active
@@ -485,6 +497,9 @@ fn snapshot_order_model(model: &orders::Model) -> Value {
         "completed_at": model.completed_at.map(|value| value.to_rfc3339()),
         "settlement_status": model.settlement_status,
         "amount_cents": model.amount_cents,
+        "paid_amount_cents": model.paid_amount_cents,
+        "payment_method": model.payment_method,
+        "paid_at": model.paid_at.map(|value| value.to_rfc3339()),
         "notes": model.notes,
         "dispatch_note": model.dispatch_note,
         "settlement_note": model.settlement_note,

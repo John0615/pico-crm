@@ -1,5 +1,10 @@
+pub mod after_sales_mapper;
+pub mod after_sales_record_mapper;
+pub mod after_sales_rework_mapper;
 pub mod contact_follow_record_mapper;
 pub mod contact_mapper;
+pub mod order_feedback_mapper;
 pub mod order_mapper;
 pub mod schedule_mapper;
+pub mod service_catalog_mapper;
 pub mod service_request_mapper;
