@@ -55,4 +55,15 @@ impl<R: ServiceCatalogRepository> ServiceCatalogAppService<R> {
         let updated = self.repo.update_service_catalog(update).await?;
         Ok(updated.into())
     }
+
+    pub async fn delete_service_catalog(&self, uuid: String) -> Result<(), String> {
+        // First check if the catalog is in use
+        let in_use = self.repo.is_service_catalog_in_use(uuid.clone()).await?;
+        if in_use {
+            return Err("该服务项目已被服务需求使用，无法删除".to_string());
+        }
+
+        self.repo.delete_service_catalog(uuid).await?;
+        Ok(())
+    }
 }

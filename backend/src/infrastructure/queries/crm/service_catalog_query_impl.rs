@@ -1,5 +1,5 @@
 use sea_orm::entity::prelude::*;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
 use shared::service_catalog::{ServiceCatalog as SharedServiceCatalog, ServiceCatalogQuery};
 
 use crate::domain::crm::service_catalog::ServiceCatalogQuery as DomainServiceCatalogQuery;
@@ -26,7 +26,7 @@ impl DomainServiceCatalogQuery for SeaOrmServiceCatalogQuery {
     fn list_service_catalogs(
         &self,
         query: ServiceCatalogQuery,
-    ) -> impl std::future::Future<Output = Result<Vec<Self::Result>, String>> + Send {
+    ) -> impl std::future::Future<Output = Result<(Vec<Self::Result>, u64), String>> + Send {
         let db = self.db.clone();
         let schema_name = self.schema_name.clone();
         async move {
@@ -37,17 +37,29 @@ impl DomainServiceCatalogQuery for SeaOrmServiceCatalogQuery {
                         select = select.filter(ServiceCatalogColumn::IsActive.eq(true));
                     }
 
-                    let items = select
+                    select = select
                         .order_by_asc(ServiceCatalogColumn::SortOrder)
-                        .order_by_asc(ServiceCatalogColumn::InsertedAt)
-                        .all(txn)
+                        .order_by_asc(ServiceCatalogColumn::InsertedAt);
+
+                    let paginator = select.paginate(txn, query.page_size);
+
+                    let items = paginator
+                        .fetch_page(query.page - 1)
                         .await
                         .map_err(|e| format!("query service catalogs error: {}", e))?;
 
-                    Ok(items
-                        .into_iter()
-                        .map(ServiceCatalogMapper::to_view)
-                        .collect())
+                    let total = paginator
+                        .num_items()
+                        .await
+                        .map_err(|e| format!("count service catalogs error: {}", e))?;
+
+                    Ok((
+                        items
+                            .into_iter()
+                            .map(ServiceCatalogMapper::to_view)
+                            .collect(),
+                        total,
+                    ))
                 })
             })
             .await

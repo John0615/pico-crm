@@ -8,7 +8,7 @@ pub trait ServiceCatalogQuery: Send + Sync {
     fn list_service_catalogs(
         &self,
         query: ServiceCatalogQueryParams,
-    ) -> impl std::future::Future<Output = Result<Vec<Self::Result>, String>> + Send;
+    ) -> impl std::future::Future<Output = Result<(Vec<Self::Result>, u64), String>> + Send;
 
     fn get_service_catalog(
         &self,

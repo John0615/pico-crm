@@ -8,6 +8,8 @@ use crate::domain::crm::service_catalog::{
 use crate::infrastructure::entity::service_catalogs::{
     Column as ServiceCatalogColumn, Entity as ServiceCatalogEntity,
 };
+use crate::infrastructure::entity::service_requests::Column as ServiceRequestColumn;
+use crate::infrastructure::entity::service_requests::Entity as ServiceRequestEntity;
 use crate::infrastructure::mappers::crm::service_catalog_mapper::ServiceCatalogMapper;
 use crate::infrastructure::tenant::with_tenant_txn;
 
@@ -69,6 +71,59 @@ impl ServiceCatalogRepository for SeaOrmServiceCatalogRepository {
                         .await
                         .map_err(|e| format!("update service catalog error: {}", e))?;
                     Ok(ServiceCatalogMapper::to_domain(updated))
+                })
+            })
+            .await
+        }
+    }
+
+    fn delete_service_catalog(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<(), String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        async move {
+            with_tenant_txn(&db, &schema_name, |txn| {
+                Box::pin(async move {
+                    let uuid = Uuid::parse_str(&uuid)
+                        .map_err(|e| format!("invalid service catalog uuid: {}", e))?;
+                    let entity = ServiceCatalogEntity::find_by_id(uuid)
+                        .one(txn)
+                        .await
+                        .map_err(|e| format!("query service catalog error: {}", e))?
+                        .ok_or_else(|| "service catalog not found".to_string())?;
+
+                    let active: crate::infrastructure::entity::service_catalogs::ActiveModel =
+                        entity.into();
+                    active
+                        .delete(txn)
+                        .await
+                        .map_err(|e| format!("delete service catalog error: {}", e))?;
+                    Ok(())
+                })
+            })
+            .await
+        }
+    }
+
+    fn is_service_catalog_in_use(
+        &self,
+        uuid: String,
+    ) -> impl std::future::Future<Output = Result<bool, String>> + Send {
+        let db = self.db.clone();
+        let schema_name = self.schema_name.clone();
+        async move {
+            with_tenant_txn(&db, &schema_name, |txn| {
+                Box::pin(async move {
+                    let uuid = Uuid::parse_str(&uuid)
+                        .map_err(|e| format!("invalid service catalog uuid: {}", e))?;
+                    let count = ServiceRequestEntity::find()
+                        .filter(ServiceRequestColumn::ServiceCatalogUuid.eq(uuid))
+                        .count(txn)
+                        .await
+                        .map_err(|e| format!("query service requests error: {}", e))?;
+                    Ok(count > 0)
                 })
             })
             .await

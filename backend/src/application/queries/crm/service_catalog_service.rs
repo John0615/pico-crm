@@ -15,7 +15,7 @@ impl<Q: ServiceCatalogQuery<Result = SharedServiceCatalog>> ServiceCatalogQueryS
     pub async fn fetch_service_catalogs(
         &self,
         query: ServiceCatalogQueryParams,
-    ) -> Result<Vec<SharedServiceCatalog>, String> {
+    ) -> Result<(Vec<SharedServiceCatalog>, u64), String> {
         self.query.list_service_catalogs(query).await
     }
 

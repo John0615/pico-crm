@@ -409,8 +409,8 @@ pub fn SchedulesPage() -> impl IntoView {
     let service_catalogs = Resource::new(
         move || (),
         |_| async move {
-            match call_api(fetch_service_catalogs(Some(true))).await {
-                Ok(items) => items,
+            match call_api(fetch_service_catalogs(1, 1000, Some(true))).await {
+                Ok(result) => result.items,
                 Err(err) => {
                     logging::error!("Error loading service catalogs: {err}");
                     Vec::new()

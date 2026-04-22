@@ -87,14 +87,17 @@ pub async fn create_user(request: CreateUserRequest) -> Result<User, ServerFnErr
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
-    if current_user.is_admin.unwrap_or(false) || current_user.role != "operator" {
+    // 权限：仅允许商户层 operator 或 merchant 进行用户管理（平台 admin 不可直接维护商户员工）
+    if current_user.is_admin.unwrap_or(false)
+        || (current_user.role != "operator" && current_user.role != "merchant")
+    {
         return Err(ServerFnError::new("无权限创建用户".to_string()));
     }
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
+    let Extension(tenant): Extension<TenantContext> = extract().await?;
 
     // 创建repository和service
     let repository = SeaOrmUserRepository::new(db, tenant.schema_name);
@@ -124,6 +127,16 @@ pub async fn update_user(uuid: String, request: CreateUserRequest) -> Result<Use
     use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
     use leptos_axum::extract;
+
+    use shared::user::User;
+
+    // 权限检查：仅允许商户层 operator 或 merchant
+    let Extension(current_user): Extension<User> = extract().await?;
+    if current_user.is_admin.unwrap_or(false)
+        || (current_user.role != "operator" && current_user.role != "merchant")
+    {
+        return Err(ServerFnError::new("无权限更新用户".to_string()));
+    }
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
@@ -159,6 +172,16 @@ pub async fn delete_user(uuid: String) -> Result<(), ServerFnError> {
     use leptos::prelude::*;
     use leptos_axum::extract;
 
+    use shared::user::User;
+
+    // 权限检查：仅允许商户层 operator 或 merchant
+    let Extension(current_user): Extension<User> = extract().await?;
+    if current_user.is_admin.unwrap_or(false)
+        || (current_user.role != "operator" && current_user.role != "merchant")
+    {
+        return Err(ServerFnError::new("无权限删除用户".to_string()));
+    }
+
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
@@ -191,6 +214,16 @@ pub async fn toggle_user_status(uuid: String) -> Result<User, ServerFnError> {
     use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
     use leptos_axum::extract;
+
+    use shared::user::User;
+
+    // 权限检查：仅允许商户层 operator 或 merchant
+    let Extension(current_user): Extension<User> = extract().await?;
+    if current_user.is_admin.unwrap_or(false)
+        || (current_user.role != "operator" && current_user.role != "merchant")
+    {
+        return Err(ServerFnError::new("无权限操作用户状态".to_string()));
+    }
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();

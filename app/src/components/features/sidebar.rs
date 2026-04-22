@@ -38,15 +38,35 @@ pub fn Sidebar() -> impl IntoView {
             .pathname
             .with(|current| current.starts_with("/admin"))
     };
+    let is_biz_config_section = move || {
+        location.pathname.with(|current| current.starts_with("/service-catalog"))
+    };
     let is_merchant_section = move || {
         location.pathname.with(|current| {
             current.starts_with("/contacts")
                 || current.starts_with("/service-requests")
-                || current.starts_with("/service-catalog")
                 || current.starts_with("/orders")
                 || current.starts_with("/schedules")
-                || current.starts_with("/users")
         })
+    };
+    let is_permission_section = move || {
+        location.pathname.with(|current| current.starts_with("/users"))
+    };
+    let permission_dropdown_class = move || {
+        let base = "dropdown relative [--adaptive:none] [--strategy:static] [--auto-close:false]";
+        if is_permission_section() {
+            format!("{base} open")
+        } else {
+            base.to_string()
+        }
+    };
+    let permission_menu_class = move || {
+        let base = "dropdown-menu mt-0 shadow-none dropdown-open:opacity-100 min-w-full w-[calc(100%-0.25rem)] max-w-[calc(100%-0.25rem)] me-1 box-border ms-0 ps-0 before:hidden before:content-none";
+        if is_permission_section() {
+            format!("{base} block")
+        } else {
+            format!("{base} hidden")
+        }
     };
     let admin_dropdown_class = move || {
         let base = "dropdown relative [--adaptive:none] [--strategy:static] [--auto-close:false]";
@@ -59,6 +79,22 @@ pub fn Sidebar() -> impl IntoView {
     let admin_menu_class = move || {
         let base = "dropdown-menu mt-0 shadow-none dropdown-open:opacity-100 min-w-full w-[calc(100%-0.25rem)] max-w-[calc(100%-0.25rem)] me-1 box-border ms-0 ps-0 before:hidden before:content-none";
         if is_admin_section() {
+            format!("{base} block")
+        } else {
+            format!("{base} hidden")
+        }
+    };
+    let biz_config_dropdown_class = move || {
+        let base = "dropdown relative [--adaptive:none] [--strategy:static] [--auto-close:false]";
+        if is_biz_config_section() {
+            format!("{base} open")
+        } else {
+            base.to_string()
+        }
+    };
+    let biz_config_menu_class = move || {
+        let base = "dropdown-menu mt-0 shadow-none dropdown-open:opacity-100 min-w-full w-[calc(100%-0.25rem)] max-w-[calc(100%-0.25rem)] me-1 box-border ms-0 ps-0 before:hidden before:content-none";
+        if is_biz_config_section() {
             format!("{base} block")
         } else {
             format!("{base} hidden")
@@ -155,15 +191,7 @@ pub fn Sidebar() -> impl IntoView {
                                         "预约/需求"
                                     </a>
                                 </li>
-                                <li>
-                                    <a
-                                        href="/service-catalog"
-                                        class=move || if is_active("/service-catalog") { "menu-active w-full" } else { "w-full" }
-                                    >
-                                        <span class="icon-[tabler--box] size-5"></span>
-                                        "服务项目"
-                                    </a>
-                                </li>
+                                
                                 <li>
                                     <a
                                         href="/orders"
@@ -182,6 +210,73 @@ pub fn Sidebar() -> impl IntoView {
                                         "排班管理"
                                     </a>
                                 </li>
+                            </ul>
+                        </li>
+
+                        <li class=move || format!("overlay-minified:hidden {}", biz_config_dropdown_class())>
+                            <button
+                                id="biz-config-dropdown"
+                                type="button"
+                                class=move || {
+                                    if is_biz_config_section() {
+                                        "dropdown-toggle menu-active w-full"
+                                    } else {
+                                        "dropdown-toggle w-full"
+                                    }
+                                }
+                                aria-haspopup="menu"
+                                aria-expanded=move || if is_biz_config_section() { "true" } else { "false" }
+                                aria-label="业务配置"
+                            >
+                                <span class="icon-[tabler--adjustments] size-5"></span>
+                                <span class="overlay-minified:hidden">"业务配置"</span>
+                                <span class="icon-[tabler--chevron-down] dropdown-open:rotate-180 size-4 overlay-minified:hidden"></span>
+                            </button>
+
+                            <ul
+                                class=biz_config_menu_class
+                                role="menu"
+                                aria-orientation="vertical"
+                                aria-labelledby="biz-config-dropdown"
+                            >
+                                <li>
+                                    <a
+                                        href="/service-catalog"
+                                        class=move || if is_active("/service-catalog") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--box] size-5"></span>
+                                        "服务项目"
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class=move || format!("overlay-minified:hidden {}", permission_dropdown_class())>
+                            <button
+                                id="permission-dropdown"
+                                type="button"
+                                class=move || {
+                                    if is_permission_section() {
+                                        "dropdown-toggle menu-active w-full"
+                                    } else {
+                                        "dropdown-toggle w-full"
+                                    }
+                                }
+                                aria-haspopup="menu"
+                                aria-expanded=move || if is_permission_section() { "true" } else { "false" }
+                                aria-label="权限管理"
+                            >
+                                <span class="icon-[tabler--key] size-5"></span>
+                                <span class="overlay-minified:hidden">"权限管理"</span>
+                                <span class="icon-[tabler--chevron-down] dropdown-open:rotate-180 size-4 overlay-minified:hidden"></span>
+                            </button>
+
+                            <ul
+                                class=permission_menu_class
+                                role="menu"
+                                aria-orientation="vertical"
+                                aria-labelledby="permission-dropdown"
+                            >
                                 <li>
                                     <a
                                         href="/users"
@@ -230,15 +325,6 @@ pub fn Sidebar() -> impl IntoView {
                                 </li>
                                 <li>
                                     <a
-                                        href="/service-catalog"
-                                        class=move || if is_active("/service-catalog") { "menu-active w-full" } else { "w-full" }
-                                    >
-                                        <span class="icon-[tabler--box] size-5"></span>
-                                        "服务项目"
-                                    </a>
-                                </li>
-                                <li>
-                                    <a
                                         href="/orders"
                                         class=move || if is_active("/orders") { "menu-active w-full" } else { "w-full" }
                                     >
@@ -255,6 +341,55 @@ pub fn Sidebar() -> impl IntoView {
                                         "排班管理"
                                     </a>
                                 </li>
+                            </ul>
+                        </li>
+
+                        <li class="hidden overlay-minified:block dropdown relative [--adaptive:adaptive] [--strategy:fixed] [--offset:12] [--placement:right-start]">
+                            <button
+                                type="button"
+                                class="dropdown-toggle w-full"
+                                aria-haspopup="menu"
+                                aria-expanded="false"
+                                aria-label="业务配置"
+                            >
+                                <span class="icon-[tabler--adjustments] size-5"></span>
+                                <span class="sr-only">"业务配置"</span>
+                            </button>
+
+                            <ul
+                                class="dropdown-menu absolute left-full top-0 ms-3 shadow-md shadow-base-300/20 hidden min-w-60 w-60 dropdown-open:opacity-100 ms-0 ps-0 before:hidden before:content-none"
+                                role="menu"
+                                aria-orientation="vertical"
+                            >
+                                <li>
+                                    <a
+                                        href="/service-catalog"
+                                        class=move || if is_active("/service-catalog") { "menu-active w-full" } else { "w-full" }
+                                    >
+                                        <span class="icon-[tabler--box] size-5"></span>
+                                        "服务项目"
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="hidden overlay-minified:block dropdown relative [--adaptive:adaptive] [--strategy:fixed] [--offset:12] [--placement:right-start]">
+                            <button
+                                type="button"
+                                class="dropdown-toggle w-full"
+                                aria-haspopup="menu"
+                                aria-expanded="false"
+                                aria-label="权限管理"
+                            >
+                                <span class="icon-[tabler--key] size-5"></span>
+                                <span class="sr-only">"权限管理"</span>
+                            </button>
+
+                            <ul
+                                class="dropdown-menu absolute left-full top-0 ms-3 shadow-md shadow-base-300/20 hidden min-w-60 w-60 dropdown-open:opacity-100 ms-0 ps-0 before:hidden before:content-none"
+                                role="menu"
+                                aria-orientation="vertical"
+                            >
                                 <li>
                                     <a
                                         href="/users"
@@ -397,6 +532,7 @@ pub fn Sidebar() -> impl IntoView {
                                         "平台统计"
                                     </a>
                                 </li>
+                                
                                 <li>
                                     <a
                                         href="/admin/settings"

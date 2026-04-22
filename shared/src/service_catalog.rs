@@ -36,5 +36,7 @@ pub struct UpdateServiceCatalogRequest {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceCatalogQuery {
+    pub page: u64,
+    pub page_size: u64,
     pub active_only: Option<bool>,
 }

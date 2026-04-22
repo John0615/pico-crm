@@ -1,17 +1,23 @@
 use crate::components::ui::modal::{Modal, DETAIL_MODAL_BOX_CLASS};
+use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable};
-use crate::components::ui::toast::{error, success};
+use crate::components::ui::{
+    message_box::delete_confirm,
+    toast::{error, success},
+};
 use crate::server::service_catalog_handlers::{
-    create_service_catalog, fetch_service_catalogs, update_service_catalog,
+    create_service_catalog, delete_service_catalog, fetch_service_catalogs, update_service_catalog,
 };
 use crate::utils::api::call_api;
 use leptos::logging;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_meta::Title;
+use leptos_router::hooks::use_query_map;
 use shared::service_catalog::{
     CreateServiceCatalogRequest, ServiceCatalog, UpdateServiceCatalogRequest,
 };
+use shared::ListResult;
 
 impl Identifiable for ServiceCatalog {
     fn id(&self) -> String {
@@ -21,6 +27,7 @@ impl Identifiable for ServiceCatalog {
 
 #[component]
 pub fn ServiceCatalogsPage() -> impl IntoView {
+    let query = use_query_map();
     let refresh_count = RwSignal::new(0);
     let show_modal = RwSignal::new(false);
     let editing_item: RwSignal<Option<ServiceCatalog>> = RwSignal::new(None);
@@ -33,16 +40,34 @@ pub fn ServiceCatalogsPage() -> impl IntoView {
     let is_active = RwSignal::new(true);
 
     let data = Resource::new(
-        move || refresh_count.get(),
-        |_| async move {
-            let items = call_api(fetch_service_catalogs(None))
+        move || {
+            (
+                refresh_count.get(),
+                query.with(|value| value.clone()),
+            )
+        },
+        |(_, query)| async move {
+            let page = query
+                .get("page")
+                .unwrap_or_default()
+                .parse::<u64>()
+                .unwrap_or(1);
+            let page_size = query
+                .get("page_size")
+                .unwrap_or_default()
+                .parse::<u64>()
+                .unwrap_or(10);
+
+            let result = call_api(fetch_service_catalogs(page, page_size, None))
                 .await
                 .unwrap_or_else(|e| {
                     logging::error!("Error loading service catalogs: {e}");
-                    Vec::new()
+                    ListResult {
+                        items: Vec::new(),
+                        total: 0,
+                    }
                 });
-            let total = items.len() as u64;
-            (items, total)
+            (result.items, result.total)
         },
     );
 
@@ -70,6 +95,26 @@ pub fn ServiceCatalogsPage() -> impl IntoView {
         is_active.set(item.is_active);
         editing_item.set(Some(item));
         show_modal.set(true);
+    };
+
+    let delete_row = move |item: ServiceCatalog| {
+        delete_confirm("删除确认", "确定要删除该服务项目吗？", move |result| {
+            if result {
+                let uuid = item.uuid.clone();
+                spawn_local(async move {
+                    match call_api(delete_service_catalog(uuid)).await {
+                        Ok(_) => {
+                            success("服务项目已删除".to_string());
+                            refresh_count.update(|value| *value += 1);
+                        }
+                        Err(err) => {
+                            logging::error!("Failed to delete service catalog: {:?}", err);
+                            error(format!("删除失败: {}", err));
+                        }
+                    }
+                });
+            }
+        });
     };
 
     let save = move |_| {
@@ -210,24 +255,39 @@ pub fn ServiceCatalogsPage() -> impl IntoView {
                         }
                     </Column>
                     <Column slot:columns prop="actions".to_string() label="操作".to_string() class="text-right">
-                        <div class="flex justify-end gap-1">
-                            {
-                                let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
-                                let item = StoredValue::new(item);
-                                view! {
+                        {
+                            let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
+                            let item_for_edit = StoredValue::new(item.clone());
+                            let item_for_delete = StoredValue::new(item);
+                            view! {
+                                <div class="flex justify-end gap-1">
                                     <button class="btn btn-soft btn-warning btn-xs" on:click=move |_| {
-                                        if let Some(value) = item.with_value(|value| value.clone()) {
+                                        if let Some(value) = item_for_edit.with_value(|v| v.clone()) {
                                             open_edit(value);
                                         }
                                     }>
                                         "编辑"
                                     </button>
-                                }
+                                    <button class="btn btn-soft btn-error btn-xs" on:click=move |_| {
+                                        if let Some(value) = item_for_delete.with_value(|v| v.clone()) {
+                                            delete_row(value);
+                                        }
+                                    }>
+                                        "删除"
+                                    </button>
+                                </div>
                             }
-                        </div>
+                        }
                     </Column>
                 </DaisyTable>
             </div>
+            <Transition>
+                {move || {
+                    data.with(|data| {
+                        data.as_ref().map(|data| view! { <Pagination total_items=data.1 /> })
+                    })
+                }}
+            </Transition>
         </div>
 
         <Modal show=show_modal box_class=DETAIL_MODAL_BOX_CLASS>
