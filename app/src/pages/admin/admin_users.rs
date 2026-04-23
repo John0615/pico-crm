@@ -137,7 +137,7 @@ pub fn AdminUsers() -> impl IntoView {
         <div class="space-y-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 class="text-2xl font-semibold">"员工管理"</h1>
+                    <h1 class="text-2xl font-semibold text-left">"员工管理"</h1>
                     <p class="mt-1 text-sm text-base-content/60">"维护员工技能、服务范围和在岗状态，离职员工默认不出现在列表中"</p>
                 </div>
                 <button
