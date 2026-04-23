@@ -1,6 +1,6 @@
 # Pico-CRM (Housekeeping Edition)
 
-Lightweight, multi-tenant CRM built with Rust and Leptos. The MVP targets the core flow: customers -> orders -> schedules -> completion.
+Lightweight CRM built with Rust and Leptos. The current architecture direction is a single PostgreSQL database with shared tables scoped by `merchant_id`, while the MVP still targets the core flow: customers -> orders -> schedules -> completion.
 
 ## Status
 
@@ -8,10 +8,16 @@ MVP in progress.
 
 ## Highlights
 
-- Single PostgreSQL instance, schema-per-tenant isolation
+- Single PostgreSQL database with shared-table merchant isolation
 - Leptos SSR + Hydration with shared Rust types
 - Clear role boundaries: admin / merchant operator / worker
 - Mobile-first UI with simple interaction patterns
+
+## Architecture Direction
+
+- The project is being simplified away from schema-per-merchant multi-tenancy.
+- The target model is shared business tables with explicit `merchant_id` ownership, role-based access control, and merchant-scoped auditing.
+- The migration plan is documented in `openspec/changes/shared-schema-architecture/`.
 
 ## Tech Stack
 
@@ -65,6 +71,7 @@ cargo leptos build --release --split
 
 - The server loads `.env.{APP_ENV}` (default: `dev`).
 - Migrations are executed on server startup.
+- The repository still contains legacy multi-schema implementation pieces; the target architecture is documented first and will be implemented incrementally.
 
 ### Environment Variables
 
@@ -73,7 +80,7 @@ cargo leptos build --release --split
 - `JWT_SECRET`: JWT signing secret
 - `JWT_EXPIRY_HOURS`: access token expiry (hours)
 - `JWT_REFRESH_EXPIRY_DAYS`: refresh token expiry (days)
-- `TENANT_SCHEMA_PREFIX`: tenant schema prefix (default `merchant_`)
+- `TENANT_SCHEMA_PREFIX`: legacy multi-schema setting, planned for removal during the shared-table migration
 - `UPLOAD_BUCKET` / `UPLOAD_REGION`: object storage config (optional)
 - `SMS_API_KEY`: SMS provider key (optional)
 - `ADMIN_TRIAL_DAYS_DEFAULT`: default trial length (optional)
