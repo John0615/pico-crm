@@ -51,6 +51,7 @@ impl AfterSalesCaseMapper {
 
         Ok(ActiveModel {
             uuid: Set(Uuid::new_v4()),
+            merchant_id: Set(None),
             order_uuid: Set(order_uuid),
             operator_uuid: Set(operator_uuid),
             case_type: Set(case.case_type.trim().to_string()),

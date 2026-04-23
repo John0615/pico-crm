@@ -11,16 +11,16 @@ use crate::infrastructure::entity::after_sales_cases::{
 };
 use crate::infrastructure::mappers::crm::after_sales_mapper::AfterSalesCaseMapper;
 use crate::infrastructure::mappers::crm::after_sales_record_mapper::AfterSalesCaseRecordMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct SeaOrmAfterSalesCaseRecordRepository {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmAfterSalesCaseRecordRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -31,11 +31,14 @@ impl AfterSalesCaseRepository for SeaOrmAfterSalesCaseRecordRepository {
         case: CreateAfterSalesCase,
     ) -> impl std::future::Future<Output = Result<AfterSalesCase, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
-                    let active = AfterSalesCaseMapper::to_active_entity(case)?;
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                    let mut active = AfterSalesCaseMapper::to_active_entity(case)?;
+                    active.merchant_id = sea_orm::ActiveValue::Set(Some(merchant_uuid));
                     let created = active
                         .insert(txn)
                         .await
@@ -53,10 +56,12 @@ impl AfterSalesCaseRepository for SeaOrmAfterSalesCaseRecordRepository {
         record: CreateAfterSalesCaseRecord,
     ) -> impl std::future::Future<Output = Result<AfterSalesCaseRecord, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let case_uuid = Uuid::parse_str(&record.case_uuid)
                         .map_err(|e| format!("invalid case_uuid: {}", e))?;
                     let next_status = record
@@ -65,6 +70,7 @@ impl AfterSalesCaseRepository for SeaOrmAfterSalesCaseRecordRepository {
                         .unwrap_or_else(|| "processing".to_string());
 
                     let case_model = AfterSalesEntity::find()
+                        .filter(AfterSalesColumn::MerchantId.eq(merchant_uuid))
                         .filter(AfterSalesColumn::Uuid.eq(case_uuid))
                         .one(txn)
                         .await
@@ -79,7 +85,8 @@ impl AfterSalesCaseRepository for SeaOrmAfterSalesCaseRecordRepository {
                         .await
                         .map_err(|e| format!("update after sales case status error: {}", e))?;
 
-                    let active = AfterSalesCaseRecordMapper::to_active_entity(record)?;
+                    let mut active = AfterSalesCaseRecordMapper::to_active_entity(record)?;
+                    active.merchant_id = sea_orm::ActiveValue::Set(Some(merchant_uuid));
                     let created = active
                         .insert(txn)
                         .await

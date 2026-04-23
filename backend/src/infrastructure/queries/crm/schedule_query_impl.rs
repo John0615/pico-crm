@@ -11,18 +11,18 @@ use crate::infrastructure::entity::schedules::{
     Column as ScheduleColumn, Entity as ScheduleEntity,
 };
 use crate::infrastructure::mappers::crm::schedule_mapper::ScheduleMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 use shared::schedule::Schedule as SharedSchedule;
 use shared::schedule::ScheduleQuery;
 
 pub struct SeaOrmScheduleQuery {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmScheduleQuery {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -34,43 +34,14 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
         query: ScheduleQuery,
     ) -> impl std::future::Future<Output = Result<(Vec<Self::Result>, u64), String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let mut select = OrderEntity::find().find_also_related(ScheduleEntity);
-                    let mut condition = Condition::all();
-                    condition = condition.add(ScheduleColumn::Uuid.is_not_null());
-
-                    if let Some(status) = query.status {
-                        if !status.is_empty() {
-                            let schedule_status = ScheduleStatus::parse(&status)?;
-                            let mut status_condition = Condition::any();
-                            for value in schedule_status.order_statuses() {
-                                status_condition =
-                                    status_condition.add(OrderColumn::Status.eq(*value));
-                            }
-                            condition = condition.add(status_condition);
-                        }
-                    }
-
-                    if let Some(user_uuid) = query.assigned_user_uuid {
-                        if !user_uuid.is_empty() {
-                            let user_uuid = Uuid::parse_str(&user_uuid)
-                                .map_err(|e| format!("invalid user uuid: {}", e))?;
-                            condition =
-                                condition.add(ScheduleColumn::AssignedUserUuid.eq(user_uuid));
-                        }
-                    }
-
-                    if let Some(start) = query.start_date.as_deref().and_then(parse_datetime) {
-                        condition = condition.add(OrderColumn::ScheduledStartAt.gte(start));
-                    }
-                    if let Some(end) = query.end_date.as_deref().and_then(parse_datetime) {
-                        condition = condition.add(OrderColumn::ScheduledStartAt.lte(end));
-                    }
-
-                    select = select.filter(condition);
+                    select = select.filter(build_schedule_condition(&query, merchant_uuid)?);
 
                     let total = select
                         .clone()
@@ -104,13 +75,16 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<Self::Result>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let order_uuid = Uuid::parse_str(&uuid)
                         .map_err(|e| format!("invalid schedule uuid: {}", e))?;
                     let model = OrderEntity::find()
+                        .filter(OrderColumn::MerchantId.eq(merchant_uuid))
                         .filter(OrderColumn::Uuid.eq(order_uuid))
                         .find_also_related(ScheduleEntity)
                         .one(txn)
@@ -122,6 +96,43 @@ impl DomainScheduleQuery for SeaOrmScheduleQuery {
             .await
         }
     }
+}
+
+fn build_schedule_condition(
+    query: &ScheduleQuery,
+    merchant_uuid: Uuid,
+) -> Result<Condition, String> {
+    let mut condition = Condition::all();
+    condition = condition.add(OrderColumn::MerchantId.eq(merchant_uuid));
+    condition = condition.add(ScheduleColumn::Uuid.is_not_null());
+
+    if let Some(status) = query.status.clone() {
+        if !status.is_empty() {
+            let schedule_status = ScheduleStatus::parse(&status)?;
+            let mut status_condition = Condition::any();
+            for value in schedule_status.order_statuses() {
+                status_condition = status_condition.add(OrderColumn::Status.eq(*value));
+            }
+            condition = condition.add(status_condition);
+        }
+    }
+
+    if let Some(user_uuid) = query.assigned_user_uuid.clone() {
+        if !user_uuid.is_empty() {
+            let user_uuid =
+                Uuid::parse_str(&user_uuid).map_err(|e| format!("invalid user uuid: {}", e))?;
+            condition = condition.add(ScheduleColumn::AssignedUserUuid.eq(user_uuid));
+        }
+    }
+
+    if let Some(start) = query.start_date.as_deref().and_then(parse_datetime) {
+        condition = condition.add(OrderColumn::ScheduledStartAt.gte(start));
+    }
+    if let Some(end) = query.end_date.as_deref().and_then(parse_datetime) {
+        condition = condition.add(OrderColumn::ScheduledStartAt.lte(end));
+    }
+
+    Ok(condition)
 }
 
 fn parse_datetime(value: &str) -> Option<DateTime<Utc>> {
@@ -140,4 +151,35 @@ fn parse_datetime(value: &str) -> Option<DateTime<Utc>> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::{DbBackend, QueryTrait};
+
+    #[test]
+    fn generated_sql_contains_merchant_scope_for_schedule_list() {
+        let merchant_uuid =
+            Uuid::parse_str("11111111-1111-1111-1111-111111111111").expect("valid uuid");
+        let query = ScheduleQuery {
+            page: 1,
+            page_size: 20,
+            status: Some("planned".to_string()),
+            assigned_user_uuid: None,
+            start_date: None,
+            end_date: None,
+        };
+
+        let sql = OrderEntity::find()
+            .find_also_related(ScheduleEntity)
+            .filter(build_schedule_condition(&query, merchant_uuid).expect("condition"))
+            .build(DbBackend::Postgres)
+            .to_string();
+
+        assert!(
+            sql.contains(r#""orders"."merchant_id" = '11111111-1111-1111-1111-111111111111'"#),
+            "sql: {sql}"
+        );
+    }
 }

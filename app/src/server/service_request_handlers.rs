@@ -32,7 +32,7 @@ pub async fn fetch_service_requests(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceRequestQueryService::new(query);
 
     let result = service
@@ -54,7 +54,7 @@ pub async fn get_service_request(uuid: String) -> Result<Option<ServiceRequest>,
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceRequestQueryService::new(query);
 
     let result = service
@@ -79,7 +79,8 @@ pub async fn create_service_request(
     let Extension(current_user): Extension<User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceRequestAppService::new(repo);
 
     let result = service
@@ -103,7 +104,8 @@ pub async fn update_service_request(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceRequestAppService::new(repo);
 
     let result = service
@@ -128,7 +130,8 @@ pub async fn update_service_request_status(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceRequestAppService::new(repo);
 
     let result = service

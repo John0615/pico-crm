@@ -8,6 +8,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
+    pub merchant_id: Option<Uuid>,
     pub customer_uuid: Option<Uuid>,
     pub status: String,
     pub cancellation_reason: Option<String>,

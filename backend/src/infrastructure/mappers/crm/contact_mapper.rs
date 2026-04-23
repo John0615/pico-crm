@@ -61,6 +61,7 @@ impl ContactMapper {
 
         ActiveContactEntity {
             contact_uuid: Set(uuid),
+            merchant_id: Set(None),
             user_name: Set(contact.name),
             phone_number: Set(contact.phone),
             address: Set(contact.address),
@@ -85,6 +86,7 @@ impl ContactMapper {
 
         ActiveContactEntity {
             contact_uuid: Set(uuid),
+            merchant_id: Set(original_entity.merchant_id),
             user_name: Set(update_data.name),
             phone_number: Set(update_data.phone),
             address: Set(update_data.address),

@@ -4,7 +4,7 @@ use crate::{
     domain::crm::contact::{Contact, ContactRepository, UpdateContact},
     infrastructure::entity::contacts::{Column, Entity},
     infrastructure::mappers::crm::contact_mapper::ContactMapper,
-    infrastructure::tenant::with_tenant_txn,
+    infrastructure::tenant::{parse_merchant_uuid, with_shared_txn},
 };
 
 use async_trait::async_trait;
@@ -12,12 +12,12 @@ use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
 
 pub struct SeaOrmContactRepository {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmContactRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -28,11 +28,14 @@ impl ContactRepository for SeaOrmContactRepository {
         contact: Contact,
     ) -> impl Future<Output = Result<Contact, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
-                    let entity = ContactMapper::to_active_entity(contact); // 转换为 Entity
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                    let mut entity = ContactMapper::to_active_entity(contact); // 转换为 Entity
+                    entity.merchant_id = sea_orm::ActiveValue::Set(Some(merchant_uuid));
                     let new_entity = entity
                         .insert(txn)
                         .await
@@ -51,13 +54,16 @@ impl ContactRepository for SeaOrmContactRepository {
         contact: UpdateContact,
     ) -> impl std::future::Future<Output = Result<Contact, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     // 根据 uuid 查询原始数据
                     let uuid = Uuid::parse_str(&contact.uuid).expect("解析uuid失败！");
                     let original_contact = Entity::find()
+                        .filter(Column::MerchantId.eq(merchant_uuid))
                         .filter(Column::ContactUuid.eq(uuid))
                         .one(txn)
                         .await
@@ -86,12 +92,16 @@ impl ContactRepository for SeaOrmContactRepository {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let uuid = Uuid::parse_str(&uuid).expect("解析uuid失败！");
-                    Entity::delete_by_id(uuid)
+                    Entity::delete_many()
+                        .filter(Column::MerchantId.eq(merchant_uuid))
+                        .filter(Column::ContactUuid.eq(uuid))
                         .exec(txn)
                         .await
                         .map_err(|e| format!("删除失败: {}", e))
@@ -113,13 +123,16 @@ impl ContactRepository for SeaOrmContactRepository {
         phone_number: &str,
     ) -> impl std::future::Future<Output = Result<Option<Contact>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         let phone_number = phone_number.to_string();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 let phone_number = phone_number.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let contact = Entity::find()
+                        .filter(Column::MerchantId.eq(merchant_uuid))
                         .filter(Column::PhoneNumber.eq(phone_number))
                         .one(txn)
                         .await

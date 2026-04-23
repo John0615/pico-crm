@@ -1,8 +1,12 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
-use shared::{service_catalog::{
-    CreateServiceCatalogRequest, ServiceCatalog, ServiceCatalogQuery, UpdateServiceCatalogRequest,
-}, ListResult};
+use shared::{
+    service_catalog::{
+        CreateServiceCatalogRequest, ServiceCatalog, ServiceCatalogQuery,
+        UpdateServiceCatalogRequest,
+    },
+    ListResult,
+};
 
 #[cfg(feature = "ssr")]
 mod ssr {
@@ -30,9 +34,13 @@ pub async fn fetch_service_catalogs(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceCatalogQueryService::new(query);
-    let params = ServiceCatalogQuery { page, page_size, active_only };
+    let params = ServiceCatalogQuery {
+        page,
+        page_size,
+        active_only,
+    };
     let (items, total) = service
         .fetch_service_catalogs(params)
         .await
@@ -62,7 +70,8 @@ pub async fn create_service_catalog(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo = SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceCatalogAppService::new(repo);
     service
         .create_service_catalog(payload)
@@ -93,7 +102,8 @@ pub async fn update_service_catalog(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo = SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceCatalogAppService::new(repo);
     service
         .update_service_catalog(uuid, payload)
@@ -121,7 +131,8 @@ pub async fn delete_service_catalog(uuid: String) -> Result<(), ServerFnError> {
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo = SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceCatalogAppService::new(repo);
     service
         .delete_service_catalog(uuid)

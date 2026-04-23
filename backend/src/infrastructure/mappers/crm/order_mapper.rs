@@ -67,6 +67,7 @@ impl OrderMapper {
     pub fn to_active_entity(order: Order) -> ActiveModel {
         ActiveModel {
             uuid: Set(Uuid::parse_str(&order.uuid).expect("Invalid UUID")),
+            merchant_id: Set(None),
             customer_uuid: Set(order
                 .customer_uuid
                 .as_ref()

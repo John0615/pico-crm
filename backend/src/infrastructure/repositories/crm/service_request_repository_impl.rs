@@ -11,14 +11,14 @@ use crate::infrastructure::event_store::service_request::event_store;
 
 pub struct SeaOrmServiceRequestRepository {
     _db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmServiceRequestRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
         Self {
             _db: db,
-            schema_name,
+            merchant_id,
         }
     }
 }
@@ -29,14 +29,14 @@ impl ServiceRequestRepository for SeaOrmServiceRequestRepository {
         &self,
         request: ServiceRequest,
     ) -> impl std::future::Future<Output = Result<String, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let request_uuid = request.uuid.clone();
             let event_store = event_store().await?;
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(CreateServiceRequestDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     request.clone(),
                 ))
                 .await
@@ -49,14 +49,14 @@ impl ServiceRequestRepository for SeaOrmServiceRequestRepository {
         &self,
         request: UpdateServiceRequest,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let updated_at = Utc::now();
             let event_store = event_store().await?;
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(UpdateServiceRequestDecision::new(
-                    schema_name,
+                    merchant_id,
                     request,
                     updated_at,
                 ))
@@ -71,7 +71,7 @@ impl ServiceRequestRepository for SeaOrmServiceRequestRepository {
         uuid: String,
         status: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let next_status = ServiceRequestStatus::parse(&status)?;
             let updated_at = Utc::now();
@@ -79,7 +79,7 @@ impl ServiceRequestRepository for SeaOrmServiceRequestRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(UpdateServiceRequestStatusDecision::new(
-                    schema_name,
+                    merchant_id,
                     uuid,
                     next_status,
                     updated_at,

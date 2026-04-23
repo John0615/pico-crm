@@ -41,7 +41,8 @@ pub async fn fetch_contacts(params: ContactQuery) -> Result<ListResult<Contact>,
     let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
 
     let pool = expect_context::<Database>();
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone(), tenant.schema_name);
+    let contact_query =
+        SeaOrmContactQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let app_service = ContactQueryService::new(contact_query);
 
     println!("pool {:?}", pool);
@@ -69,7 +70,8 @@ pub async fn get_contact(uuid: String) -> Result<Option<Contact>, ServerFnError>
 
     let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
     let pool = expect_context::<Database>();
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone(), tenant.schema_name);
+    let contact_query =
+        SeaOrmContactQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let app_service = ContactQueryService::new(contact_query);
 
     println!("fetch contact uuid: {:?}", uuid);
@@ -96,7 +98,7 @@ pub async fn create_contact(contact: Contact) -> Result<(), ServerFnError> {
     let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
     let pool = expect_context::<Database>();
     let contact_repository =
-        SeaOrmContactRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmContactRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let app_service = ContactAppService::new(contact_repository);
 
     println!("Adding contact: {:?}", contact);
@@ -123,7 +125,7 @@ pub async fn update_contact(contact: UpdateContact) -> Result<(), ServerFnError>
     let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
     let pool = expect_context::<Database>();
     let contact_repository =
-        SeaOrmContactRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmContactRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let app_service = ContactAppService::new(contact_repository);
 
     println!("editing contact: {:?}", contact);
@@ -153,7 +155,7 @@ pub async fn delete_contact(uuid: String) -> Result<(), ServerFnError> {
 
     let pool = expect_context::<Database>();
     let contact_repository =
-        SeaOrmContactRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmContactRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let app_service = ContactAppService::new(contact_repository);
 
     println!("pool {:?}", pool);
@@ -182,7 +184,8 @@ pub async fn fetch_contact_follow_records(
 
     let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmContactFollowRecordQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query =
+        SeaOrmContactFollowRecordQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ContactFollowRecordQueryService::new(query);
 
     service
@@ -206,8 +209,10 @@ pub async fn create_contact_follow_record(
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
     let pool = expect_context::<Database>();
-    let repo =
-        SeaOrmContactFollowRecordRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo = SeaOrmContactFollowRecordRepository::new(
+        pool.connection.clone(),
+        tenant.merchant_id.clone(),
+    );
     let service = ContactFollowRecordAppService::new(repo);
 
     service
@@ -232,7 +237,8 @@ pub async fn export_contacts(params: ContactQuery) -> Result<Vec<u8>, ServerFnEr
     let Extension(tenant) = extract::<Extension<TenantContext>>().await?;
 
     let pool = expect_context::<Database>();
-    let contact_query = SeaOrmContactQuery::new(pool.connection.clone(), tenant.schema_name);
+    let contact_query =
+        SeaOrmContactQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let app_service = ContactQueryService::new(contact_query);
 
     println!("pool {:?}", pool);

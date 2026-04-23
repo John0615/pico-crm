@@ -8,14 +8,14 @@ use crate::domain::crm::service_request::model::{
 };
 
 pub struct CreateServiceRequestDecision {
-    tenant_schema: String,
+    merchant_id: String,
     request: ServiceRequest,
 }
 
 impl CreateServiceRequestDecision {
-    pub fn new(tenant_schema: impl Into<String>, request: ServiceRequest) -> Self {
+    pub fn new(merchant_id: impl Into<String>, request: ServiceRequest) -> Self {
         Self {
-            tenant_schema: tenant_schema.into(),
+            merchant_id: merchant_id.into(),
             request,
         }
     }
@@ -27,7 +27,7 @@ impl Decision for CreateServiceRequestDecision {
     type Error = String;
 
     fn state_query(&self) -> Self::StateQuery {
-        ServiceRequestState::new(&self.tenant_schema, &self.request.uuid)
+        ServiceRequestState::new(&self.merchant_id, &self.request.uuid)
     }
 
     fn process(&self, state: &Self::StateQuery) -> Result<Vec<Self::Event>, Self::Error> {
@@ -40,24 +40,24 @@ impl Decision for CreateServiceRequestDecision {
 
         self.request.verify()?;
 
-        Ok(vec![seed_created_event(&self.tenant_schema, &self.request)])
+        Ok(vec![seed_created_event(&self.merchant_id, &self.request)])
     }
 }
 
 pub struct UpdateServiceRequestDecision {
-    tenant_schema: String,
+    merchant_id: String,
     update: UpdateServiceRequest,
     updated_at: DateTime<Utc>,
 }
 
 impl UpdateServiceRequestDecision {
     pub fn new(
-        tenant_schema: impl Into<String>,
+        merchant_id: impl Into<String>,
         update: UpdateServiceRequest,
         updated_at: DateTime<Utc>,
     ) -> Self {
         Self {
-            tenant_schema: tenant_schema.into(),
+            merchant_id: merchant_id.into(),
             update,
             updated_at,
         }
@@ -70,7 +70,7 @@ impl Decision for UpdateServiceRequestDecision {
     type Error = String;
 
     fn state_query(&self) -> Self::StateQuery {
-        ServiceRequestState::new(&self.tenant_schema, &self.update.uuid)
+        ServiceRequestState::new(&self.merchant_id, &self.update.uuid)
     }
 
     fn process(&self, state: &Self::StateQuery) -> Result<Vec<Self::Event>, Self::Error> {
@@ -92,7 +92,7 @@ impl Decision for UpdateServiceRequestDecision {
 
         Ok(vec![
             ServiceRequestEventEnvelope::ServiceRequestDetailsUpdated {
-                tenant_schema: self.tenant_schema.clone(),
+                merchant_id: self.merchant_id.clone(),
                 request_uuid: self.update.uuid.clone(),
                 service_catalog_uuid: self.update.service_catalog_uuid.clone(),
                 service_content: self.update.service_content.clone(),
@@ -106,7 +106,7 @@ impl Decision for UpdateServiceRequestDecision {
 }
 
 pub struct UpdateServiceRequestStatusDecision {
-    tenant_schema: String,
+    merchant_id: String,
     request_uuid: String,
     next_status: ServiceRequestStatus,
     updated_at: DateTime<Utc>,
@@ -114,13 +114,13 @@ pub struct UpdateServiceRequestStatusDecision {
 
 impl UpdateServiceRequestStatusDecision {
     pub fn new(
-        tenant_schema: impl Into<String>,
+        merchant_id: impl Into<String>,
         request_uuid: impl Into<String>,
         next_status: ServiceRequestStatus,
         updated_at: DateTime<Utc>,
     ) -> Self {
         Self {
-            tenant_schema: tenant_schema.into(),
+            merchant_id: merchant_id.into(),
             request_uuid: request_uuid.into(),
             next_status,
             updated_at,
@@ -134,7 +134,7 @@ impl Decision for UpdateServiceRequestStatusDecision {
     type Error = String;
 
     fn state_query(&self) -> Self::StateQuery {
-        ServiceRequestState::new(&self.tenant_schema, &self.request_uuid)
+        ServiceRequestState::new(&self.merchant_id, &self.request_uuid)
     }
 
     fn process(&self, state: &Self::StateQuery) -> Result<Vec<Self::Event>, Self::Error> {
@@ -158,7 +158,7 @@ impl Decision for UpdateServiceRequestStatusDecision {
 
         Ok(vec![
             ServiceRequestEventEnvelope::ServiceRequestStatusChanged {
-                tenant_schema: self.tenant_schema.clone(),
+                merchant_id: self.merchant_id.clone(),
                 request_uuid: self.request_uuid.clone(),
                 status: self.next_status.as_str().to_string(),
                 updated_at: self.updated_at,
@@ -204,10 +204,13 @@ mod tests {
 
         TestHarness::given([])
             .when(CreateServiceRequestDecision::new(
-                "tenant_a",
+                "11111111-1111-1111-1111-111111111111",
                 request.clone(),
             ))
-            .then([seed_created_event("tenant_a", &request)]);
+            .then([seed_created_event(
+                "11111111-1111-1111-1111-111111111111",
+                &request,
+            )]);
     }
 
     #[test]
@@ -221,29 +224,39 @@ mod tests {
             notes: Some("updated".to_string()),
         };
 
-        TestHarness::given([seed_created_event("tenant_a", &sample_request())])
-            .when(UpdateServiceRequestDecision::new("tenant_a", update, ts(2)))
-            .then([ServiceRequestEventEnvelope::ServiceRequestDetailsUpdated {
-                tenant_schema: "tenant_a".to_string(),
-                request_uuid: "request-1".to_string(),
-                service_catalog_uuid: Some("22222222-2222-2222-2222-222222222222".to_string()),
-                service_content: "Updated visit".to_string(),
-                appointment_start_at: Some(ts(2)),
-                appointment_end_at: Some(ts(2) + chrono::Duration::hours(2)),
-                notes: Some("updated".to_string()),
-                updated_at: ts(2),
-            }]);
+        TestHarness::given([seed_created_event(
+            "11111111-1111-1111-1111-111111111111",
+            &sample_request(),
+        )])
+        .when(UpdateServiceRequestDecision::new(
+            "11111111-1111-1111-1111-111111111111",
+            update,
+            ts(2),
+        ))
+        .then([ServiceRequestEventEnvelope::ServiceRequestDetailsUpdated {
+            merchant_id: "11111111-1111-1111-1111-111111111111".to_string(),
+            request_uuid: "request-1".to_string(),
+            service_catalog_uuid: Some("22222222-2222-2222-2222-222222222222".to_string()),
+            service_content: "Updated visit".to_string(),
+            appointment_start_at: Some(ts(2)),
+            appointment_end_at: Some(ts(2) + chrono::Duration::hours(2)),
+            notes: Some("updated".to_string()),
+            updated_at: ts(2),
+        }]);
     }
 
     #[test]
     fn it_rejects_invalid_status_transition() {
-        TestHarness::given([seed_created_event("tenant_a", &sample_request())])
-            .when(UpdateServiceRequestStatusDecision::new(
-                "tenant_a",
-                "request-1",
-                ServiceRequestStatus::Converted,
-                ts(3),
-            ))
-            .then_err("invalid status transition: new -> converted".to_string());
+        TestHarness::given([seed_created_event(
+            "11111111-1111-1111-1111-111111111111",
+            &sample_request(),
+        )])
+        .when(UpdateServiceRequestStatusDecision::new(
+            "11111111-1111-1111-1111-111111111111",
+            "request-1",
+            ServiceRequestStatus::Converted,
+            ts(3),
+        ))
+        .then_err("invalid status transition: new -> converted".to_string());
     }
 }

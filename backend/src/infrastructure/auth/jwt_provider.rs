@@ -1,16 +1,14 @@
 use crate::domain::identity::auth::{AuthCredential, AuthProvider, JwtClaims};
-use crate::domain::identity::user::{User, UserQuery};
-use crate::infrastructure::config::app::AppConfig;
+use crate::domain::identity::user::User;
 use crate::infrastructure::config::jwt::JwtConfig;
 use crate::infrastructure::entity::users::{Column, Entity};
 use crate::infrastructure::mappers::identity::user_mapper::UserMapper;
-use crate::infrastructure::queries::identity::user_query_impl::SeaOrmUserQuery;
-use crate::infrastructure::tenant::{schema_name_from_merchant, with_tenant_txn};
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use sea_orm::DatabaseConnection;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::prelude::Uuid;
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter};
 
 #[derive(Debug, Clone)]
 pub struct JwtAuthProvider {
@@ -79,30 +77,56 @@ impl JwtAuthProvider {
     }
 
     async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>, String> {
-        let user_query = SeaOrmUserQuery::new(self.db_conn.clone(), "public".to_string());
-        let user = user_query.get_user(user_name).await?;
-        Ok(user)
+        let user_name = user_name.to_string();
+        let users = Entity::find()
+            .filter(Column::UserName.eq(user_name))
+            .all(&self.db_conn)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        if users.len() > 1 {
+            return Err("用户名存在重复，请联系管理员处理".to_string());
+        }
+
+        Ok(users.into_iter().next().map(UserMapper::to_domain))
     }
 
-    async fn get_user_by_name_in_schema(
+    async fn get_user_by_name_for_merchant(
         &self,
-        schema_name: &str,
+        merchant_id: &str,
         user_name: &str,
     ) -> Result<Option<User>, String> {
-        let schema_name = schema_name.to_string();
+        let merchant_uuid =
+            Uuid::parse_str(merchant_id).map_err(|e| format!("invalid merchant uuid: {}", e))?;
         let user_name = user_name.to_string();
-        with_tenant_txn(&self.db_conn, &schema_name, |txn| {
-            let user_name = user_name.clone();
-            Box::pin(async move {
-                let user = Entity::find()
-                    .filter(Column::UserName.eq(user_name))
-                    .one(txn)
-                    .await
-                    .map_err(|e| format!("Database error: {}", e))?;
-                Ok(user.map(UserMapper::to_domain))
-            })
-        })
-        .await
+        let user = Entity::find()
+            .filter(Column::MerchantUuid.eq(merchant_uuid))
+            .filter(Column::UserName.eq(user_name))
+            .one(&self.db_conn)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+        Ok(user.map(UserMapper::to_domain))
+    }
+
+    async fn record_login_for_user(&self, user: &User) -> Result<(), String> {
+        let user_uuid =
+            Uuid::parse_str(&user.uuid).map_err(|e| format!("invalid user uuid: {}", e))?;
+        let Some(original_user) = Entity::find_by_id(user_uuid)
+            .one(&self.db_conn)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?
+        else {
+            return Err("用户不存在".to_string());
+        };
+
+        let mut updated_user = user.clone();
+        updated_user.record_login();
+        let active_user = UserMapper::to_update_active_entity(updated_user, original_user);
+        let _ = active_user
+            .update(&self.db_conn)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+        Ok(())
     }
 }
 
@@ -135,18 +159,12 @@ impl AuthProvider for JwtAuthProvider {
             if u.is_admin() || u.role == "admin" {
                 return Err("管理员请使用管理端登录".to_string());
             }
-            let role = if u.is_admin() {
-                "admin".to_string()
-            } else {
-                u.role.clone()
-            };
-            let merchant_id = if role == "admin" {
-                "public".to_string()
-            } else {
-                u.merchant_uuid
-                    .clone()
-                    .ok_or_else(|| "用户缺少商户信息".to_string())?
-            };
+            let role = u.role.clone();
+            let merchant_id = u
+                .merchant_uuid
+                .clone()
+                .ok_or_else(|| "用户缺少商户信息".to_string())?;
+            let _ = self.record_login_for_user(&u).await;
             let token = self
                 .generate_jwt(u.uuid, u.user_name, merchant_id, role)
                 .map_err(|e| format!("生成 Token 失败：{}", e))?;
@@ -167,11 +185,8 @@ impl AuthProvider for JwtAuthProvider {
             return Err("管理员请使用管理端登录".to_string());
         }
 
-        let config = AppConfig::from_env()?;
-        let schema_name =
-            schema_name_from_merchant(&config.tenant_schema_prefix, &claims.merchant_id)?;
         let user = self
-            .get_user_by_name_in_schema(&schema_name, &claims.user_name)
+            .get_user_by_name_for_merchant(&claims.merchant_id, &claims.user_name)
             .await?;
         Ok(user)
     }

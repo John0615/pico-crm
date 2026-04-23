@@ -40,6 +40,7 @@ impl ServiceCatalogMapper {
     pub fn to_active_entity(catalog: ServiceCatalog) -> ActiveModel {
         ActiveModel {
             uuid: Set(Uuid::parse_str(&catalog.uuid).expect("invalid service catalog uuid")),
+            merchant_id: Set(None),
             name: Set(catalog.name),
             description: Set(catalog.description),
             base_price_cents: Set(catalog.base_price_cents),

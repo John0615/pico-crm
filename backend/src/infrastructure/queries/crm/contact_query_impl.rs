@@ -14,7 +14,7 @@ use crate::{
     infrastructure::entity::contacts::{Column, Entity},
     infrastructure::entity::orders::{Column as OrderColumn, Entity as OrderEntity},
     infrastructure::mappers::crm::contact_mapper::ContactMapper,
-    infrastructure::tenant::with_tenant_txn,
+    infrastructure::tenant::{parse_merchant_uuid, with_shared_txn},
 };
 use sea_orm::entity::prelude::*;
 use shared::contact::Contact;
@@ -26,12 +26,12 @@ use std::collections::HashMap;
 
 pub struct SeaOrmContactQuery {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmContactQuery {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -45,13 +45,20 @@ impl ContactQuery for SeaOrmContactQuery {
         pagination: Pagination,
     ) -> impl std::future::Future<Output = Result<(Vec<Self::Result>, u64), String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let ContactSpecification { filters, sort } = spec;
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
-                    let query =
-                        apply_contact_sorting(apply_contact_filters(Entity::find(), filters), sort);
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                    let query = apply_contact_sorting(
+                        apply_contact_filters(
+                            Entity::find().filter(Column::MerchantId.eq(merchant_uuid)),
+                            filters,
+                        ),
+                        sort,
+                    );
 
                     let paginator = query.paginate(txn, pagination.size);
 
@@ -82,13 +89,20 @@ impl ContactQuery for SeaOrmContactQuery {
         spec: ContactSpecification,
     ) -> impl std::future::Future<Output = Result<Vec<Self::Result>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let ContactSpecification { filters, sort } = spec;
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
-                    let query =
-                        apply_contact_sorting(apply_contact_filters(Entity::find(), filters), sort);
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                    let query = apply_contact_sorting(
+                        apply_contact_filters(
+                            Entity::find().filter(Column::MerchantId.eq(merchant_uuid)),
+                            filters,
+                        ),
+                        sort,
+                    );
 
                     let contacts = query
                         .all(txn)
@@ -110,12 +124,15 @@ impl ContactQuery for SeaOrmContactQuery {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<Self::Result>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let uuid = Uuid::parse_str(&uuid).expect("解析uuid失败！");
                     let contact = Entity::find()
+                        .filter(Column::MerchantId.eq(merchant_uuid))
                         .filter(Column::ContactUuid.eq(uuid))
                         .one(txn)
                         .await

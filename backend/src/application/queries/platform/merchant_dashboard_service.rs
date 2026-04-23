@@ -7,7 +7,7 @@ use sea_orm::{
 };
 
 use crate::infrastructure::entity::{contacts, orders, service_requests};
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 use shared::merchant_dashboard::{
     MerchantDashboardMeta, MerchantDashboardOverview, MerchantDashboardQuery,
     MerchantDashboardResponse, MerchantDashboardTodo, MerchantDashboardTrendPoint,
@@ -20,12 +20,12 @@ const UPCOMING_HOURS: i64 = 24;
 
 pub struct MerchantDashboardQueryService {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl MerchantDashboardQueryService {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 
     pub async fn fetch_dashboard(
@@ -38,10 +38,14 @@ impl MerchantDashboardQueryService {
         let meta = resolved.meta;
         let granularity = meta.granularity.clone();
 
-        let (overview, trend, todos) = with_tenant_txn(&self.db, &self.schema_name, move |txn| {
+        let merchant_id = self.merchant_id.clone();
+        let (overview, trend, todos) = with_shared_txn(&self.db, move |txn| {
+            let merchant_id = merchant_id.clone();
             let granularity = granularity.clone();
             Box::pin(async move {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                 let new_contacts = contacts::Entity::find()
+                    .filter(contacts::Column::MerchantId.eq(merchant_uuid))
                     .filter(contacts::Column::InsertedAt.gte(start))
                     .filter(contacts::Column::InsertedAt.lte(end))
                     .count(txn)
@@ -49,6 +53,7 @@ impl MerchantDashboardQueryService {
                     .map_err(|e| format!("query contacts count error: {}", e))?;
 
                 let service_requests_count = service_requests::Entity::find()
+                    .filter(service_requests::Column::MerchantId.eq(merchant_uuid))
                     .filter(service_requests::Column::InsertedAt.gte(start))
                     .filter(service_requests::Column::InsertedAt.lte(end))
                     .count(txn)
@@ -56,6 +61,7 @@ impl MerchantDashboardQueryService {
                     .map_err(|e| format!("query service requests count error: {}", e))?;
 
                 let orders_count = orders::Entity::find()
+                    .filter(orders::Column::MerchantId.eq(merchant_uuid))
                     .filter(orders::Column::InsertedAt.gte(start))
                     .filter(orders::Column::InsertedAt.lte(end))
                     .count(txn)
@@ -63,6 +69,7 @@ impl MerchantDashboardQueryService {
                     .map_err(|e| format!("query orders count error: {}", e))?;
 
                 let completed_orders_count = orders::Entity::find()
+                    .filter(orders::Column::MerchantId.eq(merchant_uuid))
                     .filter(orders::Column::Status.eq("completed"))
                     .filter(orders::Column::InsertedAt.gte(start))
                     .filter(orders::Column::InsertedAt.lte(end))
@@ -84,7 +91,7 @@ impl MerchantDashboardQueryService {
                     start,
                     end,
                     &granularity,
-                    None,
+                    Some(&format!("merchant_id = '{}'", merchant_uuid)),
                 )
                 .await?;
                 let requests_map = count_by_bucket(
@@ -94,12 +101,19 @@ impl MerchantDashboardQueryService {
                     start,
                     end,
                     &granularity,
-                    None,
+                    Some(&format!("merchant_id = '{}'", merchant_uuid)),
                 )
                 .await?;
-                let orders_map =
-                    count_by_bucket(txn, "orders", "inserted_at", start, end, &granularity, None)
-                        .await?;
+                let orders_map = count_by_bucket(
+                    txn,
+                    "orders",
+                    "inserted_at",
+                    start,
+                    end,
+                    &granularity,
+                    Some(&format!("merchant_id = '{}'", merchant_uuid)),
+                )
+                .await?;
                 let completed_map = count_by_bucket(
                     txn,
                     "orders",
@@ -107,7 +121,10 @@ impl MerchantDashboardQueryService {
                     start,
                     end,
                     &granularity,
-                    Some("status = 'completed'"),
+                    Some(&format!(
+                        "merchant_id = '{}' AND status = 'completed'",
+                        merchant_uuid
+                    )),
                 )
                 .await?;
 
@@ -124,6 +141,7 @@ impl MerchantDashboardQueryService {
                     .collect::<Vec<_>>();
 
                 let pending_requests = service_requests::Entity::find()
+                    .filter(service_requests::Column::MerchantId.eq(merchant_uuid))
                     .filter(service_requests::Column::Status.eq("new"))
                     .filter(service_requests::Column::InsertedAt.gte(start))
                     .filter(service_requests::Column::InsertedAt.lte(end))
@@ -132,6 +150,7 @@ impl MerchantDashboardQueryService {
                     .map_err(|e| format!("query pending requests error: {}", e))?;
 
                 let pending_orders = orders::Entity::find()
+                    .filter(orders::Column::MerchantId.eq(merchant_uuid))
                     .filter(orders::Column::Status.eq("pending"))
                     .filter(orders::Column::InsertedAt.gte(start))
                     .filter(orders::Column::InsertedAt.lte(end))
@@ -142,6 +161,7 @@ impl MerchantDashboardQueryService {
                 let now = Utc::now();
                 let upcoming_end = now + Duration::hours(UPCOMING_HOURS);
                 let upcoming_schedules = orders::Entity::find()
+                    .filter(orders::Column::MerchantId.eq(merchant_uuid))
                     .filter(orders::Column::ScheduledStartAt.is_not_null())
                     .filter(orders::Column::ScheduledStartAt.gte(now))
                     .filter(orders::Column::ScheduledStartAt.lte(upcoming_end))

@@ -19,7 +19,7 @@ use crate::domain::crm::order::Order;
 pub enum OrderEventEnvelope {
     OrderCreated {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         #[serde(default)]
@@ -49,7 +49,7 @@ pub enum OrderEventEnvelope {
     },
     OrderDetailsUpdated {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         #[serde(default)]
@@ -61,7 +61,7 @@ pub enum OrderEventEnvelope {
     },
     OrderStatusChanged {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         #[serde(default)]
@@ -73,7 +73,7 @@ pub enum OrderEventEnvelope {
     },
     OrderCancelled {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         #[serde(default)]
@@ -83,7 +83,7 @@ pub enum OrderEventEnvelope {
     },
     OrderAssignmentUpdated {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         #[serde(default)]
@@ -95,7 +95,7 @@ pub enum OrderEventEnvelope {
     },
     OrderSettlementUpdated {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         #[serde(default)]
@@ -113,12 +113,12 @@ pub enum OrderEventEnvelope {
 }
 
 pub fn seed_created_event(
-    tenant_schema: &str,
+    merchant_id: &str,
     order: &Order,
     operator_uuid: Option<String>,
 ) -> OrderEventEnvelope {
     OrderEventEnvelope::OrderCreated {
-        tenant_schema: tenant_schema.to_string(),
+        merchant_id: merchant_id.to_string(),
         order_uuid: order.uuid.clone(),
         operator_uuid,
         request_id: order.request_id.clone(),

@@ -5,16 +5,16 @@ use crate::domain::crm::contact::{
     ContactFollowRecord, ContactFollowRecordRepository, CreateContactFollowRecord,
 };
 use crate::infrastructure::mappers::crm::contact_follow_record_mapper::ContactFollowRecordMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct SeaOrmContactFollowRecordRepository {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmContactFollowRecordRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -25,11 +25,14 @@ impl ContactFollowRecordRepository for SeaOrmContactFollowRecordRepository {
         record: CreateContactFollowRecord,
     ) -> impl std::future::Future<Output = Result<ContactFollowRecord, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
-                    let active = ContactFollowRecordMapper::to_active_entity(record)?;
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                    let mut active = ContactFollowRecordMapper::to_active_entity(record)?;
+                    active.merchant_id = sea_orm::ActiveValue::Set(Some(merchant_uuid));
                     let created = active
                         .insert(txn)
                         .await

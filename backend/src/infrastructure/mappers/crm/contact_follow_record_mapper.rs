@@ -56,6 +56,7 @@ impl ContactFollowRecordMapper {
 
         Ok(ActiveContactFollowRecordEntity {
             uuid: Set(Uuid::new_v4()),
+            merchant_id: Set(None),
             contact_uuid: Set(contact_uuid),
             operator_uuid: Set(operator_uuid),
             content: Set(record.content.trim().to_string()),

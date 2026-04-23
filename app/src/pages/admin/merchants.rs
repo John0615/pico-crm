@@ -196,10 +196,7 @@ pub fn AdminMerchants() -> impl IntoView {
                                 let merchant: Option<MerchantSummary> = use_context::<MerchantSummary>();
                                 match merchant {
                                     Some(item) => view! {
-                                        <div class="flex flex-col">
-                                            <span>{item.name}</span>
-                                            <span class="text-xs text-base-content/50">{item.schema_name}</span>
-                                        </div>
+                                        <span>{item.name}</span>
                                     }
                                     .into_any(),
                                     None => view! { <span>-</span> }.into_any(),
@@ -676,7 +673,7 @@ fn MerchantCreateModal(
             field_type: FieldType::Text,
             required: true,
             value: owner_user_name_value,
-            placeholder: Some("输入登录用户名".into()),
+            placeholder: Some("输入全局唯一登录用户名".into()),
             error_message: ArcRwSignal::new(None),
             validation: Some(ValidationRule::MinLength(2)),
         },

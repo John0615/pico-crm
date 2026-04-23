@@ -11,9 +11,9 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::domain::crm::order::OrderEventEnvelope;
-use crate::infrastructure::entity::{merchant, order_change_logs, orders};
+use crate::infrastructure::entity::{order_change_logs, orders};
 use crate::infrastructure::event_store::order::event_store;
-use crate::infrastructure::tenant::{is_safe_schema_name, with_tenant_txn};
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct OrderProjection {
     query: StreamQuery<PgEventId, OrderEventEnvelope>,
@@ -22,7 +22,6 @@ pub struct OrderProjection {
 
 impl OrderProjection {
     pub async fn new(db: DatabaseConnection) -> Result<Self, String> {
-        ensure_existing_tenant_read_models(&db).await?;
         Ok(Self {
             query: query!(OrderEventEnvelope),
             db,
@@ -50,7 +49,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
 
         match event.into_inner() {
             OrderEventEnvelope::OrderCreated {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 operator_uuid,
                 request_id,
@@ -71,16 +70,20 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 inserted_at,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
-                        let existing = orders::Entity::find_by_id(order_uuid)
+                        let existing = orders::Entity::find()
+                            .filter(orders::Column::MerchantId.eq(merchant_uuid))
+                            .filter(orders::Column::Uuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query order projection error: {}", e))?;
                         if existing.is_none() {
                             let active = orders::ActiveModel {
                                 uuid: Set(order_uuid),
+                                merchant_id: Set(Some(merchant_uuid)),
                                 customer_uuid: Set(parse_optional_uuid(
                                     customer_uuid.as_deref(),
                                     "customer_uuid",
@@ -112,6 +115,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                                 .map_err(|e| format!("insert order projection error: {}", e))?;
                             insert_change_log(
                                 txn,
+                                merchant_uuid,
                                 created.uuid,
                                 "created",
                                 parse_optional_uuid(operator_uuid.as_deref(), "operator_uuid")?,
@@ -127,7 +131,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 .await?;
             }
             OrderEventEnvelope::OrderDetailsUpdated {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 operator_uuid,
                 customer_uuid,
@@ -135,10 +139,13 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 notes,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
-                        let Some(model) = orders::Entity::find_by_id(order_uuid)
+                        let Some(model) = orders::Entity::find()
+                            .filter(orders::Column::MerchantId.eq(merchant_uuid))
+                            .filter(orders::Column::Uuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query order projection error: {}", e))?
@@ -165,6 +172,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                             .map_err(|e| format!("update order projection error: {}", e))?;
                         insert_change_log(
                             txn,
+                            merchant_uuid,
                             updated.uuid,
                             "details_updated",
                             parse_optional_uuid(operator_uuid.as_deref(), "operator_uuid")?,
@@ -179,17 +187,20 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 .await?;
             }
             OrderEventEnvelope::OrderStatusChanged {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 operator_uuid,
                 status,
                 completed_at,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
-                        let Some(model) = orders::Entity::find_by_id(order_uuid)
+                        let Some(model) = orders::Entity::find()
+                            .filter(orders::Column::MerchantId.eq(merchant_uuid))
+                            .filter(orders::Column::Uuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query order projection error: {}", e))?
@@ -212,6 +223,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                             .map_err(|e| format!("update order projection error: {}", e))?;
                         insert_change_log(
                             txn,
+                            merchant_uuid,
                             updated.uuid,
                             "status_changed",
                             parse_optional_uuid(operator_uuid.as_deref(), "operator_uuid")?,
@@ -226,16 +238,19 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 .await?;
             }
             OrderEventEnvelope::OrderCancelled {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 operator_uuid,
                 cancellation_reason,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
-                        let Some(model) = orders::Entity::find_by_id(order_uuid)
+                        let Some(model) = orders::Entity::find()
+                            .filter(orders::Column::MerchantId.eq(merchant_uuid))
+                            .filter(orders::Column::Uuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query order projection error: {}", e))?
@@ -259,6 +274,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                             .map_err(|e| format!("update order projection error: {}", e))?;
                         insert_change_log(
                             txn,
+                            merchant_uuid,
                             updated.uuid,
                             "cancelled",
                             parse_optional_uuid(operator_uuid.as_deref(), "operator_uuid")?,
@@ -273,7 +289,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 .await?;
             }
             OrderEventEnvelope::OrderAssignmentUpdated {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 operator_uuid,
                 scheduled_start_at,
@@ -281,10 +297,13 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 dispatch_note,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
-                        let Some(model) = orders::Entity::find_by_id(order_uuid)
+                        let Some(model) = orders::Entity::find()
+                            .filter(orders::Column::MerchantId.eq(merchant_uuid))
+                            .filter(orders::Column::Uuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query order projection error: {}", e))?
@@ -308,6 +327,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                             .map_err(|e| format!("update order projection error: {}", e))?;
                         insert_change_log(
                             txn,
+                            merchant_uuid,
                             updated.uuid,
                             "assignment_updated",
                             parse_optional_uuid(operator_uuid.as_deref(), "operator_uuid")?,
@@ -322,7 +342,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 .await?;
             }
             OrderEventEnvelope::OrderSettlementUpdated {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 operator_uuid,
                 settlement_status,
@@ -332,10 +352,13 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                 paid_at,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
-                        let Some(model) = orders::Entity::find_by_id(order_uuid)
+                        let Some(model) = orders::Entity::find()
+                            .filter(orders::Column::MerchantId.eq(merchant_uuid))
+                            .filter(orders::Column::Uuid.eq(order_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| format!("query order projection error: {}", e))?
@@ -361,6 +384,7 @@ impl EventListener<PgEventId, OrderEventEnvelope> for OrderProjection {
                             .map_err(|e| format!("update order projection error: {}", e))?;
                         insert_change_log(
                             txn,
+                            merchant_uuid,
                             updated.uuid,
                             "settlement_updated",
                             parse_optional_uuid(operator_uuid.as_deref(), "operator_uuid")?,
@@ -405,62 +429,9 @@ pub async fn spawn_order_listener(read_model_db: DatabaseConnection) -> Result<(
     Ok(())
 }
 
-async fn ensure_existing_tenant_read_models(db: &DatabaseConnection) -> Result<(), String> {
-    let merchants = merchant::Entity::find()
-        .all(db)
-        .await
-        .map_err(|e| format!("query merchants for order projection error: {}", e))?;
-
-    for merchant in merchants {
-        ensure_tenant_read_model(db, &merchant.schema_name).await?;
-    }
-
-    Ok(())
-}
-
-async fn ensure_tenant_read_model(
-    db: &DatabaseConnection,
-    schema_name: &str,
-) -> Result<(), String> {
-    if !is_safe_schema_name(schema_name) {
-        return Err(format!("invalid tenant schema name: {}", schema_name));
-    }
-
-    with_tenant_txn(db, schema_name, |txn| {
-        Box::pin(async move {
-            use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-
-            let statements = [
-                "ALTER TABLE IF EXISTS orders ADD COLUMN IF NOT EXISTS event_id BIGINT NOT NULL DEFAULT 0".to_string(),
-                "ALTER TABLE IF EXISTS orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT NULL".to_string(),
-                "ALTER TABLE IF EXISTS orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ NULL".to_string(),
-                "CREATE TABLE IF NOT EXISTS order_change_logs (
-                    uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    order_uuid UUID NOT NULL,
-                    action VARCHAR NOT NULL,
-                    operator_uuid UUID NULL,
-                    before_data JSONB NULL,
-                    after_data JSONB NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )"
-                .to_string(),
-            ];
-
-            for sql in statements {
-                let stmt = Statement::from_string(DatabaseBackend::Postgres, sql);
-                txn.execute(stmt)
-                    .await
-                    .map_err(|e| format!("ensure order read model error: {}", e))?;
-            }
-
-            Ok(())
-        })
-    })
-    .await
-}
-
 async fn insert_change_log<C>(
     txn: &C,
+    merchant_uuid: Uuid,
     order_uuid: Uuid,
     action: &str,
     operator_uuid: Option<Uuid>,
@@ -473,6 +444,7 @@ where
 {
     let active = order_change_logs::ActiveModel {
         uuid: Set(Uuid::new_v4()),
+        merchant_id: Set(Some(merchant_uuid)),
         order_uuid: Set(order_uuid),
         action: Set(action.to_string()),
         operator_uuid: Set(operator_uuid),

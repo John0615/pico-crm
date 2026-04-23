@@ -1,5 +1,7 @@
 use sea_orm::entity::prelude::*;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder};
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+};
 use shared::service_catalog::{ServiceCatalog as SharedServiceCatalog, ServiceCatalogQuery};
 
 use crate::domain::crm::service_catalog::ServiceCatalogQuery as DomainServiceCatalogQuery;
@@ -7,16 +9,16 @@ use crate::infrastructure::entity::service_catalogs::{
     Column as ServiceCatalogColumn, Entity as ServiceCatalogEntity,
 };
 use crate::infrastructure::mappers::crm::service_catalog_mapper::ServiceCatalogMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct SeaOrmServiceCatalogQuery {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmServiceCatalogQuery {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -28,14 +30,13 @@ impl DomainServiceCatalogQuery for SeaOrmServiceCatalogQuery {
         query: ServiceCatalogQuery,
     ) -> impl std::future::Future<Output = Result<(Vec<Self::Result>, u64), String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
-                    let mut select = ServiceCatalogEntity::find();
-                    if query.active_only.unwrap_or(false) {
-                        select = select.filter(ServiceCatalogColumn::IsActive.eq(true));
-                    }
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                    let mut select = build_service_catalog_select(merchant_uuid, &query);
 
                     select = select
                         .order_by_asc(ServiceCatalogColumn::SortOrder)
@@ -71,13 +72,17 @@ impl DomainServiceCatalogQuery for SeaOrmServiceCatalogQuery {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<Self::Result>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let uuid = Uuid::parse_str(&uuid)
                         .map_err(|e| format!("invalid service catalog uuid: {}", e))?;
-                    let item = ServiceCatalogEntity::find_by_id(uuid)
+                    let item = ServiceCatalogEntity::find()
+                        .filter(ServiceCatalogColumn::MerchantId.eq(merchant_uuid))
+                        .filter(ServiceCatalogColumn::Uuid.eq(uuid))
                         .one(txn)
                         .await
                         .map_err(|e| format!("query service catalog error: {}", e))?;
@@ -87,5 +92,49 @@ impl DomainServiceCatalogQuery for SeaOrmServiceCatalogQuery {
             })
             .await
         }
+    }
+}
+
+fn build_service_catalog_select(
+    merchant_uuid: Uuid,
+    query: &ServiceCatalogQuery,
+) -> sea_orm::Select<ServiceCatalogEntity> {
+    let mut select =
+        ServiceCatalogEntity::find().filter(ServiceCatalogColumn::MerchantId.eq(merchant_uuid));
+    if query.active_only.unwrap_or(false) {
+        select = select.filter(ServiceCatalogColumn::IsActive.eq(true));
+    }
+    select
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::{DbBackend, QueryTrait};
+
+    #[test]
+    fn generated_sql_contains_merchant_scope_for_service_catalog_list() {
+        let merchant_uuid =
+            Uuid::parse_str("11111111-1111-1111-1111-111111111111").expect("valid uuid");
+        let query = ServiceCatalogQuery {
+            page: 1,
+            page_size: 20,
+            active_only: Some(true),
+        };
+
+        let sql = build_service_catalog_select(merchant_uuid, &query)
+            .build(DbBackend::Postgres)
+            .to_string();
+
+        assert!(
+            sql.contains(
+                r#""service_catalogs"."merchant_id" = '11111111-1111-1111-1111-111111111111'"#
+            ),
+            "sql: {sql}"
+        );
+        assert!(
+            sql.contains(r#""service_catalogs"."is_active" = TRUE"#),
+            "sql: {sql}"
+        );
     }
 }

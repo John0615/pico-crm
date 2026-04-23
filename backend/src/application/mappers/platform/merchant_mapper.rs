@@ -8,7 +8,6 @@ impl From<Merchant> for MerchantSummary {
             uuid: merchant.uuid,
             name: merchant.name,
             short_name: merchant.short_name,
-            schema_name: merchant.schema_name,
             contact_name: merchant.contact_name,
             contact_phone: merchant.contact_phone,
             merchant_type: merchant.merchant_type,

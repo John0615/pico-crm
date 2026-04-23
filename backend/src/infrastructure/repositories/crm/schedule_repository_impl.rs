@@ -14,16 +14,16 @@ use crate::infrastructure::entity::schedules::{
     Column as ScheduleColumn, Entity as ScheduleEntity, Model as ScheduleModel,
 };
 use crate::infrastructure::event_store::schedule::event_store;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct SeaOrmScheduleRepository {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmScheduleRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 
     fn to_domain(model: ScheduleModel) -> ScheduleAssignment {
@@ -42,14 +42,14 @@ impl SeaOrmScheduleRepository {
     }
 
     async fn load_schedule_state(
-        schema_name: &str,
+        merchant_id: &str,
         order_uuid: &str,
     ) -> Result<ScheduleState, String> {
         let event_store = event_store().await?;
         let state_store = EventSourcedStateStore::new(event_store, NoSnapshot);
         let loaded_state = state_store
             .load(ScheduleState::new(
-                schema_name.to_string(),
+                merchant_id.to_string(),
                 order_uuid.to_string(),
             ))
             .await
@@ -58,10 +58,10 @@ impl SeaOrmScheduleRepository {
     }
 
     async fn load_schedule_from_events(
-        schema_name: &str,
+        merchant_id: &str,
         order_uuid: &str,
     ) -> Result<Option<ScheduleAssignment>, String> {
-        let state = Self::load_schedule_state(schema_name, order_uuid).await?;
+        let state = Self::load_schedule_state(merchant_id, order_uuid).await?;
         if !state.exists {
             return Ok(None);
         }
@@ -75,9 +75,9 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
         &self,
         order_uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<ScheduleAssignment>, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            SeaOrmScheduleRepository::load_schedule_from_events(&schema_name, &order_uuid).await
+            SeaOrmScheduleRepository::load_schedule_from_events(&merchant_id, &order_uuid).await
         }
     }
 
@@ -85,7 +85,7 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
         &self,
         assignment: ScheduleAssignment,
     ) -> impl std::future::Future<Output = Result<ScheduleAssignment, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let mut assignment = assignment;
             if assignment.uuid.trim().is_empty() {
@@ -96,13 +96,13 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(CreateScheduleAssignmentDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     assignment,
                 ))
                 .await
                 .map_err(|e| format!("create schedule assignment decision error: {}", e))?;
 
-            SeaOrmScheduleRepository::load_schedule_from_events(&schema_name, &order_uuid)
+            SeaOrmScheduleRepository::load_schedule_from_events(&merchant_id, &order_uuid)
                 .await?
                 .ok_or_else(|| {
                     format!("schedule for order {} not found after creation", order_uuid)
@@ -118,9 +118,9 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
         end_at: DateTime<Utc>,
         notes: Option<String>,
     ) -> impl std::future::Future<Output = Result<ScheduleAssignment, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            SeaOrmScheduleRepository::load_schedule_from_events(&schema_name, &order_uuid)
+            SeaOrmScheduleRepository::load_schedule_from_events(&merchant_id, &order_uuid)
                 .await?
                 .ok_or_else(|| format!("schedule for order {} not found", order_uuid.clone()))?;
 
@@ -128,7 +128,7 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(UpdateScheduleAssignmentDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     order_uuid.clone(),
                     assigned_user_uuid,
                     start_at,
@@ -139,7 +139,7 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
                 .await
                 .map_err(|e| format!("update schedule assignment decision error: {}", e))?;
 
-            SeaOrmScheduleRepository::load_schedule_from_events(&schema_name, &order_uuid)
+            SeaOrmScheduleRepository::load_schedule_from_events(&merchant_id, &order_uuid)
                 .await?
                 .ok_or_else(|| {
                     format!(
@@ -154,9 +154,9 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
         &self,
         order_uuid: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            if SeaOrmScheduleRepository::load_schedule_from_events(&schema_name, &order_uuid)
+            if SeaOrmScheduleRepository::load_schedule_from_events(&merchant_id, &order_uuid)
                 .await?
                 .is_none()
             {
@@ -167,7 +167,7 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(DeleteScheduleDecision::new(
-                    schema_name,
+                    merchant_id,
                     order_uuid,
                     Utc::now(),
                 ))
@@ -182,9 +182,9 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
         order_uuid: String,
         status: ScheduleStatus,
     ) -> impl std::future::Future<Output = Result<Option<ScheduleAssignment>, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            if SeaOrmScheduleRepository::load_schedule_from_events(&schema_name, &order_uuid)
+            if SeaOrmScheduleRepository::load_schedule_from_events(&merchant_id, &order_uuid)
                 .await?
                 .is_none()
             {
@@ -195,7 +195,7 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(UpdateScheduleStatusDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     order_uuid.clone(),
                     status,
                     Utc::now(),
@@ -203,7 +203,7 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
                 .await
                 .map_err(|e| format!("update schedule status decision error: {}", e))?;
 
-            SeaOrmScheduleRepository::load_schedule_from_events(&schema_name, &order_uuid).await
+            SeaOrmScheduleRepository::load_schedule_from_events(&merchant_id, &order_uuid).await
         }
     }
 
@@ -215,11 +215,13 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
         exclude_order_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Option<ScheduleAssignment>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 let assigned_user_uuid = assigned_user_uuid.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let assigned_user_uuid = Uuid::parse_str(&assigned_user_uuid)
                         .map_err(|e| format!("invalid assigned user uuid: {}", e))?;
                     let mut select = ScheduleEntity::find()
@@ -227,6 +229,7 @@ impl ScheduleRepository for SeaOrmScheduleRepository {
                             JoinType::InnerJoin,
                             crate::infrastructure::entity::schedules::Relation::Orders.def(),
                         )
+                        .filter(ScheduleColumn::MerchantId.eq(merchant_uuid))
                         .filter(ScheduleColumn::AssignedUserUuid.eq(assigned_user_uuid))
                         .filter(ScheduleColumn::StartAt.lt(end_at))
                         .filter(ScheduleColumn::EndAt.gt(start_at));

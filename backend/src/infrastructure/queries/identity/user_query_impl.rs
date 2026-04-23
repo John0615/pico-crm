@@ -13,7 +13,7 @@ use crate::infrastructure::entity::schedules::{
 };
 use crate::infrastructure::entity::users::{Column, Entity};
 use crate::infrastructure::mappers::identity::user_mapper::UserMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::with_shared_txn;
 use sea_orm::prelude::*;
 use sea_orm::sea_query::Expr;
 use sea_orm::{
@@ -25,12 +25,12 @@ use std::collections::HashMap;
 
 pub struct SeaOrmUserQuery {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmUserQuery {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -39,12 +39,15 @@ impl UserQuery for SeaOrmUserQuery {
 
     async fn get_user(&self, user_name: &str) -> Result<Option<Self::Result>, String> {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         let user_name = user_name.to_string();
-        with_tenant_txn(&db, &schema_name, |txn| {
+        with_shared_txn(&db, |txn| {
+            let merchant_id = merchant_id.clone();
             let user_name = user_name.clone();
             Box::pin(async move {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                 let user_model = Entity::find()
+                    .filter(Column::MerchantUuid.eq(merchant_uuid))
                     .filter(Column::UserName.eq(user_name))
                     .one(txn)
                     .await
@@ -61,10 +64,15 @@ impl UserQuery for SeaOrmUserQuery {
 
     async fn list_users(&self, query: UserListQuery) -> Result<PagedResult<Self::Result>, String> {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
-        with_tenant_txn(&db, &schema_name, |txn| {
+        let merchant_id = self.merchant_id.clone();
+        with_shared_txn(&db, |txn| {
+            let merchant_id = merchant_id.clone();
             Box::pin(async move {
-                let select = apply_user_filters(Entity::find(), &query);
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                let select = apply_user_filters(
+                    Entity::find().filter(Column::MerchantUuid.eq(merchant_uuid)),
+                    &query,
+                );
 
                 let total = select
                     .clone()
@@ -111,13 +119,16 @@ impl UserQuery for SeaOrmUserQuery {
 
     async fn find_user_by_uuid(&self, uuid: &str) -> Result<Option<Self::Result>, String> {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         let uuid = uuid.to_string();
-        with_tenant_txn(&db, &schema_name, |txn| {
+        with_shared_txn(&db, |txn| {
+            let merchant_id = merchant_id.clone();
             let uuid = uuid.clone();
             Box::pin(async move {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                 let uuid = Uuid::parse_str(&uuid).map_err(|e| format!("解析uuid失败: {}", e))?;
                 let user = Entity::find()
+                    .filter(Column::MerchantUuid.eq(merchant_uuid))
                     .filter(Column::Uuid.eq(uuid))
                     .one(txn)
                     .await
@@ -143,6 +154,10 @@ impl UserQuery for SeaOrmUserQuery {
         })
         .await
     }
+}
+
+fn parse_merchant_uuid(merchant_id: &str) -> Result<Uuid, String> {
+    Uuid::parse_str(merchant_id).map_err(|e| format!("invalid merchant uuid: {}", e))
 }
 
 #[derive(Debug, Clone, Default)]
@@ -322,6 +337,21 @@ fn apply_user_filters(select: Select<Entity>, query: &UserListQuery) -> Select<E
 mod tests {
     use super::*;
     use sea_orm::{DbBackend, QueryTrait};
+
+    #[test]
+    fn merchant_scope_uses_merchant_id_column() {
+        let merchant_uuid = Uuid::parse_str("11111111-1111-1111-1111-111111111111").expect("uuid");
+        let sql = Entity::find()
+            .filter(Column::MerchantUuid.eq(merchant_uuid))
+            .build(DbBackend::Postgres)
+            .to_string();
+
+        assert!(
+            sql.contains(r#""users"."merchant_id" = '11111111-1111-1111-1111-111111111111'"#),
+            "sql: {sql}"
+        );
+        assert!(!sql.contains(r#""users"."merchant_uuid""#), "sql: {sql}");
+    }
 
     #[test]
     fn dispatchable_filter_requires_active_employee_user() {

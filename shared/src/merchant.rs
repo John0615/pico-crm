@@ -15,7 +15,6 @@ pub struct ProvisionMerchantRequest {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ProvisionMerchantResponse {
     pub merchant_uuid: String,
-    pub schema_name: String,
     pub status: String,
 }
 
@@ -34,7 +33,6 @@ pub struct MerchantSummary {
     pub uuid: String,
     pub name: String,
     pub short_name: Option<String>,
-    pub schema_name: String,
     pub contact_name: String,
     pub contact_phone: String,
     pub merchant_type: Option<String>,

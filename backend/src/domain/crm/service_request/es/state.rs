@@ -11,7 +11,7 @@ use crate::domain::crm::service_request::model::{
 #[state_query(ServiceRequestEvent)]
 pub struct ServiceRequestState {
     #[id]
-    pub tenant_schema: String,
+    pub merchant_id: String,
     #[id]
     pub request_uuid: String,
     pub exists: bool,
@@ -29,9 +29,9 @@ pub struct ServiceRequestState {
 }
 
 impl ServiceRequestState {
-    pub fn new(tenant_schema: impl Into<String>, request_uuid: impl Into<String>) -> Self {
+    pub fn new(merchant_id: impl Into<String>, request_uuid: impl Into<String>) -> Self {
         Self {
-            tenant_schema: tenant_schema.into(),
+            merchant_id: merchant_id.into(),
             request_uuid: request_uuid.into(),
             ..Default::default()
         }
@@ -88,7 +88,7 @@ impl StateMutate for ServiceRequestState {
     fn mutate(&mut self, event: Self::Event) {
         match event {
             ServiceRequestEvent::ServiceRequestCreated {
-                tenant_schema,
+                merchant_id,
                 request_uuid,
                 customer_uuid,
                 creator_uuid,
@@ -103,7 +103,7 @@ impl StateMutate for ServiceRequestState {
                 updated_at,
             } => {
                 self.exists = true;
-                self.tenant_schema = tenant_schema;
+                self.merchant_id = merchant_id;
                 self.request_uuid = request_uuid;
                 self.customer_uuid = Some(customer_uuid);
                 self.creator_uuid = Some(creator_uuid);

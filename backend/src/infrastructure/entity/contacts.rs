@@ -9,6 +9,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     #[sea_orm(column_name = "uuid")]
     pub contact_uuid: Uuid,
+    pub merchant_id: Option<Uuid>,
     pub user_name: String,
     pub phone_number: String,
     pub address: Option<String>,

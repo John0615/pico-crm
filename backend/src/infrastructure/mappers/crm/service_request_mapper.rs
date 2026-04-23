@@ -56,6 +56,7 @@ impl ServiceRequestMapper {
     pub fn to_active_entity(request: ServiceRequest) -> ActiveModel {
         ActiveModel {
             uuid: Set(Uuid::parse_str(&request.uuid).expect("Invalid UUID")),
+            merchant_id: Set(None),
             customer_uuid: Set(
                 Uuid::parse_str(&request.customer_uuid).expect("Invalid customer UUID")
             ),

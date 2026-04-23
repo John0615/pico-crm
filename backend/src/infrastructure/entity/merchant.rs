@@ -10,8 +10,6 @@ pub struct Model {
     pub uuid: Uuid,
     pub name: String,
     pub short_name: Option<String>,
-    #[sea_orm(unique)]
-    pub schema_name: String,
     pub contact_name: String,
     #[sea_orm(unique)]
     pub contact_phone: String,

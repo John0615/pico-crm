@@ -23,7 +23,8 @@ pub async fn fetch_merchant_dashboard(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let service = MerchantDashboardQueryService::new(pool.connection.clone(), tenant.schema_name);
+    let service =
+        MerchantDashboardQueryService::new(pool.connection.clone(), tenant.merchant_id.clone());
 
     let result = service
         .fetch_dashboard(query)

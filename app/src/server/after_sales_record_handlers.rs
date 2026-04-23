@@ -34,7 +34,8 @@ pub async fn fetch_after_sales_case_records(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmAfterSalesCaseRecordQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query =
+        SeaOrmAfterSalesCaseRecordQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = AfterSalesCaseRecordQueryService::new(query);
     service
         .fetch_records(case_uuid)
@@ -65,8 +66,10 @@ pub async fn create_after_sales_case_record(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo =
-        SeaOrmAfterSalesCaseRecordRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo = SeaOrmAfterSalesCaseRecordRepository::new(
+        pool.connection.clone(),
+        tenant.merchant_id.clone(),
+    );
     let service = AfterSalesCaseRecordAppService::new(repo);
     service
         .create_record(case_uuid, payload, Some(current_user.uuid))

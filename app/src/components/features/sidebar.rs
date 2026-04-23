@@ -39,7 +39,9 @@ pub fn Sidebar() -> impl IntoView {
             .with(|current| current.starts_with("/admin"))
     };
     let is_biz_config_section = move || {
-        location.pathname.with(|current| current.starts_with("/service-catalog"))
+        location
+            .pathname
+            .with(|current| current.starts_with("/service-catalog"))
     };
     let is_merchant_section = move || {
         location.pathname.with(|current| {
@@ -50,7 +52,9 @@ pub fn Sidebar() -> impl IntoView {
         })
     };
     let is_permission_section = move || {
-        location.pathname.with(|current| current.starts_with("/users"))
+        location
+            .pathname
+            .with(|current| current.starts_with("/users"))
     };
     let permission_dropdown_class = move || {
         let base = "dropdown relative [--adaptive:none] [--strategy:static] [--auto-close:false]";
@@ -191,7 +195,7 @@ pub fn Sidebar() -> impl IntoView {
                                         "预约/需求"
                                     </a>
                                 </li>
-                                
+
                                 <li>
                                     <a
                                         href="/orders"
@@ -532,7 +536,7 @@ pub fn Sidebar() -> impl IntoView {
                                         "平台统计"
                                     </a>
                                 </li>
-                                
+
                                 <li>
                                     <a
                                         href="/admin/settings"

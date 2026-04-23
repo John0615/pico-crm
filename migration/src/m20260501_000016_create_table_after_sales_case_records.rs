@@ -15,8 +15,12 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(AfterSalesCaseRecords::Uuid)
                             .uuid()
                             .not_null()
-                            .primary_key()
-                            .default(Expr::cust("gen_random_uuid()")),
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(AfterSalesCaseRecords::MerchantId)
+                            .uuid()
+                            .null(),
                     )
                     .col(
                         ColumnDef::new(AfterSalesCaseRecords::CaseUuid)
@@ -46,6 +50,16 @@ impl MigrationTrait for Migration {
                     )
                     .foreign_key(
                         ForeignKey::create()
+                            .name("fk_after_sales_case_records_merchant")
+                            .from(
+                                AfterSalesCaseRecords::Table,
+                                AfterSalesCaseRecords::MerchantId,
+                            )
+                            .to(Merchant::Table, Merchant::Uuid)
+                            .on_delete(ForeignKeyAction::SetNull),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
                             .name("fk_after_sales_case_records_case")
                             .from(
                                 AfterSalesCaseRecords::Table,
@@ -71,24 +85,15 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_after_sales_case_records_case_uuid")
+                    .name("idx_after_sales_case_records_case")
                     .table(AfterSalesCaseRecords::Table)
                     .col(AfterSalesCaseRecords::CaseUuid)
-                    .if_not_exists()
                     .to_owned(),
             )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_index(
-                Index::drop()
-                    .name("idx_after_sales_case_records_case_uuid")
-                    .table(AfterSalesCaseRecords::Table)
-                    .to_owned(),
-            )
-            .await?;
         manager
             .drop_table(Table::drop().table(AfterSalesCaseRecords::Table).to_owned())
             .await
@@ -99,11 +104,18 @@ impl MigrationTrait for Migration {
 enum AfterSalesCaseRecords {
     Table,
     Uuid,
+    MerchantId,
     CaseUuid,
     OperatorUuid,
     Content,
     Status,
     InsertedAt,
+}
+
+#[derive(DeriveIden)]
+enum Merchant {
+    Table,
+    Uuid,
 }
 
 #[derive(DeriveIden)]

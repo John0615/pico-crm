@@ -17,7 +17,7 @@ use crate::domain::crm::schedule::ScheduleAssignment;
 pub enum ScheduleEventEnvelope {
     ScheduleAssignmentCreated {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         schedule_uuid: String,
@@ -31,7 +31,7 @@ pub enum ScheduleEventEnvelope {
     },
     ScheduleAssignmentUpdated {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         assigned_user_uuid: String,
@@ -42,7 +42,7 @@ pub enum ScheduleEventEnvelope {
     },
     ScheduleStatusChanged {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         status: String,
@@ -50,7 +50,7 @@ pub enum ScheduleEventEnvelope {
     },
     ScheduleDeleted {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         order_uuid: String,
         deleted_at: DateTime<Utc>,
@@ -58,11 +58,11 @@ pub enum ScheduleEventEnvelope {
 }
 
 pub fn seed_created_event(
-    tenant_schema: &str,
+    merchant_id: &str,
     assignment: &ScheduleAssignment,
 ) -> ScheduleEventEnvelope {
     ScheduleEventEnvelope::ScheduleAssignmentCreated {
-        tenant_schema: tenant_schema.to_string(),
+        merchant_id: merchant_id.to_string(),
         order_uuid: assignment.order_uuid.clone(),
         schedule_uuid: assignment.uuid.clone(),
         assigned_user_uuid: assignment.assigned_user_uuid.clone(),

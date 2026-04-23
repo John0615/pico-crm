@@ -9,9 +9,9 @@ use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel
 use uuid::Uuid;
 
 use crate::domain::crm::schedule::ScheduleEventEnvelope;
-use crate::infrastructure::entity::{merchant, schedules};
+use crate::infrastructure::entity::schedules;
 use crate::infrastructure::event_store::schedule::event_store;
-use crate::infrastructure::tenant::{is_safe_schema_name, with_tenant_txn};
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct ScheduleProjection {
     query: StreamQuery<PgEventId, ScheduleEventEnvelope>,
@@ -20,7 +20,6 @@ pub struct ScheduleProjection {
 
 impl ScheduleProjection {
     pub async fn new(db: DatabaseConnection) -> Result<Self, String> {
-        ensure_existing_tenant_read_models(&db).await?;
         Ok(Self {
             query: query!(ScheduleEventEnvelope),
             db,
@@ -48,7 +47,7 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
 
         match event.into_inner() {
             ScheduleEventEnvelope::ScheduleAssignmentCreated {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 schedule_uuid,
                 assigned_user_uuid,
@@ -59,10 +58,12 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
                 inserted_at,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
                         let existing = schedules::Entity::find()
+                            .filter(schedules::Column::MerchantId.eq(merchant_uuid))
                             .filter(schedules::Column::OrderUuid.eq(order_uuid))
                             .one(txn)
                             .await
@@ -70,6 +71,7 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
                         if existing.is_none() {
                             let active = schedules::ActiveModel {
                                 uuid: Set(parse_uuid(&schedule_uuid, "schedule_uuid")?),
+                                merchant_id: Set(Some(merchant_uuid)),
                                 order_uuid: Set(order_uuid),
                                 assigned_user_uuid: Set(parse_uuid(
                                     &assigned_user_uuid,
@@ -94,7 +96,7 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
                 .await?;
             }
             ScheduleEventEnvelope::ScheduleAssignmentUpdated {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 assigned_user_uuid,
                 start_at,
@@ -102,10 +104,12 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
                 notes,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
                         let Some(model) = schedules::Entity::find()
+                            .filter(schedules::Column::MerchantId.eq(merchant_uuid))
                             .filter(schedules::Column::OrderUuid.eq(order_uuid))
                             .one(txn)
                             .await
@@ -136,15 +140,17 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
                 .await?;
             }
             ScheduleEventEnvelope::ScheduleStatusChanged {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 status,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
                         let Some(model) = schedules::Entity::find()
+                            .filter(schedules::Column::MerchantId.eq(merchant_uuid))
                             .filter(schedules::Column::OrderUuid.eq(order_uuid))
                             .one(txn)
                             .await
@@ -171,14 +177,16 @@ impl EventListener<PgEventId, ScheduleEventEnvelope> for ScheduleProjection {
                 .await?;
             }
             ScheduleEventEnvelope::ScheduleDeleted {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 deleted_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let order_uuid = parse_uuid(&order_uuid, "order_uuid")?;
                         let Some(model) = schedules::Entity::find()
+                            .filter(schedules::Column::MerchantId.eq(merchant_uuid))
                             .filter(schedules::Column::OrderUuid.eq(order_uuid))
                             .one(txn)
                             .await
@@ -238,44 +246,6 @@ pub async fn spawn_schedule_listener(read_model_db: DatabaseConnection) -> Resul
     });
 
     Ok(())
-}
-
-async fn ensure_existing_tenant_read_models(db: &DatabaseConnection) -> Result<(), String> {
-    let merchants = merchant::Entity::find()
-        .all(db)
-        .await
-        .map_err(|e| format!("query merchants for schedule projection error: {}", e))?;
-
-    for merchant in merchants {
-        ensure_tenant_read_model(db, &merchant.schema_name).await?;
-    }
-
-    Ok(())
-}
-
-async fn ensure_tenant_read_model(
-    db: &DatabaseConnection,
-    schema_name: &str,
-) -> Result<(), String> {
-    if !is_safe_schema_name(schema_name) {
-        return Err(format!("invalid tenant schema name: {}", schema_name));
-    }
-
-    with_tenant_txn(db, schema_name, |txn| {
-        Box::pin(async move {
-            use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-
-            let stmt = Statement::from_string(
-                DatabaseBackend::Postgres,
-                "ALTER TABLE IF EXISTS schedules ADD COLUMN IF NOT EXISTS event_id BIGINT NOT NULL DEFAULT 0",
-            );
-            txn.execute(stmt)
-                .await
-                .map_err(|e| format!("ensure schedule read model event_id error: {}", e))?;
-            Ok(())
-        })
-    })
-    .await
 }
 
 fn parse_uuid(value: &str, field: &str) -> Result<Uuid, String> {

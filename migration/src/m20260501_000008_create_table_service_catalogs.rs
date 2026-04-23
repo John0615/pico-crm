@@ -15,9 +15,9 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(ServiceCatalogs::Uuid)
                             .uuid()
                             .not_null()
-                            .primary_key()
-                            .default(Expr::cust("gen_random_uuid()")),
+                            .primary_key(),
                     )
+                    .col(ColumnDef::new(ServiceCatalogs::MerchantId).uuid().null())
                     .col(ColumnDef::new(ServiceCatalogs::Name).string().not_null())
                     .col(ColumnDef::new(ServiceCatalogs::Description).text().null())
                     .col(
@@ -55,6 +55,13 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_service_catalogs_merchant")
+                            .from(ServiceCatalogs::Table, ServiceCatalogs::MerchantId)
+                            .to(Merchant::Table, Merchant::Uuid)
+                            .on_delete(ForeignKeyAction::SetNull),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -62,25 +69,26 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_service_catalogs_is_active")
+                    .name("idx_service_catalogs_merchant_id")
                     .table(ServiceCatalogs::Table)
-                    .col(ServiceCatalogs::IsActive)
-                    .if_not_exists()
+                    .col(ServiceCatalogs::MerchantId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_service_catalogs_merchant_name_unique")
+                    .table(ServiceCatalogs::Table)
+                    .col(ServiceCatalogs::MerchantId)
+                    .col(ServiceCatalogs::Name)
+                    .unique()
                     .to_owned(),
             )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_index(
-                Index::drop()
-                    .name("idx_service_catalogs_is_active")
-                    .table(ServiceCatalogs::Table)
-                    .to_owned(),
-            )
-            .await?;
-
         manager
             .drop_table(Table::drop().table(ServiceCatalogs::Table).to_owned())
             .await
@@ -91,6 +99,7 @@ impl MigrationTrait for Migration {
 enum ServiceCatalogs {
     Table,
     Uuid,
+    MerchantId,
     Name,
     Description,
     BasePriceCents,
@@ -99,4 +108,10 @@ enum ServiceCatalogs {
     SortOrder,
     InsertedAt,
     UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Merchant {
+    Table,
+    Uuid,
 }

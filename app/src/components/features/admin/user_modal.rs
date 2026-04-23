@@ -80,11 +80,11 @@ fn build_user_form_fields(
     vec![
         FormField {
             name: "user_name".to_string(),
-            label: "员工姓名".to_string(),
+            label: "登录用户名".to_string(),
             field_type: FieldType::Text,
             required: true,
             value: ArcRwSignal::new(user.map(|u| u.user_name.clone()).unwrap_or_default()),
-            placeholder: Some("输入员工姓名".into()),
+            placeholder: Some("输入全局唯一登录用户名".into()),
             error_message: ArcRwSignal::new(None),
             validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
                 let len = val.trim().chars().count();

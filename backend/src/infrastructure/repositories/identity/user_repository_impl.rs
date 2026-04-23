@@ -4,7 +4,7 @@ use crate::{
     domain::identity::user::{User, UserRepository},
     infrastructure::entity::users::{Column, Entity},
     infrastructure::mappers::identity::user_mapper::UserMapper,
-    infrastructure::tenant::with_tenant_txn,
+    infrastructure::tenant::with_shared_txn,
 };
 
 use async_trait::async_trait;
@@ -12,12 +12,12 @@ use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait};
 
 pub struct SeaOrmUserRepository {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmUserRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -28,16 +28,25 @@ impl UserRepository for SeaOrmUserRepository {
         user: User,
     ) -> impl std::future::Future<Output = Result<User, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let mut user = user;
+                    if user.merchant_uuid.is_none() {
+                        user.merchant_uuid = Some(merchant_id.clone());
+                    }
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     // 转换为Entity
                     let entity = UserMapper::to_active_entity(user);
                     let new_entity = entity
                         .insert(txn)
                         .await
                         .map_err(|e| format!("create user database error: {}", e))?;
+                    if new_entity.merchant_uuid != Some(merchant_uuid) {
+                        return Err("created user merchant mismatch".to_string());
+                    }
 
                     let new_user = UserMapper::to_domain(new_entity);
                     Ok(new_user)
@@ -52,13 +61,16 @@ impl UserRepository for SeaOrmUserRepository {
         user: User,
     ) -> impl std::future::Future<Output = Result<User, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     // 根据 uuid 查询原始数据
                     let uuid = Uuid::parse_str(&user.uuid).expect("解析uuid失败！");
                     let original_user = Entity::find()
+                        .filter(Column::MerchantUuid.eq(merchant_uuid))
                         .filter(Column::Uuid.eq(uuid))
                         .one(txn)
                         .await
@@ -66,6 +78,8 @@ impl UserRepository for SeaOrmUserRepository {
                         .ok_or_else(|| format!("未找到 uuid 为 {} 的用户", user.uuid))?;
 
                     // 转换为 ActiveModel
+                    let mut user = user;
+                    user.merchant_uuid = Some(merchant_id);
                     let active_user = UserMapper::to_update_active_entity(user, original_user);
 
                     // 执行更新
@@ -87,12 +101,16 @@ impl UserRepository for SeaOrmUserRepository {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let uuid = Uuid::parse_str(&uuid).expect("解析uuid失败！");
-                    Entity::delete_by_id(uuid)
+                    Entity::delete_many()
+                        .filter(Column::MerchantUuid.eq(merchant_uuid))
+                        .filter(Column::Uuid.eq(uuid))
                         .exec(txn)
                         .await
                         .map_err(|e| format!("删除失败: {}", e))
@@ -115,15 +133,18 @@ impl UserRepository for SeaOrmUserRepository {
         uuid: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         let uuid = uuid.to_string();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 let uuid = uuid.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let uuid =
                         Uuid::parse_str(&uuid).map_err(|e| format!("解析uuid失败: {}", e))?;
                     let user = Entity::find()
+                        .filter(Column::MerchantUuid.eq(merchant_uuid))
                         .filter(Column::Uuid.eq(uuid))
                         .one(txn)
                         .await
@@ -141,10 +162,9 @@ impl UserRepository for SeaOrmUserRepository {
         username: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
         let username = username.to_string();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
                 let username = username.clone();
                 Box::pin(async move {
                     let user = Entity::find()
@@ -165,10 +185,9 @@ impl UserRepository for SeaOrmUserRepository {
         email: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
         let email = email.to_string();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
                 let email = email.clone();
                 Box::pin(async move {
                     let user = Entity::find()
@@ -189,10 +208,9 @@ impl UserRepository for SeaOrmUserRepository {
         phone_number: &str,
     ) -> impl std::future::Future<Output = Result<Option<User>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
         let phone_number = phone_number.to_string();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
                 let phone_number = phone_number.clone();
                 Box::pin(async move {
                     let user = Entity::find()
@@ -207,4 +225,8 @@ impl UserRepository for SeaOrmUserRepository {
             .await
         }
     }
+}
+
+fn parse_merchant_uuid(merchant_id: &str) -> Result<Uuid, String> {
+    Uuid::parse_str(merchant_id).map_err(|e| format!("invalid merchant uuid: {}", e))
 }

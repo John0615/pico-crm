@@ -34,7 +34,8 @@ pub async fn fetch_after_sales_reworks(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmAfterSalesReworkQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query =
+        SeaOrmAfterSalesReworkQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = AfterSalesReworkQueryService::new(query);
     service
         .fetch_reworks(case_uuid)
@@ -65,7 +66,8 @@ pub async fn create_after_sales_rework(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo = SeaOrmAfterSalesReworkRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmAfterSalesReworkRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = AfterSalesReworkAppService::new(repo);
     service
         .create_rework(case_uuid, payload)

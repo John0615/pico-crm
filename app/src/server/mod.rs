@@ -1,5 +1,4 @@
 pub mod admin_analytics_handlers;
-pub mod admin_maintenance_handlers;
 pub mod admin_merchant_handlers;
 pub mod after_sales_handlers;
 pub mod after_sales_record_handlers;
@@ -16,7 +15,6 @@ pub mod system_config_handlers;
 pub mod user_handlers;
 
 pub use admin_analytics_handlers::*;
-pub use admin_maintenance_handlers::*;
 pub use admin_merchant_handlers::*;
 pub use after_sales_handlers::*;
 pub use after_sales_record_handlers::*;

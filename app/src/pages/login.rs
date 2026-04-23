@@ -5,11 +5,10 @@ use shared::auth::LoginResponse;
 #[cfg(feature = "ssr")]
 pub mod login_ssr {
     pub use backend::application::commands::platform::admin_auth::AdminAuthAppService;
-    pub use backend::application::commands::platform::merchant_auth::MerchantAuthAppService;
+    pub use backend::domain::identity::auth::AuthProvider;
     pub use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::repositories::platform::admin_user_repository_impl::SeaOrmAdminUserRepository;
-    pub use backend::infrastructure::repositories::platform::merchant_repository_impl::SeaOrmMerchantRepository;
 }
 
 #[server(
@@ -21,15 +20,13 @@ pub async fn login_action(
     user_name: String,
     password: String,
     login_mode: String,
-    merchant_contact_phone: String,
 ) -> Result<LoginResponse, ServerFnError> {
     use self::login_ssr::*;
     use cookie::{time::Duration, Cookie, SameSite};
     use http::header::SET_COOKIE;
-    use leptos::logging::log;
     use leptos_axum::ResponseOptions;
 
-    log!("Login: {:?} {:?}", user_name, password);
+    let user_name = user_name.trim().to_string();
     if user_name.is_empty() {
         return Err(ServerFnError::ServerError("用户名不能为空".to_string()));
     }
@@ -38,13 +35,8 @@ pub async fn login_action(
         return Err(ServerFnError::ServerError("密码长度至少6位".to_string()));
     }
 
-    let merchant_contact_phone = merchant_contact_phone.trim().to_string();
-
     let pool = expect_context::<Database>();
     let auth = JwtAuthProvider::new(pool.connection.clone());
-
-    println!("pool {:?}", pool);
-    println!("Fetching user...");
 
     let token = if login_mode == "admin" {
         let admin_repo = SeaOrmAdminUserRepository::new(pool.connection.clone());
@@ -54,20 +46,11 @@ pub async fn login_action(
             .await
             .map_err(|e| ServerFnError::new(e))?
     } else {
-        if merchant_contact_phone.is_empty() {
-            return Err(ServerFnError::ServerError("商户手机号不能为空".to_string()));
-        }
-
-        let merchant_repo = SeaOrmMerchantRepository::new(pool.connection.clone());
-        let merchant_auth =
-            MerchantAuthAppService::new(merchant_repo, pool.connection.clone(), auth.clone());
-        merchant_auth
-            .authenticate_by_contact_phone(&merchant_contact_phone, &user_name, &password)
+        auth.authenticate(&user_name, &password)
             .await
             .map_err(|e| ServerFnError::new(e))?
+            .0
     };
-
-    println!("User Token: {:?}", token);
 
     let response = expect_context::<ResponseOptions>();
 
@@ -109,7 +92,7 @@ pub async fn login_action(
 #[component]
 pub fn Login() -> impl IntoView {
     let do_login = ServerAction::<LoginAction>::new();
-    let (login_mode, set_login_mode) = signal("merchant".to_string());
+    let (login_mode, set_login_mode) = signal("user".to_string());
     let pending = do_login.pending();
     let result = do_login.value();
     let navigate = leptos_router::hooks::use_navigate();
@@ -305,15 +288,15 @@ pub fn Login() -> impl IntoView {
                                         <button
                                             type="button"
                                             class=move || {
-                                                if login_mode.with(|mode| mode == "merchant") {
+                                                if login_mode.with(|mode| mode == "user") {
                                                     "btn btn-sm join-item btn-primary"
                                                 } else {
                                                     "btn btn-sm join-item btn-outline"
                                                 }
                                             }
-                                            on:click=move |_| set_login_mode.set("merchant".to_string())
+                                            on:click=move |_| set_login_mode.set("user".to_string())
                                         >
-                                            "商户登录"
+                                            "用户登录"
                                         </button>
                                         <button
                                             type="button"
@@ -335,38 +318,16 @@ pub fn Login() -> impl IntoView {
                                         value=move || login_mode.with(|mode| mode.clone())
                                     />
                                     <div class="space-y-4 text-left">
-                                        <div class=move || {
-                                            if login_mode.with(|mode| mode == "merchant") {
-                                                "form-control"
-                                            } else {
-                                                "form-control hidden"
-                                            }
-                                        }>
-                                        <label class="label">
-                                            <span class="label-text font-medium">"商户手机号"</span>
-                                        </label>
-                                        <label class="input input-bordered flex items-center gap-2 bg-white">
-                                            <span class="icon-[tabler--building-store] size-5 text-slate-400"></span>
-                                            <input
-                                                type="text"
-                                                name="merchant_contact_phone"
-                                                placeholder="请输入商户手机号"
-                                                class="grow"
-                                                required=move || login_mode.with(|mode| mode == "merchant")
-                                            />
-                                        </label>
-                                        </div>
-
                                         <div class="form-control">
                                         <label class="label">
-                                            <span class="label-text font-medium">"用户名"</span>
+                                            <span class="label-text font-medium">"登录用户名"</span>
                                         </label>
                                         <label class="input input-bordered flex items-center gap-2 bg-white">
                                             <span class="icon-[tabler--user] size-5 text-slate-400"></span>
                                             <input
                                                 type="text"
                                                 name="user_name"
-                                                placeholder="请输入用户名"
+                                                placeholder="请输入登录用户名"
                                                 class="grow"
                                                 required
                                             />

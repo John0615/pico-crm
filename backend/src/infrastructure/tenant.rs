@@ -1,62 +1,17 @@
-use sea_orm::{
-    ConnectionTrait, DatabaseBackend, DatabaseConnection, DatabaseTransaction, Statement,
-    TransactionTrait,
-};
+use sea_orm::{DatabaseConnection, DatabaseTransaction, TransactionTrait};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct TenantContext {
     pub merchant_id: String,
     pub role: String,
-    pub schema_name: String,
 }
 
-pub fn schema_name_from_merchant(prefix: &str, merchant_id: &str) -> Result<String, String> {
-    if merchant_id.is_empty() {
-        return Err("merchant_id is empty".to_string());
-    }
-    let schema_name = if merchant_id.starts_with(prefix) && is_safe_schema_name(merchant_id) {
-        merchant_id.to_string()
-    } else {
-        let normalized = merchant_id.replace('-', "");
-        format!("{}{}", prefix, normalized)
-    };
-    if !is_safe_schema_name(&schema_name) {
-        return Err("invalid schema name".to_string());
-    }
-    Ok(schema_name)
+pub fn parse_merchant_uuid(merchant_id: &str) -> Result<Uuid, String> {
+    Uuid::parse_str(merchant_id).map_err(|e| format!("invalid merchant uuid: {}", e))
 }
 
-pub fn is_safe_schema_name(schema_name: &str) -> bool {
-    !schema_name.is_empty()
-        && schema_name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_')
-}
-
-pub async fn set_search_path(
-    connection: &DatabaseConnection,
-    schema_name: &str,
-) -> Result<(), String> {
-    if !is_safe_schema_name(schema_name) {
-        return Err("invalid schema name".to_string());
-    }
-    let stmt = Statement::from_sql_and_values(
-        DatabaseBackend::Postgres,
-        "SELECT set_config('search_path', $1, true)",
-        vec![schema_name.to_string().into()],
-    );
-    connection
-        .execute(stmt)
-        .await
-        .map_err(|e| format!("set search_path error: {}", e))?;
-    Ok(())
-}
-
-pub async fn with_tenant_txn<T, F>(
-    connection: &DatabaseConnection,
-    schema_name: &str,
-    f: F,
-) -> Result<T, String>
+pub async fn with_shared_txn<T, F>(connection: &DatabaseConnection, f: F) -> Result<T, String>
 where
     F: for<'a> FnOnce(
         &'a DatabaseTransaction,
@@ -64,22 +19,10 @@ where
         Box<dyn std::future::Future<Output = Result<T, String>> + Send + 'a>,
     >,
 {
-    if !is_safe_schema_name(schema_name) {
-        return Err("invalid schema name".to_string());
-    }
     let txn = connection
         .begin()
         .await
         .map_err(|e| format!("begin transaction error: {}", e))?;
-    let stmt = Statement::from_sql_and_values(
-        DatabaseBackend::Postgres,
-        "SELECT set_config('search_path', $1, true)",
-        vec![schema_name.to_string().into()],
-    );
-    txn.execute(stmt)
-        .await
-        .map_err(|e| format!("set search_path error: {}", e))?;
-
     let result = f(&txn).await?;
     txn.commit()
         .await

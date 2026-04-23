@@ -23,7 +23,7 @@ pub async fn get_user(uuid: String) -> Result<User, ServerFnError> {
     let Extension(tenant): Extension<TenantContext> = extract().await?;
 
     // 创建查询repository和service
-    let query_repository = SeaOrmUserQuery::new(db, tenant.schema_name);
+    let query_repository = SeaOrmUserQuery::new(db, tenant.merchant_id.clone());
     let query_service = UserAppService::new(query_repository);
 
     // 调用查询服务获取用户
@@ -55,7 +55,7 @@ pub async fn fetch_users(params: UserListQuery) -> Result<PagedResult<User>, Ser
     let Extension(tenant): Extension<TenantContext> = extract().await?;
 
     // 创建查询repository和service
-    let query_repository = SeaOrmUserQuery::new(db, tenant.schema_name);
+    let query_repository = SeaOrmUserQuery::new(db, tenant.merchant_id.clone());
     let query_service = UserAppService::new(query_repository);
 
     // 添加调试日志
@@ -100,7 +100,7 @@ pub async fn create_user(request: CreateUserRequest) -> Result<User, ServerFnErr
     let Extension(tenant): Extension<TenantContext> = extract().await?;
 
     // 创建repository和service
-    let repository = SeaOrmUserRepository::new(db, tenant.schema_name);
+    let repository = SeaOrmUserRepository::new(db, tenant.merchant_id.clone());
     let service = UserCommandService::new(repository);
 
     // 调用service创建用户
@@ -144,7 +144,7 @@ pub async fn update_user(uuid: String, request: CreateUserRequest) -> Result<Use
     let Extension(tenant): Extension<TenantContext> = extract().await?;
 
     // 创建repository和service
-    let repository = SeaOrmUserRepository::new(db, tenant.schema_name);
+    let repository = SeaOrmUserRepository::new(db, tenant.merchant_id.clone());
     let service = UserCommandService::new(repository);
 
     // 调用service更新用户
@@ -188,7 +188,7 @@ pub async fn delete_user(uuid: String) -> Result<(), ServerFnError> {
     let Extension(tenant): Extension<TenantContext> = extract().await?;
 
     // 创建repository和service
-    let repository = SeaOrmUserRepository::new(db, tenant.schema_name);
+    let repository = SeaOrmUserRepository::new(db, tenant.merchant_id.clone());
     let service = UserCommandService::new(repository);
 
     // 调用service删除用户
@@ -231,7 +231,7 @@ pub async fn toggle_user_status(uuid: String) -> Result<User, ServerFnError> {
     let Extension(tenant): Extension<TenantContext> = extract().await?;
 
     // 创建repository和service
-    let repository = SeaOrmUserRepository::new(db, tenant.schema_name);
+    let repository = SeaOrmUserRepository::new(db, tenant.merchant_id.clone());
     let service = UserCommandService::new(repository);
 
     // 获取当前用户状态并切换

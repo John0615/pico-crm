@@ -15,9 +15,9 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(AfterSalesReworks::Uuid)
                             .uuid()
                             .not_null()
-                            .primary_key()
-                            .default(Expr::cust("gen_random_uuid()")),
+                            .primary_key(),
                     )
+                    .col(ColumnDef::new(AfterSalesReworks::MerchantId).uuid().null())
                     .col(
                         ColumnDef::new(AfterSalesReworks::CaseUuid)
                             .uuid()
@@ -53,6 +53,13 @@ impl MigrationTrait for Migration {
                     )
                     .foreign_key(
                         ForeignKey::create()
+                            .name("fk_after_sales_reworks_merchant")
+                            .from(AfterSalesReworks::Table, AfterSalesReworks::MerchantId)
+                            .to(Merchant::Table, Merchant::Uuid)
+                            .on_delete(ForeignKeyAction::SetNull),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
                             .name("fk_after_sales_reworks_case")
                             .from(AfterSalesReworks::Table, AfterSalesReworks::CaseUuid)
                             .to(AfterSalesCases::Table, AfterSalesCases::Uuid)
@@ -60,7 +67,7 @@ impl MigrationTrait for Migration {
                     )
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk_after_sales_reworks_assigned_user")
+                            .name("fk_after_sales_reworks_user")
                             .from(
                                 AfterSalesReworks::Table,
                                 AfterSalesReworks::AssignedUserUuid,
@@ -75,24 +82,27 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_after_sales_reworks_case_uuid")
+                    .name("idx_after_sales_reworks_case")
                     .table(AfterSalesReworks::Table)
                     .col(AfterSalesReworks::CaseUuid)
-                    .if_not_exists()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_after_sales_reworks_merchant_user_time")
+                    .table(AfterSalesReworks::Table)
+                    .col(AfterSalesReworks::MerchantId)
+                    .col(AfterSalesReworks::AssignedUserUuid)
+                    .col(AfterSalesReworks::ScheduledStartAt)
+                    .col(AfterSalesReworks::ScheduledEndAt)
                     .to_owned(),
             )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_index(
-                Index::drop()
-                    .name("idx_after_sales_reworks_case_uuid")
-                    .table(AfterSalesReworks::Table)
-                    .to_owned(),
-            )
-            .await?;
         manager
             .drop_table(Table::drop().table(AfterSalesReworks::Table).to_owned())
             .await
@@ -103,6 +113,7 @@ impl MigrationTrait for Migration {
 enum AfterSalesReworks {
     Table,
     Uuid,
+    MerchantId,
     CaseUuid,
     AssignedUserUuid,
     ScheduledStartAt,
@@ -110,6 +121,12 @@ enum AfterSalesReworks {
     Note,
     Status,
     InsertedAt,
+}
+
+#[derive(DeriveIden)]
+enum Merchant {
+    Table,
+    Uuid,
 }
 
 #[derive(DeriveIden)]

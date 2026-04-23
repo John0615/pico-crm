@@ -8,10 +8,9 @@ use axum::{
 use backend::domain::identity::auth::{AuthCredential, AuthProvider};
 use backend::domain::platform::admin_user::AdminUserRepository;
 use backend::infrastructure::auth::jwt_provider::JwtAuthProvider;
-use backend::infrastructure::config::app::AppConfig;
 use backend::infrastructure::db::Database;
 use backend::infrastructure::repositories::platform::admin_user_repository_impl::SeaOrmAdminUserRepository;
-use backend::infrastructure::tenant::{schema_name_from_merchant, TenantContext};
+use backend::infrastructure::tenant::TenantContext;
 use chrono::Utc;
 use cookie::{Cookie, CookieJar};
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
@@ -96,11 +95,6 @@ pub async fn global_api_auth_middleware(
                 StatusCode::UNAUTHORIZED
             })?;
 
-            let config = AppConfig::from_env().map_err(|err| {
-                println!("error: {:?}", err);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
-
             let is_admin = claims.role == "admin";
             let role = claims.role.clone();
             let merchant_id = claims.merchant_id.clone();
@@ -115,20 +109,9 @@ pub async fn global_api_auth_middleware(
                 return handle_auth_failure(&path).await;
             }
 
-            let schema_name = if is_admin {
-                "public".to_string()
-            } else {
-                schema_name_from_merchant(&config.tenant_schema_prefix, &claims.merchant_id)
-                    .map_err(|err| {
-                        println!("error: {:?}", err);
-                        StatusCode::UNAUTHORIZED
-                    })?
-            };
-
             req.extensions_mut().insert(TenantContext {
                 merchant_id: merchant_id.clone(),
                 role: role.clone(),
-                schema_name,
             });
 
             let user: Option<User> = if is_admin {

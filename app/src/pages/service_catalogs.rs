@@ -40,12 +40,7 @@ pub fn ServiceCatalogsPage() -> impl IntoView {
     let is_active = RwSignal::new(true);
 
     let data = Resource::new(
-        move || {
-            (
-                refresh_count.get(),
-                query.with(|value| value.clone()),
-            )
-        },
+        move || (refresh_count.get(), query.with(|value| value.clone())),
         |(_, query)| async move {
             let page = query
                 .get("page")
@@ -98,23 +93,27 @@ pub fn ServiceCatalogsPage() -> impl IntoView {
     };
 
     let delete_row = move |item: ServiceCatalog| {
-        delete_confirm("删除确认", "确定要删除该服务项目吗？", move |result| {
-            if result {
-                let uuid = item.uuid.clone();
-                spawn_local(async move {
-                    match call_api(delete_service_catalog(uuid)).await {
-                        Ok(_) => {
-                            success("服务项目已删除".to_string());
-                            refresh_count.update(|value| *value += 1);
+        delete_confirm(
+            "删除确认",
+            "确定要删除该服务项目吗？",
+            move |result| {
+                if result {
+                    let uuid = item.uuid.clone();
+                    spawn_local(async move {
+                        match call_api(delete_service_catalog(uuid)).await {
+                            Ok(_) => {
+                                success("服务项目已删除".to_string());
+                                refresh_count.update(|value| *value += 1);
+                            }
+                            Err(err) => {
+                                logging::error!("Failed to delete service catalog: {:?}", err);
+                                error(format!("删除失败: {}", err));
+                            }
                         }
-                        Err(err) => {
-                            logging::error!("Failed to delete service catalog: {:?}", err);
-                            error(format!("删除失败: {}", err));
-                        }
-                    }
-                });
-            }
-        });
+                    });
+                }
+            },
+        );
     };
 
     let save = move |_| {

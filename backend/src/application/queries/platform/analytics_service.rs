@@ -7,8 +7,7 @@ use sea_orm::{
     QueryFilter, Statement, TransactionTrait,
 };
 
-use crate::infrastructure::entity::merchant;
-use crate::infrastructure::tenant::is_safe_schema_name;
+use crate::infrastructure::entity::{merchant, users};
 use shared::analytics::{
     AnalyticsBreakdownItem, AnalyticsBreakdownResponse, AnalyticsMeta, AnalyticsOverview,
     AnalyticsOverviewResponse, AnalyticsQuery, AnalyticsTrendPoint, AnalyticsTrendResponse,
@@ -32,24 +31,14 @@ impl AnalyticsQueryService {
         query: AnalyticsQuery,
     ) -> Result<AnalyticsOverviewResponse, String> {
         let resolved = resolve_time_range(&query)?;
-        let schema_names = self.list_schema_names().await?;
 
         let (total_merchants, active_merchants, new_merchants) =
             self.merchant_counts(resolved.start, resolved.end).await?;
 
-        let total_users = self
-            .count_users_in_schemas(&schema_names, None, None, None)
-            .await?;
-        let active_users = self
-            .count_users_in_schemas(&schema_names, None, None, Some("active"))
-            .await?;
+        let total_users = self.count_users(None, None, None).await?;
+        let active_users = self.count_users(None, None, Some("active")).await?;
         let new_users = self
-            .count_users_in_schemas(
-                &schema_names,
-                Some(resolved.start),
-                Some(resolved.end),
-                None,
-            )
+            .count_users(Some(resolved.start), Some(resolved.end), None)
             .await?;
 
         Ok(AnalyticsOverviewResponse {
@@ -67,19 +56,13 @@ impl AnalyticsQueryService {
 
     pub async fn trends(&self, query: AnalyticsQuery) -> Result<AnalyticsTrendResponse, String> {
         let resolved = resolve_time_range(&query)?;
-        let schema_names = self.list_schema_names().await?;
         let buckets = build_buckets(resolved.start, resolved.end, &resolved.meta.granularity);
 
         let merchant_map = self
             .count_merchants_by_bucket(resolved.start, resolved.end, &resolved.meta.granularity)
             .await?;
         let user_map = self
-            .count_users_by_bucket(
-                &schema_names,
-                resolved.start,
-                resolved.end,
-                &resolved.meta.granularity,
-            )
+            .count_users_by_bucket(resolved.start, resolved.end, &resolved.meta.granularity)
             .await?;
 
         let series = buckets
@@ -129,25 +112,6 @@ impl AnalyticsQueryService {
         })
     }
 
-    async fn list_schema_names(&self) -> Result<Vec<String>, String> {
-        self.with_public_txn(|txn| {
-            Box::pin(async move {
-                let merchants = merchant::Entity::find()
-                    .all(txn)
-                    .await
-                    .map_err(|e| format!("query merchants error: {}", e))?;
-                let mut schemas = Vec::new();
-                for merchant in merchants {
-                    if is_safe_schema_name(&merchant.schema_name) {
-                        schemas.push(merchant.schema_name);
-                    }
-                }
-                Ok(schemas)
-            })
-        })
-        .await
-    }
-
     async fn merchant_counts(
         &self,
         start: DateTime<Utc>,
@@ -181,33 +145,33 @@ impl AnalyticsQueryService {
         Ok((total, active, new_merchants))
     }
 
-    async fn count_users_in_schemas(
+    async fn count_users(
         &self,
-        schemas: &[String],
         start: Option<DateTime<Utc>>,
         end: Option<DateTime<Utc>>,
         status: Option<&str>,
     ) -> Result<u64, String> {
-        let mut total = 0u64;
-        for schema in schemas {
-            if !is_safe_schema_name(schema) {
-                continue;
-            }
-            let (sql, values) = build_user_count_query(schema, start, end, status);
-            let stmt = Statement::from_sql_and_values(DatabaseBackend::Postgres, sql, values);
-            let row = self
-                .db
-                .query_one(stmt)
-                .await
-                .map_err(|e| format!("count users error: {}", e))?;
-            if let Some(row) = row {
-                let count: i64 = row
-                    .try_get("", "count")
-                    .map_err(|e| format!("read user count error: {}", e))?;
-                total += count.max(0) as u64;
-            }
-        }
-        Ok(total)
+        let status = status.map(|value| value.to_string());
+        self.with_public_txn(|txn| {
+            let status = status.clone();
+            Box::pin(async move {
+                let mut select = users::Entity::find();
+                if let Some(start) = start {
+                    select = select.filter(users::Column::InsertedAt.gte(start));
+                }
+                if let Some(end) = end {
+                    select = select.filter(users::Column::InsertedAt.lte(end));
+                }
+                if let Some(status) = status {
+                    select = select.filter(users::Column::Status.eq(status));
+                }
+                select
+                    .count(txn)
+                    .await
+                    .map_err(|e| format!("count users error: {}", e))
+            })
+        })
+        .await
     }
 
     async fn count_merchants_by_bucket(
@@ -249,44 +213,38 @@ impl AnalyticsQueryService {
 
     async fn count_users_by_bucket(
         &self,
-        schemas: &[String],
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         granularity: &str,
     ) -> Result<HashMap<String, u64>, String> {
         let granularity = normalize_granularity(granularity);
+        let sql = format!(
+            "SELECT date_trunc('{granularity}', inserted_at) AS bucket, COUNT(*) AS count
+             FROM public.users
+             WHERE inserted_at >= $1 AND inserted_at <= $2
+             GROUP BY bucket"
+        );
+        let stmt = Statement::from_sql_and_values(
+            DatabaseBackend::Postgres,
+            sql,
+            vec![start.into(), end.into()],
+        );
+        let rows = self
+            .db
+            .query_all(stmt)
+            .await
+            .map_err(|e| format!("query user trend error: {}", e))?;
         let mut map: HashMap<String, u64> = HashMap::new();
-        for schema in schemas {
-            if !is_safe_schema_name(schema) {
-                continue;
-            }
-            let sql = format!(
-                "SELECT date_trunc('{granularity}', inserted_at) AS bucket, COUNT(*) AS count
-                 FROM {schema}.users
-                 WHERE inserted_at >= $1 AND inserted_at <= $2
-                 GROUP BY bucket"
-            );
-            let stmt = Statement::from_sql_and_values(
-                DatabaseBackend::Postgres,
-                sql,
-                vec![start.into(), end.into()],
-            );
-            let rows = self
-                .db
-                .query_all(stmt)
-                .await
-                .map_err(|e| format!("query user trend error: {}", e))?;
-            for row in rows {
-                let bucket: DateTime<Utc> = row
-                    .try_get("", "bucket")
-                    .map_err(|e| format!("read user bucket error: {}", e))?;
-                let count: i64 = row
-                    .try_get("", "count")
-                    .map_err(|e| format!("read user count error: {}", e))?;
-                let key = format_bucket(bucket, &granularity);
-                let entry = map.entry(key).or_insert(0);
-                *entry += count.max(0) as u64;
-            }
+        for row in rows {
+            let bucket: DateTime<Utc> = row
+                .try_get("", "bucket")
+                .map_err(|e| format!("read user bucket error: {}", e))?;
+            let count: i64 = row
+                .try_get("", "count")
+                .map_err(|e| format!("read user count error: {}", e))?;
+            let key = format_bucket(bucket, &granularity);
+            let entry = map.entry(key).or_insert(0);
+            *entry += count.max(0) as u64;
         }
         Ok(map)
     }
@@ -516,35 +474,4 @@ fn timezone_offset(timezone: &str) -> Result<FixedOffset, String> {
         "UTC" | "UTC+0" => FixedOffset::east_opt(0).ok_or_else(|| "invalid timezone".to_string()),
         _ => FixedOffset::east_opt(8 * 3600).ok_or_else(|| "invalid timezone".to_string()),
     }
-}
-
-fn build_user_count_query(
-    schema: &str,
-    start: Option<DateTime<Utc>>,
-    end: Option<DateTime<Utc>>,
-    status: Option<&str>,
-) -> (String, Vec<sea_orm::Value>) {
-    let mut sql = format!("SELECT COUNT(*) AS count FROM {schema}.users");
-    let mut values: Vec<sea_orm::Value> = Vec::new();
-    let mut conditions = Vec::new();
-
-    if let Some(start) = start {
-        values.push(start.into());
-        conditions.push(format!("inserted_at >= ${}", values.len()));
-    }
-    if let Some(end) = end {
-        values.push(end.into());
-        conditions.push(format!("inserted_at <= ${}", values.len()));
-    }
-    if let Some(status) = status {
-        values.push(status.into());
-        conditions.push(format!("status = ${}", values.len()));
-    }
-
-    if !conditions.is_empty() {
-        sql.push_str(" WHERE ");
-        sql.push_str(&conditions.join(" AND "));
-    }
-
-    (sql, values)
 }

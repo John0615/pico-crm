@@ -9,7 +9,7 @@ use crate::domain::crm::schedule::{ScheduleAssignment, ScheduleStatus};
 #[state_query(ScheduleEvent)]
 pub struct ScheduleState {
     #[id]
-    pub tenant_schema: String,
+    pub merchant_id: String,
     #[id]
     pub order_uuid: String,
     pub exists: bool,
@@ -24,9 +24,9 @@ pub struct ScheduleState {
 }
 
 impl ScheduleState {
-    pub fn new(tenant_schema: impl Into<String>, order_uuid: impl Into<String>) -> Self {
+    pub fn new(merchant_id: impl Into<String>, order_uuid: impl Into<String>) -> Self {
         Self {
-            tenant_schema: tenant_schema.into(),
+            merchant_id: merchant_id.into(),
             order_uuid: order_uuid.into(),
             ..Default::default()
         }
@@ -81,7 +81,7 @@ impl StateMutate for ScheduleState {
     fn mutate(&mut self, event: Self::Event) {
         match event {
             ScheduleEvent::ScheduleAssignmentCreated {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 schedule_uuid,
                 assigned_user_uuid,
@@ -93,7 +93,7 @@ impl StateMutate for ScheduleState {
                 updated_at,
             } => {
                 self.exists = true;
-                self.tenant_schema = tenant_schema;
+                self.merchant_id = merchant_id;
                 self.order_uuid = order_uuid;
                 self.schedule_uuid = Some(schedule_uuid);
                 self.assigned_user_uuid = Some(assigned_user_uuid);

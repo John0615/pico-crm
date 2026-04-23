@@ -80,7 +80,6 @@ cargo leptos build --release --split
 - `JWT_SECRET`: JWT signing secret
 - `JWT_EXPIRY_HOURS`: access token expiry (hours)
 - `JWT_REFRESH_EXPIRY_DAYS`: refresh token expiry (days)
-- `TENANT_SCHEMA_PREFIX`: legacy multi-schema setting, planned for removal during the shared-table migration
 - `UPLOAD_BUCKET` / `UPLOAD_REGION`: object storage config (optional)
 - `SMS_API_KEY`: SMS provider key (optional)
 - `ADMIN_TRIAL_DAYS_DEFAULT`: default trial length (optional)

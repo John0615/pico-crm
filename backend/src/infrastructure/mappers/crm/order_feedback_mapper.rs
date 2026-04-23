@@ -45,6 +45,7 @@ impl OrderFeedbackMapper {
 
         Ok(ActiveModel {
             uuid: Set(Uuid::new_v4()),
+            merchant_id: Set(None),
             order_id: Set(order_uuid),
             worker_id: Set(None),
             user_uuid: Set(user_uuid),

@@ -14,9 +14,14 @@ impl<R: UserRepository> UserCommandService<R> {
     }
 
     pub async fn create_user(&self, request: CreateUserRequest) -> Result<User, String> {
+        let normalized_user_name = request.user_name.trim().to_string();
+        if normalized_user_name.is_empty() {
+            return Err("用户名不能为空".to_string());
+        }
+
         if let Ok(Some(_)) = self
             .user_repository
-            .find_user_by_username(&request.user_name)
+            .find_user_by_username(&normalized_user_name)
             .await
         {
             return Err("用户名已存在".to_string());
@@ -39,7 +44,7 @@ impl<R: UserRepository> UserCommandService<R> {
         }
 
         let CreateUserRequest {
-            user_name,
+            user_name: _,
             password,
             email,
             phone_number,
@@ -58,7 +63,7 @@ impl<R: UserRepository> UserCommandService<R> {
 
         let password_hash =
             DomainUser::hash_password(&password).map_err(|e| format!("密码加密失败: {}", e))?;
-        let mut user = DomainUser::new(user_name, password_hash, email, phone_number);
+        let mut user = DomainUser::new(normalized_user_name, password_hash, email, phone_number);
         if let Some(role) = role {
             user.set_role(role);
         }
@@ -93,6 +98,11 @@ impl<R: UserRepository> UserCommandService<R> {
         uuid: &str,
         request: CreateUserRequest,
     ) -> Result<User, String> {
+        let normalized_user_name = request.user_name.trim().to_string();
+        if normalized_user_name.is_empty() {
+            return Err("用户名不能为空".to_string());
+        }
+
         let mut user = self
             .user_repository
             .find_user_by_uuid(uuid)
@@ -102,7 +112,7 @@ impl<R: UserRepository> UserCommandService<R> {
 
         if let Ok(Some(existing_user)) = self
             .user_repository
-            .find_user_by_username(&request.user_name)
+            .find_user_by_username(&normalized_user_name)
             .await
         {
             if existing_user.uuid != user.uuid {
@@ -131,7 +141,7 @@ impl<R: UserRepository> UserCommandService<R> {
         }
 
         let CreateUserRequest {
-            user_name,
+            user_name: _,
             password,
             email,
             phone_number,
@@ -148,7 +158,7 @@ impl<R: UserRepository> UserCommandService<R> {
             role,
         } = request;
 
-        user.update_info(Some(user_name), email, phone_number, avatar_url);
+        user.update_info(Some(normalized_user_name), email, phone_number, avatar_url);
 
         if let Some(role) = role {
             user.set_role(role);

@@ -8,7 +8,7 @@ use backend::infrastructure::db::Database;
 use leptos::logging::log;
 use leptos::prelude::*;
 use leptos_axum::{generate_route_list, LeptosRoutes};
-use migration::{MigratorTrait, PublicMigrator};
+use migration::{Migrator, MigratorTrait};
 use std::env;
 
 pub mod middlewares;
@@ -24,13 +24,13 @@ async fn main() {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
     println!("db_url: {:?}", db_url);
     let db = Database::new().await;
-    PublicMigrator::up(db.get_connection(), None)
+    Migrator::up(db.get_connection(), None)
         .await
-        .unwrap_or_else(|err| panic!("执行公共数据库迁移失败: {}", err));
+        .unwrap_or_else(|err| panic!("执行数据库迁移失败: {}", err));
     bootstrap_cqrs(db.connection.clone())
         .await
         .unwrap_or_else(|err| panic!("启动 CQRS 基础设施失败: {}", err));
-    // Tenant 迁移在商户开通时执行，并通过 search_path 定向到租户 schema
+    // 旧的 tenant 迁移链路正在下线，后续将收敛为单库共享表迁移
 
     let conf =
         get_configuration(None).unwrap_or_else(|err| panic!("加载 Leptos 配置失败: {}", err));

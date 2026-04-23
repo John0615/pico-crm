@@ -13,16 +13,16 @@ use crate::infrastructure::entity::after_sales_case_records::{
 };
 use crate::infrastructure::entity::users::{Column as UserColumn, Entity as UserEntity};
 use crate::infrastructure::mappers::crm::after_sales_record_mapper::AfterSalesCaseRecordMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct SeaOrmAfterSalesCaseRecordQuery {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmAfterSalesCaseRecordQuery {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -43,13 +43,16 @@ impl AfterSalesCaseQuery for SeaOrmAfterSalesCaseRecordQuery {
         case_uuid: String,
     ) -> impl std::future::Future<Output = Result<Vec<Self::RecordResult>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let case_uuid = Uuid::parse_str(&case_uuid)
                         .map_err(|e| format!("invalid case uuid: {}", e))?;
                     let items = AfterSalesRecordEntity::find()
+                        .filter(AfterSalesRecordColumn::MerchantId.eq(merchant_uuid))
                         .filter(AfterSalesRecordColumn::CaseUuid.eq(case_uuid))
                         .order_by_desc(AfterSalesRecordColumn::InsertedAt)
                         .all(txn)

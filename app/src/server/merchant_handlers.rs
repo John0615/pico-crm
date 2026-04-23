@@ -27,7 +27,6 @@ pub async fn provision_merchant(
 
     Ok(ProvisionMerchantResponse {
         merchant_uuid: merchant.uuid,
-        schema_name: merchant.schema_name,
         status: merchant.status,
     })
 }

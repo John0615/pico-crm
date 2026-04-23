@@ -16,7 +16,7 @@ use crate::domain::crm::service_request::model::ServiceRequest;
 pub enum ServiceRequestEventEnvelope {
     ServiceRequestCreated {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         request_uuid: String,
         customer_uuid: String,
@@ -33,7 +33,7 @@ pub enum ServiceRequestEventEnvelope {
     },
     ServiceRequestDetailsUpdated {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         request_uuid: String,
         service_catalog_uuid: Option<String>,
@@ -45,7 +45,7 @@ pub enum ServiceRequestEventEnvelope {
     },
     ServiceRequestStatusChanged {
         #[id]
-        tenant_schema: String,
+        merchant_id: String,
         #[id]
         request_uuid: String,
         status: String,
@@ -54,11 +54,11 @@ pub enum ServiceRequestEventEnvelope {
 }
 
 pub fn seed_created_event(
-    tenant_schema: &str,
+    merchant_id: &str,
     request: &ServiceRequest,
 ) -> ServiceRequestEventEnvelope {
     ServiceRequestEventEnvelope::ServiceRequestCreated {
-        tenant_schema: tenant_schema.to_string(),
+        merchant_id: merchant_id.to_string(),
         request_uuid: request.uuid.clone(),
         customer_uuid: request.customer_uuid.clone(),
         creator_uuid: request.creator_uuid.clone(),

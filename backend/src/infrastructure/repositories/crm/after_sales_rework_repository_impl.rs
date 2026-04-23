@@ -5,16 +5,16 @@ use crate::domain::crm::after_sales_rework::{
     AfterSalesRework, AfterSalesReworkRepository, CreateAfterSalesRework,
 };
 use crate::infrastructure::mappers::crm::after_sales_rework_mapper::AfterSalesReworkMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct SeaOrmAfterSalesReworkRepository {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmAfterSalesReworkRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -25,11 +25,14 @@ impl AfterSalesReworkRepository for SeaOrmAfterSalesReworkRepository {
         rework: CreateAfterSalesRework,
     ) -> impl std::future::Future<Output = Result<AfterSalesRework, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
-                    let active = AfterSalesReworkMapper::to_active_entity(rework)?;
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                    let mut active = AfterSalesReworkMapper::to_active_entity(rework)?;
+                    active.merchant_id = sea_orm::ActiveValue::Set(Some(merchant_uuid));
                     let created = active
                         .insert(txn)
                         .await

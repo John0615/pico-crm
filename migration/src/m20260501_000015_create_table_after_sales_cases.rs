@@ -15,9 +15,9 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(AfterSalesCases::Uuid)
                             .uuid()
                             .not_null()
-                            .primary_key()
-                            .default(Expr::cust("gen_random_uuid()")),
+                            .primary_key(),
                     )
+                    .col(ColumnDef::new(AfterSalesCases::MerchantId).uuid().null())
                     .col(ColumnDef::new(AfterSalesCases::OrderUuid).uuid().not_null())
                     .col(ColumnDef::new(AfterSalesCases::OperatorUuid).uuid().null())
                     .col(
@@ -37,6 +37,12 @@ impl MigrationTrait for Migration {
                             .default("open"),
                     )
                     .col(
+                        ColumnDef::new(AfterSalesCases::RefundAmountCents)
+                            .big_integer()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(AfterSalesCases::RefundReason).text().null())
+                    .col(
                         ColumnDef::new(AfterSalesCases::InsertedAt)
                             .timestamp_with_time_zone()
                             .not_null()
@@ -47,6 +53,13 @@ impl MigrationTrait for Migration {
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_after_sales_cases_merchant")
+                            .from(AfterSalesCases::Table, AfterSalesCases::MerchantId)
+                            .to(Merchant::Table, Merchant::Uuid)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .foreign_key(
                         ForeignKey::create()
@@ -69,24 +82,15 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_after_sales_cases_order_uuid")
+                    .name("idx_after_sales_cases_order")
                     .table(AfterSalesCases::Table)
                     .col(AfterSalesCases::OrderUuid)
-                    .if_not_exists()
                     .to_owned(),
             )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_index(
-                Index::drop()
-                    .name("idx_after_sales_cases_order_uuid")
-                    .table(AfterSalesCases::Table)
-                    .to_owned(),
-            )
-            .await?;
         manager
             .drop_table(Table::drop().table(AfterSalesCases::Table).to_owned())
             .await
@@ -97,13 +101,22 @@ impl MigrationTrait for Migration {
 enum AfterSalesCases {
     Table,
     Uuid,
+    MerchantId,
     OrderUuid,
     OperatorUuid,
     CaseType,
     Description,
     Status,
+    RefundAmountCents,
+    RefundReason,
     InsertedAt,
     UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Merchant {
+    Table,
+    Uuid,
 }
 
 #[derive(DeriveIden)]

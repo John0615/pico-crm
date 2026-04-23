@@ -12,32 +12,32 @@ use crate::infrastructure::event_store::order::event_store;
 
 pub struct SeaOrmOrderRepository {
     _db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmOrderRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
         Self {
             _db: db,
-            schema_name,
+            merchant_id,
         }
     }
 
-    async fn load_order_state(schema_name: &str, uuid: &str) -> Result<OrderState, String> {
+    async fn load_order_state(merchant_id: &str, uuid: &str) -> Result<OrderState, String> {
         let event_store = event_store().await?;
         let state_store = EventSourcedStateStore::new(event_store, NoSnapshot);
         let loaded_state = state_store
-            .load(OrderState::new(schema_name.to_string(), uuid.to_string()))
+            .load(OrderState::new(merchant_id.to_string(), uuid.to_string()))
             .await
             .map_err(|e| format!("load order state error: {}", e))?;
         Ok(loaded_state.state().clone())
     }
 
     async fn load_order_from_events(
-        schema_name: &str,
+        merchant_id: &str,
         uuid: &str,
     ) -> Result<Option<Order>, String> {
-        let state = Self::load_order_state(schema_name, uuid).await?;
+        let state = Self::load_order_state(merchant_id, uuid).await?;
         if !state.exists {
             return Ok(None);
         }
@@ -52,21 +52,21 @@ impl OrderRepository for SeaOrmOrderRepository {
         order: Order,
         operator_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let order_uuid = order.uuid.clone();
             let event_store = event_store().await?;
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(CreateOrderDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     order,
                     operator_uuid,
                 ))
                 .await
                 .map_err(|e| format!("create order decision error: {}", e))?;
 
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &order_uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &order_uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found after creation", order_uuid))
         }
@@ -76,8 +76,8 @@ impl OrderRepository for SeaOrmOrderRepository {
         &self,
         uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<Order>, String>> + Send {
-        let schema_name = self.schema_name.clone();
-        async move { SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid).await }
+        let merchant_id = self.merchant_id.clone();
+        async move { SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid).await }
     }
 
     fn update_order_status(
@@ -86,10 +86,10 @@ impl OrderRepository for SeaOrmOrderRepository {
         status: String,
         operator_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let next_status = OrderStatus::parse(&status)?;
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found", uuid.clone()))?;
 
@@ -97,7 +97,7 @@ impl OrderRepository for SeaOrmOrderRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(UpdateOrderStatusDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     uuid.clone(),
                     next_status,
                     Utc::now(),
@@ -106,7 +106,7 @@ impl OrderRepository for SeaOrmOrderRepository {
                 .await
                 .map_err(|e| format!("update order status decision error: {}", e))?;
 
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found after status update", uuid))
         }
@@ -118,9 +118,9 @@ impl OrderRepository for SeaOrmOrderRepository {
         update: OrderAssignmentUpdate,
         operator_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found", uuid.clone()))?;
 
@@ -128,7 +128,7 @@ impl OrderRepository for SeaOrmOrderRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(UpdateOrderAssignmentDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     uuid.clone(),
                     update,
                     Utc::now(),
@@ -137,7 +137,7 @@ impl OrderRepository for SeaOrmOrderRepository {
                 .await
                 .map_err(|e| format!("update order assignment decision error: {}", e))?;
 
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found after assignment update", uuid))
         }
@@ -149,9 +149,9 @@ impl OrderRepository for SeaOrmOrderRepository {
         update: OrderDetailsUpdate,
         operator_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found", uuid.clone()))?;
 
@@ -159,7 +159,7 @@ impl OrderRepository for SeaOrmOrderRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(UpdateOrderDetailsDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     uuid.clone(),
                     update,
                     Utc::now(),
@@ -168,7 +168,7 @@ impl OrderRepository for SeaOrmOrderRepository {
                 .await
                 .map_err(|e| format!("update order details decision error: {}", e))?;
 
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found after details update", uuid))
         }
@@ -184,10 +184,10 @@ impl OrderRepository for SeaOrmOrderRepository {
         paid_at: Option<chrono::DateTime<chrono::Utc>>,
         operator_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
             let settlement_status = SettlementStatus::parse(&settlement_status)?;
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found", uuid.clone()))?;
 
@@ -195,7 +195,7 @@ impl OrderRepository for SeaOrmOrderRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(UpdateOrderSettlementDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     uuid.clone(),
                     settlement_status,
                     settlement_note,
@@ -208,7 +208,7 @@ impl OrderRepository for SeaOrmOrderRepository {
                 .await
                 .map_err(|e| format!("update order settlement decision error: {}", e))?;
 
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found after settlement update", uuid))
         }
@@ -220,9 +220,9 @@ impl OrderRepository for SeaOrmOrderRepository {
         reason: String,
         operator_uuid: Option<String>,
     ) -> impl std::future::Future<Output = Result<Order, String>> + Send {
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found", uuid.clone()))?;
 
@@ -230,7 +230,7 @@ impl OrderRepository for SeaOrmOrderRepository {
             let decision_maker = disintegrate_postgres::decision_maker(event_store, NoSnapshot);
             decision_maker
                 .make(CancelOrderDecision::new(
-                    schema_name.clone(),
+                    merchant_id.clone(),
                     uuid.clone(),
                     reason,
                     Utc::now(),
@@ -239,7 +239,7 @@ impl OrderRepository for SeaOrmOrderRepository {
                 .await
                 .map_err(|e| format!("cancel order decision error: {}", e))?;
 
-            SeaOrmOrderRepository::load_order_from_events(&schema_name, &uuid)
+            SeaOrmOrderRepository::load_order_from_events(&merchant_id, &uuid)
                 .await?
                 .ok_or_else(|| format!("order {} not found after cancellation", uuid))
         }

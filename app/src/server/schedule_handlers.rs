@@ -43,7 +43,7 @@ pub async fn fetch_schedules(params: ScheduleQuery) -> Result<ListResult<Schedul
         params.assigned_user_uuid = Some(current_user.uuid.clone());
     }
 
-    let query = SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ScheduleQueryService::new(query);
 
     let result = service
@@ -67,7 +67,7 @@ pub async fn get_schedule(uuid: String) -> Result<Option<Schedule>, ServerFnErro
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
 
-    let query = SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ScheduleQueryService::new(query);
 
     let schedule = service
@@ -105,9 +105,10 @@ pub async fn create_schedule(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
 
-    let schema_name = tenant.schema_name.clone();
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), schema_name.clone());
-    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name);
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
@@ -136,9 +137,10 @@ pub async fn update_schedule(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
 
-    let schema_name = tenant.schema_name.clone();
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), schema_name.clone());
-    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name);
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
@@ -164,9 +166,10 @@ pub async fn cancel_schedule(order_uuid: String) -> Result<Schedule, ServerFnErr
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
 
-    let schema_name = tenant.schema_name.clone();
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), schema_name.clone());
-    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name);
+    let order_repo =
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
+    let schedule_repo =
+        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
@@ -192,9 +195,10 @@ pub async fn update_schedule_status(
     let Extension(current_user): Extension<User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
+    let merchant_id = tenant.merchant_id.clone();
 
     if is_worker(&current_user) {
-        let query = SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        let query = SeaOrmScheduleQuery::new(pool.connection.clone(), merchant_id.clone());
         let schedule_service = ScheduleQueryService::new(query);
         let schedule = schedule_service
             .fetch_schedule(order_uuid.clone())
@@ -215,9 +219,8 @@ pub async fn update_schedule_status(
         ensure_operator(&current_user)?;
     }
 
-    let order_repo =
-        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
-    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name);
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), merchant_id);
     let service = ScheduleAppService::new(order_repo, schedule_repo);
 
     let result = service
@@ -241,10 +244,11 @@ pub async fn fetch_schedule_feedbacks(
 
     let Extension(current_user): Extension<User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
 
     if is_worker(&current_user) {
-        let query = SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        let query = SeaOrmScheduleQuery::new(pool.connection.clone(), merchant_id.clone());
         let schedule_service = ScheduleQueryService::new(query);
         let schedule = schedule_service
             .fetch_schedule(order_uuid.clone())
@@ -260,7 +264,7 @@ pub async fn fetch_schedule_feedbacks(
         ensure_operator(&current_user)?;
     }
 
-    let query = SeaOrmOrderFeedbackQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmOrderFeedbackQuery::new(pool.connection.clone(), merchant_id);
     let service = OrderFeedbackQueryService::new(query);
     service
         .fetch_feedbacks(order_uuid)
@@ -287,10 +291,10 @@ pub async fn create_schedule_feedback(
     }
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
 
-    let schedule_query =
-        SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+    let schedule_query = SeaOrmScheduleQuery::new(pool.connection.clone(), merchant_id.clone());
     let schedule_service = ScheduleQueryService::new(schedule_query);
     let schedule = schedule_service
         .fetch_schedule(order_uuid.clone())
@@ -308,7 +312,7 @@ pub async fn create_schedule_feedback(
         ));
     }
 
-    let repo = SeaOrmOrderFeedbackRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo = SeaOrmOrderFeedbackRepository::new(pool.connection.clone(), merchant_id);
     let service = OrderFeedbackAppService::new(repo);
     service
         .create_feedback(order_uuid, payload, Some(current_user.uuid))

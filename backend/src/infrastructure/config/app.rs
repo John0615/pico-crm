@@ -4,7 +4,6 @@ use std::env;
 pub struct AppConfig {
     pub app_env: String,
     pub database_url: String,
-    pub tenant_schema_prefix: String,
     pub upload_bucket: Option<String>,
     pub upload_region: Option<String>,
     pub sms_api_key: Option<String>,
@@ -17,8 +16,6 @@ impl AppConfig {
         let app_env = env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
         let database_url =
             env::var("DATABASE_URL").map_err(|_| "DATABASE_URL is not set".to_string())?;
-        let tenant_schema_prefix =
-            env::var("TENANT_SCHEMA_PREFIX").unwrap_or_else(|_| "merchant_".to_string());
 
         let upload_bucket = env::var("UPLOAD_BUCKET").ok();
         let upload_region = env::var("UPLOAD_REGION").ok();
@@ -32,7 +29,6 @@ impl AppConfig {
         Ok(Self {
             app_env,
             database_url,
-            tenant_schema_prefix,
             upload_bucket,
             upload_region,
             sms_api_key,

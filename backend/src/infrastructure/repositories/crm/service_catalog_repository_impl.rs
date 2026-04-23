@@ -11,16 +11,16 @@ use crate::infrastructure::entity::service_catalogs::{
 use crate::infrastructure::entity::service_requests::Column as ServiceRequestColumn;
 use crate::infrastructure::entity::service_requests::Entity as ServiceRequestEntity;
 use crate::infrastructure::mappers::crm::service_catalog_mapper::ServiceCatalogMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct SeaOrmServiceCatalogRepository {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmServiceCatalogRepository {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -31,11 +31,14 @@ impl ServiceCatalogRepository for SeaOrmServiceCatalogRepository {
         catalog: ServiceCatalog,
     ) -> impl std::future::Future<Output = Result<ServiceCatalog, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
-                    let active = ServiceCatalogMapper::to_active_entity(catalog);
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                    let mut active = ServiceCatalogMapper::to_active_entity(catalog);
+                    active.merchant_id = sea_orm::ActiveValue::Set(Some(merchant_uuid));
                     let created = active
                         .insert(txn)
                         .await
@@ -52,13 +55,16 @@ impl ServiceCatalogRepository for SeaOrmServiceCatalogRepository {
         catalog: UpdateServiceCatalog,
     ) -> impl std::future::Future<Output = Result<ServiceCatalog, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let uuid = Uuid::parse_str(&catalog.uuid)
                         .map_err(|e| format!("invalid service catalog uuid: {}", e))?;
                     let original = ServiceCatalogEntity::find()
+                        .filter(ServiceCatalogColumn::MerchantId.eq(merchant_uuid))
                         .filter(ServiceCatalogColumn::Uuid.eq(uuid))
                         .one(txn)
                         .await
@@ -82,13 +88,17 @@ impl ServiceCatalogRepository for SeaOrmServiceCatalogRepository {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<(), String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let uuid = Uuid::parse_str(&uuid)
                         .map_err(|e| format!("invalid service catalog uuid: {}", e))?;
-                    let entity = ServiceCatalogEntity::find_by_id(uuid)
+                    let entity = ServiceCatalogEntity::find()
+                        .filter(ServiceCatalogColumn::MerchantId.eq(merchant_uuid))
+                        .filter(ServiceCatalogColumn::Uuid.eq(uuid))
                         .one(txn)
                         .await
                         .map_err(|e| format!("query service catalog error: {}", e))?
@@ -112,13 +122,16 @@ impl ServiceCatalogRepository for SeaOrmServiceCatalogRepository {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<bool, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let uuid = Uuid::parse_str(&uuid)
                         .map_err(|e| format!("invalid service catalog uuid: {}", e))?;
                     let count = ServiceRequestEntity::find()
+                        .filter(ServiceRequestColumn::MerchantId.eq(merchant_uuid))
                         .filter(ServiceRequestColumn::ServiceCatalogUuid.eq(uuid))
                         .count(txn)
                         .await

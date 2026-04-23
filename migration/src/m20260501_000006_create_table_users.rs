@@ -1,0 +1,191 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Users::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(Users::Uuid).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(Users::MerchantId).uuid().null())
+                    .col(ColumnDef::new(Users::UserName).string().not_null())
+                    .col(ColumnDef::new(Users::Password).string().not_null())
+                    .col(ColumnDef::new(Users::Email).string().null())
+                    .col(ColumnDef::new(Users::PhoneNumber).string().null())
+                    .col(
+                        ColumnDef::new(Users::Role)
+                            .string()
+                            .not_null()
+                            .default("operator"),
+                    )
+                    .col(ColumnDef::new(Users::IsAdmin).boolean().null())
+                    .col(
+                        ColumnDef::new(Users::Status)
+                            .string()
+                            .not_null()
+                            .default("active"),
+                    )
+                    .col(
+                        ColumnDef::new(Users::EmploymentStatus)
+                            .string()
+                            .not_null()
+                            .default("active"),
+                    )
+                    .col(
+                        ColumnDef::new(Users::Skills)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::val("[]")),
+                    )
+                    .col(
+                        ColumnDef::new(Users::ServiceAreas)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::val("[]")),
+                    )
+                    .col(
+                        ColumnDef::new(Users::TrainingRecords)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::val("[]")),
+                    )
+                    .col(
+                        ColumnDef::new(Users::Certificates)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::val("[]")),
+                    )
+                    .col(
+                        ColumnDef::new(Users::HealthStatus)
+                            .string()
+                            .not_null()
+                            .default("healthy"),
+                    )
+                    .col(ColumnDef::new(Users::EmployeeNote).text().null())
+                    .col(
+                        ColumnDef::new(Users::JoinedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(Users::AvatarUrl).text().null())
+                    .col(
+                        ColumnDef::new(Users::LastLoginAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Users::EmailVerifiedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Users::InsertedAt)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(Users::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_users_merchant")
+                            .from(Users::Table, Users::MerchantId)
+                            .to(Merchant::Table, Merchant::Uuid)
+                            .on_delete(ForeignKeyAction::SetNull),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_users_merchant_id")
+                    .table(Users::Table)
+                    .col(Users::MerchantId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_users_merchant_username_unique")
+                    .table(Users::Table)
+                    .col(Users::MerchantId)
+                    .col(Users::UserName)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_users_merchant_email_unique")
+                    .table(Users::Table)
+                    .col(Users::MerchantId)
+                    .col(Users::Email)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_users_merchant_phone_unique")
+                    .table(Users::Table)
+                    .col(Users::MerchantId)
+                    .col(Users::PhoneNumber)
+                    .unique()
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(Users::Table).to_owned())
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum Users {
+    Table,
+    Uuid,
+    MerchantId,
+    UserName,
+    Password,
+    Email,
+    PhoneNumber,
+    Role,
+    IsAdmin,
+    Status,
+    EmploymentStatus,
+    Skills,
+    ServiceAreas,
+    TrainingRecords,
+    Certificates,
+    HealthStatus,
+    EmployeeNote,
+    JoinedAt,
+    AvatarUrl,
+    LastLoginAt,
+    EmailVerifiedAt,
+    InsertedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Merchant {
+    Table,
+    Uuid,
+}

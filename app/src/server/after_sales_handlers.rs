@@ -38,7 +38,7 @@ pub async fn fetch_after_sales_cases(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmAfterSalesCaseQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmAfterSalesCaseQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = AfterSalesCaseQueryService::new(query);
     service
         .fetch_cases(order_uuid)
@@ -70,7 +70,7 @@ pub async fn create_after_sales_case(
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
     let order_repo =
-        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let order = order_repo
         .find_order(order_uuid.clone())
         .await
@@ -79,7 +79,8 @@ pub async fn create_after_sales_case(
         return Err(ServerFnError::new("订单不存在".to_string()));
     }
 
-    let repo = SeaOrmAfterSalesCaseRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmAfterSalesCaseRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = AfterSalesCaseAppService::new(repo);
     service
         .create_case(order_uuid, payload, Some(current_user.uuid))
@@ -110,7 +111,8 @@ pub async fn update_after_sales_refund(
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let repo = SeaOrmAfterSalesCaseRepository::new(pool.connection.clone(), tenant.schema_name);
+    let repo =
+        SeaOrmAfterSalesCaseRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = AfterSalesCaseAppService::new(repo);
     service
         .update_refund(case_uuid, payload)

@@ -1,7 +1,5 @@
 use sea_orm_migration::prelude::*;
 
-const PUBLIC_SCHEMA: &str = "public";
-
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -11,30 +9,18 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table((Alias::new(PUBLIC_SCHEMA), Merchant::Table))
+                    .table(Merchant::Table)
                     .if_not_exists()
                     .col(
                         ColumnDef::new(Merchant::Uuid)
                             .uuid()
                             .not_null()
-                            .primary_key()
-                            .default(Expr::cust("gen_random_uuid()")),
+                            .primary_key(),
                     )
                     .col(ColumnDef::new(Merchant::Name).string().not_null())
                     .col(ColumnDef::new(Merchant::ShortName).string().null())
-                    .col(
-                        ColumnDef::new(Merchant::SchemaName)
-                            .string()
-                            .not_null()
-                            .unique_key(),
-                    )
                     .col(ColumnDef::new(Merchant::ContactName).string().not_null())
-                    .col(
-                        ColumnDef::new(Merchant::ContactPhone)
-                            .string()
-                            .not_null()
-                            .unique_key(),
-                    )
+                    .col(ColumnDef::new(Merchant::ContactPhone).string().not_null())
                     .col(ColumnDef::new(Merchant::MerchantType).string().null())
                     .col(ColumnDef::new(Merchant::PlanType).string().null())
                     .col(
@@ -67,16 +53,23 @@ impl MigrationTrait for Migration {
                     )
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_merchant_contact_phone_unique")
+                    .table(Merchant::Table)
+                    .col(Merchant::ContactPhone)
+                    .unique()
+                    .to_owned(),
+            )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(
-                Table::drop()
-                    .table((Alias::new(PUBLIC_SCHEMA), Merchant::Table))
-                    .to_owned(),
-            )
+            .drop_table(Table::drop().table(Merchant::Table).to_owned())
             .await
     }
 }
@@ -87,7 +80,6 @@ enum Merchant {
     Uuid,
     Name,
     ShortName,
-    SchemaName,
     ContactName,
     ContactPhone,
     MerchantType,

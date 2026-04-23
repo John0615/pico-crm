@@ -6,6 +6,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub uuid: Uuid,
+    pub merchant_id: Option<Uuid>,
     pub order_id: Uuid,
     pub worker_id: Option<Uuid>,
     pub user_uuid: Option<Uuid>,

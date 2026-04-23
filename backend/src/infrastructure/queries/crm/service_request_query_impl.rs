@@ -14,18 +14,18 @@ use crate::infrastructure::entity::service_catalogs::{
 use crate::infrastructure::entity::service_requests::{Column, Entity};
 use crate::infrastructure::entity::users::{Column as UserColumn, Entity as UserEntity};
 use crate::infrastructure::mappers::crm::service_request_mapper::ServiceRequestMapper;
-use crate::infrastructure::tenant::with_tenant_txn;
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 use shared::service_request::ServiceRequest as SharedServiceRequest;
 use shared::service_request::ServiceRequestQuery;
 
 pub struct SeaOrmServiceRequestQuery {
     db: DatabaseConnection,
-    schema_name: String,
+    merchant_id: String,
 }
 
 impl SeaOrmServiceRequestQuery {
-    pub fn new(db: DatabaseConnection, schema_name: String) -> Self {
-        Self { db, schema_name }
+    pub fn new(db: DatabaseConnection, merchant_id: String) -> Self {
+        Self { db, merchant_id }
     }
 }
 
@@ -37,35 +37,14 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
         query: ServiceRequestQuery,
     ) -> impl std::future::Future<Output = Result<(Vec<Self::Result>, u64), String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let mut select = Entity::find();
-                    let mut condition = Condition::all();
-
-                    if let Some(status) = query.status {
-                        if !status.is_empty() {
-                            condition = condition.add(Column::Status.eq(status));
-                        }
-                    }
-
-                    if let Some(customer_uuid) = query.customer_uuid {
-                        if !customer_uuid.is_empty() {
-                            let customer_uuid = Uuid::parse_str(&customer_uuid)
-                                .map_err(|e| format!("invalid customer uuid: {}", e))?;
-                            condition = condition.add(Column::CustomerUuid.eq(customer_uuid));
-                        }
-                    }
-
-                    if let Some(start) = query.start_date.as_deref().and_then(parse_datetime) {
-                        condition = condition.add(Column::AppointmentStartAt.gte(start));
-                    }
-                    if let Some(end) = query.end_date.as_deref().and_then(parse_datetime) {
-                        condition = condition.add(Column::AppointmentStartAt.lte(end));
-                    }
-
-                    select = select.filter(condition);
+                    select = select.filter(build_service_request_condition(&query, merchant_uuid)?);
 
                     let total = select
                         .clone()
@@ -153,13 +132,17 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
         uuid: String,
     ) -> impl std::future::Future<Output = Result<Option<Self::Result>, String>> + Send {
         let db = self.db.clone();
-        let schema_name = self.schema_name.clone();
+        let merchant_id = self.merchant_id.clone();
         async move {
-            with_tenant_txn(&db, &schema_name, |txn| {
+            with_shared_txn(&db, |txn| {
+                let merchant_id = merchant_id.clone();
                 Box::pin(async move {
+                    let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
                     let request_uuid = Uuid::parse_str(&uuid)
                         .map_err(|e| format!("invalid request uuid: {}", e))?;
-                    let model = Entity::find_by_id(request_uuid)
+                    let model = Entity::find()
+                        .filter(Column::MerchantId.eq(merchant_uuid))
+                        .filter(Column::Uuid.eq(request_uuid))
                         .one(txn)
                         .await
                         .map_err(|e| format!("query service request error: {}", e))?;
@@ -203,6 +186,37 @@ impl DomainServiceRequestQuery for SeaOrmServiceRequestQuery {
     }
 }
 
+fn build_service_request_condition(
+    query: &ServiceRequestQuery,
+    merchant_uuid: Uuid,
+) -> Result<Condition, String> {
+    let mut condition = Condition::all();
+    condition = condition.add(Column::MerchantId.eq(merchant_uuid));
+
+    if let Some(status) = query.status.clone() {
+        if !status.is_empty() {
+            condition = condition.add(Column::Status.eq(status));
+        }
+    }
+
+    if let Some(customer_uuid) = query.customer_uuid.clone() {
+        if !customer_uuid.is_empty() {
+            let customer_uuid = Uuid::parse_str(&customer_uuid)
+                .map_err(|e| format!("invalid customer uuid: {}", e))?;
+            condition = condition.add(Column::CustomerUuid.eq(customer_uuid));
+        }
+    }
+
+    if let Some(start) = query.start_date.as_deref().and_then(parse_datetime) {
+        condition = condition.add(Column::AppointmentStartAt.gte(start));
+    }
+    if let Some(end) = query.end_date.as_deref().and_then(parse_datetime) {
+        condition = condition.add(Column::AppointmentStartAt.lte(end));
+    }
+
+    Ok(condition)
+}
+
 fn parse_datetime(value: &str) -> Option<DateTime<Utc>> {
     if value.trim().is_empty() {
         return None;
@@ -219,4 +233,40 @@ fn parse_datetime(value: &str) -> Option<DateTime<Utc>> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::{DbBackend, QueryTrait};
+
+    #[test]
+    fn generated_sql_contains_merchant_scope_for_service_request_list() {
+        let merchant_uuid =
+            Uuid::parse_str("11111111-1111-1111-1111-111111111111").expect("valid uuid");
+        let query = ServiceRequestQuery {
+            page: 1,
+            page_size: 20,
+            status: Some("new".to_string()),
+            customer_uuid: None,
+            start_date: None,
+            end_date: None,
+        };
+
+        let sql = Entity::find()
+            .filter(build_service_request_condition(&query, merchant_uuid).expect("condition"))
+            .build(DbBackend::Postgres)
+            .to_string();
+
+        assert!(
+            sql.contains(
+                r#""service_requests"."merchant_id" = '11111111-1111-1111-1111-111111111111'"#
+            ),
+            "sql: {sql}"
+        );
+        assert!(
+            sql.contains(r#""service_requests"."status" = 'new'"#),
+            "sql: {sql}"
+        );
+    }
 }

@@ -21,12 +21,12 @@ mod ssr {
 
     pub async fn wait_for_order_projection(
         pool: &Database,
-        schema_name: String,
+        merchant_id: String,
         order_uuid: String,
     ) -> Result<Option<shared::order::Order>, String> {
         use tokio::time::{sleep, Duration};
 
-        let query = SeaOrmOrderQuery::new(pool.connection.clone(), schema_name);
+        let query = SeaOrmOrderQuery::new(pool.connection.clone(), merchant_id);
         let service = OrderQueryService::new(query);
 
         for _ in 0..20 {
@@ -52,7 +52,7 @@ pub async fn fetch_orders(params: OrderQuery) -> Result<ListResult<Order>, Serve
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = OrderQueryService::new(query);
 
     let result = service
@@ -74,7 +74,7 @@ pub async fn get_order(uuid: String) -> Result<Option<Order>, ServerFnError> {
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = OrderQueryService::new(query);
 
     let result = service
@@ -96,7 +96,7 @@ pub async fn get_order_change_logs(uuid: String) -> Result<Vec<OrderChangeLogDto
 
     let Extension(tenant): Extension<TenantContext> = extract().await?;
     let pool = expect_context::<Database>();
-    let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.schema_name);
+    let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = OrderQueryService::new(query);
 
     service
@@ -119,16 +119,16 @@ pub async fn create_order_from_request(
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
-    let schema_name = tenant.schema_name.clone();
-    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), schema_name.clone());
-    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), schema_name.clone());
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), merchant_id.clone());
     let request_query =
-        SeaOrmServiceRequestQuery::new(pool.connection.clone(), schema_name.clone());
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), merchant_id.clone());
     let service_catalog_query =
-        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), schema_name.clone());
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), merchant_id.clone());
     let request_repo =
-        SeaOrmServiceRequestRepository::new(pool.connection.clone(), schema_name.clone());
+        SeaOrmServiceRequestRepository::new(pool.connection.clone(), merchant_id.clone());
     let service = OrderAppService::new(
         order_repo,
         request_query,
@@ -141,7 +141,7 @@ pub async fn create_order_from_request(
         .create_from_request(payload, Some(current_user.uuid))
         .await
         .map_err(|e| ServerFnError::new(e))?;
-    let projected = wait_for_order_projection(&pool, schema_name, result.uuid.clone())
+    let projected = wait_for_order_projection(&pool, merchant_id, result.uuid.clone())
         .await
         .map_err(ServerFnError::new)?;
     Ok(projected.unwrap_or(result))
@@ -162,17 +162,15 @@ pub async fn update_order(
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
-    let order_repo =
-        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
-    let schedule_repo =
-        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), merchant_id.clone());
     let request_query =
-        SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), merchant_id.clone());
     let service_catalog_query =
-        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
-    let request_repo =
-        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), merchant_id.clone());
+    let request_repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), merchant_id);
     let service = OrderAppService::new(
         order_repo,
         request_query,
@@ -202,17 +200,15 @@ pub async fn cancel_order(
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
-    let order_repo =
-        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
-    let schedule_repo =
-        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), merchant_id.clone());
     let request_query =
-        SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), merchant_id.clone());
     let service_catalog_query =
-        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
-    let request_repo =
-        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), merchant_id.clone());
+    let request_repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), merchant_id);
     let service = OrderAppService::new(
         order_repo,
         request_query,
@@ -242,17 +238,15 @@ pub async fn update_order_status(
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
-    let order_repo =
-        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
-    let schedule_repo =
-        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), merchant_id.clone());
     let request_query =
-        SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), merchant_id.clone());
     let service_catalog_query =
-        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
-    let request_repo =
-        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), merchant_id.clone());
+    let request_repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), merchant_id);
     let service = OrderAppService::new(
         order_repo,
         request_query,
@@ -283,17 +277,15 @@ pub async fn update_order_assignment(
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
-    let order_repo =
-        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
-    let schedule_repo =
-        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), merchant_id.clone());
     let request_query =
-        SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), merchant_id.clone());
     let service_catalog_query =
-        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
-    let request_repo =
-        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), merchant_id.clone());
+    let request_repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), merchant_id);
     let service = OrderAppService::new(
         order_repo,
         request_query,
@@ -324,17 +316,15 @@ pub async fn update_order_settlement(
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
     let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
-    let order_repo =
-        SeaOrmOrderRepository::new(pool.connection.clone(), tenant.schema_name.clone());
-    let schedule_repo =
-        SeaOrmScheduleRepository::new(pool.connection.clone(), tenant.schema_name.clone());
+    let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
+    let schedule_repo = SeaOrmScheduleRepository::new(pool.connection.clone(), merchant_id.clone());
     let request_query =
-        SeaOrmServiceRequestQuery::new(pool.connection.clone(), tenant.schema_name.clone());
+        SeaOrmServiceRequestQuery::new(pool.connection.clone(), merchant_id.clone());
     let service_catalog_query =
-        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.schema_name.clone());
-    let request_repo =
-        SeaOrmServiceRequestRepository::new(pool.connection.clone(), tenant.schema_name);
+        SeaOrmServiceCatalogQuery::new(pool.connection.clone(), merchant_id.clone());
+    let request_repo = SeaOrmServiceRequestRepository::new(pool.connection.clone(), merchant_id);
     let service = OrderAppService::new(
         order_repo,
         request_query,

@@ -9,7 +9,7 @@ use crate::domain::crm::order::{Order, OrderStatus, SettlementStatus};
 #[state_query(OrderEvent)]
 pub struct OrderState {
     #[id]
-    pub tenant_schema: String,
+    pub merchant_id: String,
     #[id]
     pub order_uuid: String,
     pub exists: bool,
@@ -33,9 +33,9 @@ pub struct OrderState {
 }
 
 impl OrderState {
-    pub fn new(tenant_schema: impl Into<String>, order_uuid: impl Into<String>) -> Self {
+    pub fn new(merchant_id: impl Into<String>, order_uuid: impl Into<String>) -> Self {
         Self {
-            tenant_schema: tenant_schema.into(),
+            merchant_id: merchant_id.into(),
             order_uuid: order_uuid.into(),
             ..Default::default()
         }
@@ -90,7 +90,7 @@ impl StateMutate for OrderState {
     fn mutate(&mut self, event: Self::Event) {
         match event {
             OrderEvent::OrderCreated {
-                tenant_schema,
+                merchant_id,
                 order_uuid,
                 request_id,
                 customer_uuid,
@@ -112,7 +112,7 @@ impl StateMutate for OrderState {
                 ..
             } => {
                 self.exists = true;
-                self.tenant_schema = tenant_schema;
+                self.merchant_id = merchant_id;
                 self.order_uuid = order_uuid;
                 self.request_id = request_id;
                 self.customer_uuid = customer_uuid;

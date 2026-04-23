@@ -9,9 +9,9 @@ use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel
 use uuid::Uuid;
 
 use crate::domain::crm::service_request::ServiceRequestEventEnvelope;
-use crate::infrastructure::entity::{merchant, service_requests};
+use crate::infrastructure::entity::service_requests;
 use crate::infrastructure::event_store::service_request::event_store;
-use crate::infrastructure::tenant::{is_safe_schema_name, with_tenant_txn};
+use crate::infrastructure::tenant::{parse_merchant_uuid, with_shared_txn};
 
 pub struct ServiceRequestProjection {
     query: StreamQuery<PgEventId, ServiceRequestEventEnvelope>,
@@ -20,7 +20,6 @@ pub struct ServiceRequestProjection {
 
 impl ServiceRequestProjection {
     pub async fn new(db: DatabaseConnection) -> Result<Self, String> {
-        ensure_existing_tenant_read_models(&db).await?;
         Ok(Self {
             query: query!(ServiceRequestEventEnvelope),
             db,
@@ -48,7 +47,7 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
 
         match event.into_inner() {
             ServiceRequestEventEnvelope::ServiceRequestCreated {
-                tenant_schema,
+                merchant_id,
                 request_uuid,
                 customer_uuid,
                 creator_uuid,
@@ -62,10 +61,13 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                 inserted_at,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let request_uuid = parse_uuid(&request_uuid, "request_uuid")?;
-                        let existing = service_requests::Entity::find_by_id(request_uuid)
+                        let existing = service_requests::Entity::find()
+                            .filter(service_requests::Column::MerchantId.eq(merchant_uuid))
+                            .filter(service_requests::Column::Uuid.eq(request_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| {
@@ -74,6 +76,7 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                         if existing.is_none() {
                             let active = service_requests::ActiveModel {
                                 uuid: Set(request_uuid),
+                                merchant_id: Set(Some(merchant_uuid)),
                                 customer_uuid: Set(parse_uuid(&customer_uuid, "customer_uuid")?),
                                 creator_uuid: Set(parse_uuid(&creator_uuid, "creator_uuid")?),
                                 service_catalog_uuid: Set(parse_optional_uuid(
@@ -100,7 +103,7 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                 .await?;
             }
             ServiceRequestEventEnvelope::ServiceRequestDetailsUpdated {
-                tenant_schema,
+                merchant_id,
                 request_uuid,
                 service_catalog_uuid,
                 service_content,
@@ -109,10 +112,13 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                 notes,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let request_uuid = parse_uuid(&request_uuid, "request_uuid")?;
-                        let Some(model) = service_requests::Entity::find_by_id(request_uuid)
+                        let Some(model) = service_requests::Entity::find()
+                            .filter(service_requests::Column::MerchantId.eq(merchant_uuid))
+                            .filter(service_requests::Column::Uuid.eq(request_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| {
@@ -146,15 +152,18 @@ impl EventListener<PgEventId, ServiceRequestEventEnvelope> for ServiceRequestPro
                 .await?;
             }
             ServiceRequestEventEnvelope::ServiceRequestStatusChanged {
-                tenant_schema,
+                merchant_id,
                 request_uuid,
                 status,
                 updated_at,
             } => {
-                with_tenant_txn(&self.db, &tenant_schema, |txn| {
+                let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
+                with_shared_txn(&self.db, |txn| {
                     Box::pin(async move {
                         let request_uuid = parse_uuid(&request_uuid, "request_uuid")?;
-                        let Some(model) = service_requests::Entity::find_by_id(request_uuid)
+                        let Some(model) = service_requests::Entity::find()
+                            .filter(service_requests::Column::MerchantId.eq(merchant_uuid))
+                            .filter(service_requests::Column::Uuid.eq(request_uuid))
                             .one(txn)
                             .await
                             .map_err(|e| {
@@ -221,46 +230,6 @@ pub async fn spawn_service_request_listener(
     });
 
     Ok(())
-}
-
-async fn ensure_existing_tenant_read_models(db: &DatabaseConnection) -> Result<(), String> {
-    let merchants = merchant::Entity::find().all(db).await.map_err(|e| {
-        format!(
-            "query merchants for service request projection error: {}",
-            e
-        )
-    })?;
-
-    for merchant in merchants {
-        ensure_tenant_read_model(db, &merchant.schema_name).await?;
-    }
-
-    Ok(())
-}
-
-async fn ensure_tenant_read_model(
-    db: &DatabaseConnection,
-    schema_name: &str,
-) -> Result<(), String> {
-    if !is_safe_schema_name(schema_name) {
-        return Err(format!("invalid tenant schema name: {}", schema_name));
-    }
-
-    with_tenant_txn(db, schema_name, |txn| {
-        Box::pin(async move {
-            use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-
-            let stmt = Statement::from_string(
-                DatabaseBackend::Postgres,
-                "ALTER TABLE IF EXISTS service_requests ADD COLUMN IF NOT EXISTS event_id BIGINT NOT NULL DEFAULT 0",
-            );
-            txn.execute(stmt)
-                .await
-                .map_err(|e| format!("ensure service request read model event_id error: {}", e))?;
-            Ok(())
-        })
-    })
-    .await
 }
 
 fn parse_uuid(value: &str, field: &str) -> Result<Uuid, String> {

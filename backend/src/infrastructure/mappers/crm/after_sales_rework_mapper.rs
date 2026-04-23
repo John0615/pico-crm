@@ -45,6 +45,7 @@ impl AfterSalesReworkMapper {
 
         Ok(ActiveModel {
             uuid: Set(Uuid::new_v4()),
+            merchant_id: Set(None),
             case_uuid: Set(case_uuid),
             assigned_user_uuid: Set(assigned_user_uuid),
             scheduled_start_at: Set(rework.scheduled_start_at),
