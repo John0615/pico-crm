@@ -3,8 +3,8 @@ use leptos_router::{lazy_route, LazyRoute};
 
 use crate::pages::admin::{AdminAnalytics, AdminMerchants, AdminUsers, SystemSettings};
 use crate::pages::{
-    ContactsManagement, Dashboard, Login, OrdersPage, SchedulesPage, ServiceCatalogsPage,
-    ServiceRequestsPage,
+    AdminLogin, ContactsManagement, Dashboard, Login, OrdersPage, SchedulesPage,
+    ServiceCatalogsPage, ServiceRequestsPage,
 };
 
 #[derive(Debug)]
@@ -34,6 +34,21 @@ impl LazyRoute for LoginRoute {
     fn view(this: Self) -> AnyView {
         let _ = this;
         view! { <Login/> }.into_any()
+    }
+}
+
+#[derive(Debug)]
+pub struct AdminLoginRoute;
+
+#[lazy_route]
+impl LazyRoute for AdminLoginRoute {
+    fn data() -> Self {
+        Self
+    }
+
+    fn view(this: Self) -> AnyView {
+        let _ = this;
+        view! { <AdminLogin/> }.into_any()
     }
 }
 

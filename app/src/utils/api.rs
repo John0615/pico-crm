@@ -129,7 +129,11 @@ fn redirect_to_login() {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
-            let _ = window.location().set_href("/login");
+            let target = match window.location().pathname() {
+                Ok(pathname) if pathname.starts_with("/admin") => "/admin/login",
+                _ => "/login",
+            };
+            let _ = window.location().set_href(target);
         }
     }
 }

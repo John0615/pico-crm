@@ -165,7 +165,7 @@ pub fn Navbar() -> impl IntoView {
         result.with(|current_value| {
             if let Some(action_result) = current_value.as_ref() {
                 if action_result.is_ok() {
-                    navigate("/login", Default::default());
+                    navigate(current_login_route(), Default::default());
                 }
             }
         });
@@ -279,4 +279,19 @@ pub fn Navbar() -> impl IntoView {
             </div>
         </div>
     }
+}
+
+fn current_login_route() -> &'static str {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(pathname) = window.location().pathname() {
+                if pathname.starts_with("/admin") {
+                    return "/admin/login";
+                }
+            }
+        }
+    }
+
+    "/login"
 }

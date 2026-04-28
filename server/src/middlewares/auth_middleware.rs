@@ -43,11 +43,19 @@ fn server_auth_check(cookie_jar: &CookieJar) -> Result<String, String> {
     }
 }
 
+fn login_path_for(path: &str) -> &'static str {
+    if path.starts_with("/admin") || path.starts_with("/api/admin") {
+        "/admin/login"
+    } else {
+        "/login"
+    }
+}
+
 pub async fn global_route_auth_middleware(
     req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
-    let white_list = ["/", "/login"];
+    let white_list = ["/", "/login", "/admin/login"];
     let path = req.uri().path().to_string();
 
     if white_list.contains(&path.as_str()) {
@@ -58,10 +66,11 @@ pub async fn global_route_auth_middleware(
     match server_auth_check(&cookie_jar) {
         Ok(_) => Ok(next.run(req).await),
         Err(_) => {
-            let mut res = Redirect::temporary("/login").into_response();
+            let login_path = login_path_for(&path);
+            let mut res = Redirect::temporary(login_path).into_response();
             res.headers_mut().insert(
                 axum::http::header::LOCATION,
-                HeaderValue::from_static("/login"),
+                HeaderValue::from_static(login_path),
             );
             *res.status_mut() = StatusCode::SEE_OTHER;
             Ok(res)
@@ -75,9 +84,12 @@ pub async fn global_api_auth_middleware(
     next: Next,
 ) -> Result<Response<Body>, StatusCode> {
     let white_list = [
+        "/",
         "/login",
+        "/admin/login",
         "/api/logout",
         "/api/login",
+        "/api/admin/login",
         "/api/register_merchant",
     ];
     let path = req.uri().path().to_string();
@@ -188,11 +200,12 @@ async fn handle_auth_failure(path: &str) -> Result<Response<Body>, StatusCode> {
         );
         Ok(res)
     } else {
+        let login_path = login_path_for(path);
         let mut res = Response::new(Body::empty());
         *res.status_mut() = StatusCode::SEE_OTHER;
         res.headers_mut().insert(
             axum::http::header::LOCATION,
-            HeaderValue::from_static("/login"),
+            HeaderValue::from_static(login_path),
         );
         Ok(res)
     }

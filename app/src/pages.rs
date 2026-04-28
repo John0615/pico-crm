@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod admin_login;
 pub mod contacts_management;
 pub mod dashboard;
 pub mod login;
@@ -9,6 +10,7 @@ pub mod service_catalogs;
 pub mod service_requests;
 
 pub use admin::*;
+pub use admin_login::*;
 pub use contacts_management::*;
 pub use dashboard::*;
 pub use login::*;
