@@ -65,6 +65,14 @@ cargo leptos watch --split
 
 ```bash
 cargo leptos build --release --split
+./scripts/optimize-wasm-release.sh
+```
+
+`cargo-leptos 0.3.x` in this repo currently runs `wasm-opt` without `-Oz`, so the extra script applies a stronger size-focused pass across all generated `.wasm` files.
+
+### Deploy
+```bash
+LEPTOS_SITE_ROOT=./site ./server
 ```
 
 ### Notes

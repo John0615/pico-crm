@@ -37,13 +37,855 @@ use shared::order::{
     CancelOrderRequest, Order, OrderChangeLogDto, OrderQuery, UpdateOrderRequest,
     UpdateOrderSettlement, UpdateOrderStatus,
 };
-use shared::user::UserListQuery;
+use shared::user::{User, UserListQuery};
 use shared::ListResult;
 use std::collections::{HashMap, HashSet};
 
 impl Identifiable for Order {
     fn id(&self) -> String {
         format!("{}-{}-{}", self.uuid, self.status, self.updated_at)
+    }
+}
+
+fn orders_modal_loading(title: &'static str) -> AnyView {
+    view! {
+        <div class="space-y-4">
+            <h3 class="text-lg font-semibold">{title}</h3>
+            <div class="text-sm text-base-content/60">"加载中..."</div>
+        </div>
+    }
+    .into_any()
+}
+
+#[leptos::lazy]
+fn load_order_detail_modal_content(
+    detail_order: RwSignal<Option<Order>>,
+    order_logs: Resource<Vec<OrderChangeLogDto>>,
+    settlement_status: RwSignal<String>,
+    settlement_note: RwSignal<String>,
+    paid_amount_cents: RwSignal<String>,
+    payment_method: RwSignal<String>,
+    paid_at: RwSignal<String>,
+    save_settlement: Callback<()>,
+    after_sales_case_type: RwSignal<String>,
+    after_sales_description: RwSignal<String>,
+    creating_after_sales_case: RwSignal<bool>,
+    save_after_sales_case: Callback<()>,
+    after_sales_cases: Resource<Vec<AfterSalesCase>>,
+    open_after_sales_case: Callback<AfterSalesCase>,
+    follow_up_content: RwSignal<String>,
+    next_follow_up_at: RwSignal<String>,
+    creating_follow_record: RwSignal<bool>,
+    save_follow_record: Callback<()>,
+    follow_records: Resource<Vec<ContactFollowRecord>>,
+    show_detail_modal: RwSignal<bool>,
+) -> AnyView {
+    view! {
+        <div class="space-y-4">
+            <h3 class="text-lg font-semibold">"订单详情"</h3>
+            {move || {
+                if let Some(order) = detail_order.get() {
+                    let customer_name = order
+                        .customer_name
+                        .clone()
+                        .filter(|value| !value.trim().is_empty())
+                        .unwrap_or_else(|| "未知客户".to_string());
+                    view! {
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {detail_item("订单ID", order.uuid.clone())}
+                            {detail_item("需求单ID", display_optional(order.request_id.clone()))}
+                            {detail_item("服务项目", display_optional(order.service_catalog_name.clone()))}
+                            {detail_item("客户", customer_name)}
+                            {detail_item("客户UUID", display_optional(order.customer_uuid.clone()))}
+                            {detail_item("状态", order_status_label(&order.status).to_string())}
+                            {detail_item("取消原因", display_optional(order.cancellation_reason.clone()))}
+                            {detail_item("完成时间", display_optional(order.completed_at.clone()))}
+                            {detail_item("结算状态", settlement_status_label(&order.settlement_status).to_string())}
+                            {detail_item("订单金额(分)", order.amount_cents.to_string())}
+                            {detail_item("实收金额(分)", display_optional_i64(order.paid_amount_cents))}
+                            {detail_item("支付方式", payment_method_label(order.payment_method.as_deref()).to_string())}
+                            {detail_item("收款时间", display_optional(order.paid_at.clone()))}
+                            {detail_item("服务开始", display_optional(order.scheduled_start_at.clone()))}
+                            {detail_item("服务结束", display_optional(order.scheduled_end_at.clone()))}
+                            {detail_item("派工备注", display_optional(order.dispatch_note.clone()))}
+                            {detail_item("备注", display_optional(order.notes.clone()))}
+                            {detail_item("结算备注", display_optional(order.settlement_note.clone()))}
+                            {detail_item("创建时间", order.inserted_at.clone())}
+                            {detail_item("更新时间", order.updated_at.clone())}
+                        </div>
+                    }
+                    .into_any()
+                } else {
+                    view! { <div class="text-sm text-base-content/60">"暂无详情"</div> }.into_any()
+                }
+            }}
+
+            <div class="rounded-box border border-base-200 p-4 space-y-3">
+                <div class="font-medium">"收款更新"</div>
+                <div class="grid gap-3 md:grid-cols-2">
+                    <select
+                        class="select select-bordered"
+                        prop:value=move || settlement_status.get()
+                        on:change=move |ev| settlement_status.set(event_target_value(&ev))
+                    >
+                        <option value="unsettled">"未结算"</option>
+                        <option value="settled">"已结算"</option>
+                    </select>
+                    <select
+                        class="select select-bordered"
+                        prop:value=move || payment_method.get()
+                        on:change=move |ev| payment_method.set(event_target_value(&ev))
+                    >
+                        <option value="">"请选择支付方式"</option>
+                        <option value="cash">"现金"</option>
+                        <option value="wechat">"微信"</option>
+                        <option value="alipay">"支付宝"</option>
+                        <option value="bank_transfer">"银行转账"</option>
+                        <option value="other">"其他"</option>
+                    </select>
+                    <input
+                        class="input input-bordered"
+                        type="number"
+                        min="0"
+                        prop:value=move || paid_amount_cents.get()
+                        on:input=move |ev| paid_amount_cents.set(event_target_value(&ev))
+                        placeholder="填写实收金额(分)"
+                    />
+                    <input
+                        class="input input-bordered"
+                        prop:value=move || paid_at.get()
+                        on:input=move |ev| paid_at.set(event_target_value(&ev))
+                        placeholder="收款时间，例如 2026-04-21T10:20:00Z"
+                    />
+                    <input
+                        class="input input-bordered md:col-span-2"
+                        prop:value=move || settlement_note.get()
+                        on:input=move |ev| settlement_note.set(event_target_value(&ev))
+                        placeholder="填写结算备注"
+                    />
+                </div>
+                <div class="flex justify-end">
+                    <button class="btn btn-sm btn-primary" on:click=move |_| save_settlement.run(())>
+                        "保存结算状态"
+                    </button>
+                </div>
+            </div>
+
+            <div class="rounded-box border border-base-200 p-4 space-y-3">
+                <div class="font-medium">"变更记录"</div>
+                <Transition fallback=move || view! { <div class="text-sm text-base-content/60">"加载中..."</div> }>
+                    {move || {
+                        order_logs.get().map(|logs| {
+                            if logs.is_empty() {
+                                view! { <div class="text-sm text-base-content/60">"暂无变更记录"</div> }.into_any()
+                            } else {
+                                view! {
+                                    <div class="space-y-3">
+                                        <For
+                                            each=move || logs.clone().into_iter().enumerate()
+                                            key=|(idx, item)| format!("{}-{}", idx, item.uuid)
+                                            children=move |(_, item)| {
+                                                let diff_items = order_log_diff_items(&item);
+                                                let has_diff = !diff_items.is_empty();
+                                                let diff_rows = diff_items
+                                                    .iter()
+                                                    .cloned()
+                                                    .map(|field| {
+                                                        view! {
+                                                            <div class="grid gap-2 rounded bg-base-100 p-2 text-xs md:grid-cols-[120px,1fr,1fr]">
+                                                                <div class="font-medium text-base-content/70">{field.0}</div>
+                                                                <div>
+                                                                    <div class="text-[11px] text-base-content/50">"变更前"</div>
+                                                                    <div class="whitespace-pre-wrap break-all">{field.1}</div>
+                                                                </div>
+                                                                <div>
+                                                                    <div class="text-[11px] text-base-content/50">"变更后"</div>
+                                                                    <div class="whitespace-pre-wrap break-all">{field.2}</div>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    })
+                                                    .collect_view();
+                                                view! {
+                                                    <div class="rounded-box bg-base-200/50 p-3 space-y-2">
+                                                        <div class="flex items-center justify-between gap-2">
+                                                            <span class="font-medium text-sm">{order_log_action_label(&item.action)}</span>
+                                                            <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
+                                                        </div>
+                                                        <div class="text-xs text-base-content/60">
+                                                            {format!(
+                                                                "操作人UUID: {}",
+                                                                item.operator_uuid.clone().unwrap_or_else(|| "-".to_string())
+                                                            )}
+                                                        </div>
+                                                        {if has_diff {
+                                                            view! {
+                                                                <div class="space-y-2">
+                                                                    {diff_rows}
+                                                                </div>
+                                                            }
+                                                            .into_any()
+                                                        } else {
+                                                            view! {
+                                                                <div class="text-xs text-base-content/60">
+                                                                    "该操作没有记录到具体字段差异"
+                                                                </div>
+                                                            }
+                                                            .into_any()
+                                                        }}
+                                                    </div>
+                                                }
+                                            }
+                                        />
+                                    </div>
+                                }
+                                .into_any()
+                            }
+                        })
+                    }}
+                </Transition>
+            </div>
+
+            <div class="rounded-box border border-base-200 p-4 space-y-4">
+                <div class="font-medium">"售后工单"</div>
+                <div class="space-y-4">
+                    <div class="grid gap-3">
+                        <select
+                            class="select select-bordered"
+                            prop:value=move || after_sales_case_type.get()
+                            on:change=move |ev| after_sales_case_type.set(event_target_value(&ev))
+                        >
+                            <option value="">"请选择售后类型"</option>
+                            <option value="complaint">"投诉"</option>
+                            <option value="rework">"返工"</option>
+                            <option value="refund">"退款"</option>
+                            <option value="other">"其他"</option>
+                        </select>
+                        <textarea
+                            class="textarea textarea-bordered min-h-24"
+                            prop:value=move || after_sales_description.get()
+                            on:input=move |ev| after_sales_description.set(event_target_value(&ev))
+                            placeholder="填写售后问题描述"
+                        />
+                        <div class="flex justify-end">
+                            <button
+                                class=move || {
+                                    if creating_after_sales_case.get() {
+                                        "btn btn-sm btn-primary btn-disabled"
+                                    } else {
+                                        "btn btn-sm btn-primary"
+                                    }
+                                }
+                                disabled=move || creating_after_sales_case.get()
+                                on:click=move |_| save_after_sales_case.run(())
+                            >
+                                {move || if creating_after_sales_case.get() { "创建中..." } else { "创建售后工单" }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <Transition fallback=move || view! {
+                        <div class="text-sm text-base-content/60">"加载中..."</div>
+                    }>
+                        {move || {
+                            after_sales_cases.get().map(|items| {
+                                if items.is_empty() {
+                                    view! {
+                                        <div class="text-sm text-base-content/60">"暂无售后工单"</div>
+                                    }
+                                    .into_any()
+                                } else {
+                                    view! {
+                                        <div class="space-y-3">
+                                            <For
+                                                each=move || items.clone().into_iter()
+                                                key=|item: &AfterSalesCase| item.uuid.clone()
+                                                children=move |item| {
+                                                    let operator_label = item
+                                                        .operator_name
+                                                        .clone()
+                                                        .filter(|value| !value.trim().is_empty())
+                                                        .or_else(|| item.operator_uuid.clone())
+                                                        .unwrap_or_else(|| "系统".to_string());
+                                                    let open_after_sales_case = open_after_sales_case.clone();
+                                                    view! {
+                                                        <div class="rounded-box bg-base-200/50 p-3 space-y-2">
+                                                            <div class="flex items-center justify-between gap-2">
+                                                                <span class="text-sm font-medium">
+                                                                    {after_sales_type_label(&item.case_type)}
+                                                                </span>
+                                                                <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
+                                                            </div>
+                                                            <div class="text-xs text-base-content/60">
+                                                                {format!("创建人：{} / 状态：{}", operator_label, after_sales_status_label(&item.status))}
+                                                            </div>
+                                                            <div class="text-sm whitespace-pre-wrap break-all">{item.description.clone()}</div>
+                                                            <div class="flex justify-end">
+                                                                <button class="btn btn-soft btn-xs" on:click=move |_| open_after_sales_case.run(item.clone())>
+                                                                    "处理记录"
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                            />
+                                        </div>
+                                    }
+                                    .into_any()
+                                }
+                            })
+                        }}
+                    </Transition>
+                </div>
+            </div>
+
+            <div class="rounded-box border border-base-200 p-4 space-y-4">
+                <div class="font-medium">"客户回访"</div>
+                {move || {
+                    if let Some(order) = detail_order.get() {
+                        if order.status != "completed" {
+                            view! {
+                                <div class="text-sm text-base-content/60">
+                                    "订单未完成，暂不支持记录回访结果"
+                                </div>
+                            }
+                            .into_any()
+                        } else if order.customer_uuid.as_deref().unwrap_or_default().is_empty() {
+                            view! {
+                                <div class="text-sm text-base-content/60">
+                                    "订单缺少客户信息，无法记录回访结果"
+                                </div>
+                            }
+                            .into_any()
+                        } else {
+                            view! {
+                                <div class="space-y-4">
+                                    <div class="grid gap-3">
+                                        <textarea
+                                            class="textarea textarea-bordered min-h-24"
+                                            prop:value=move || follow_up_content.get()
+                                            on:input=move |ev| follow_up_content.set(event_target_value(&ev))
+                                            placeholder="填写本次回访结果、客户评价或后续安排"
+                                        />
+                                        <FlyonDateTimePicker
+                                            value=next_follow_up_at
+                                            class="input input-bordered".to_string()
+                                        />
+                                        <div class="flex justify-end">
+                                            <button
+                                                class=move || {
+                                                    if creating_follow_record.get() {
+                                                        "btn btn-sm btn-primary btn-disabled"
+                                                    } else {
+                                                        "btn btn-sm btn-primary"
+                                                    }
+                                                }
+                                                disabled=move || creating_follow_record.get()
+                                                on:click=move |_| save_follow_record.run(())
+                                            >
+                                                {move || {
+                                                    if creating_follow_record.get() {
+                                                        "保存中..."
+                                                    } else {
+                                                        "保存回访"
+                                                    }
+                                                }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <Transition fallback=move || view! {
+                                        <div class="text-sm text-base-content/60">"加载中..."</div>
+                                    }>
+                                        {move || {
+                                            follow_records.get().map(|items| {
+                                                if items.is_empty() {
+                                                    view! {
+                                                        <div class="text-sm text-base-content/60">
+                                                            "暂无回访记录"
+                                                        </div>
+                                                    }
+                                                    .into_any()
+                                                } else {
+                                                    view! {
+                                                        <div class="space-y-3">
+                                                            <For
+                                                                each=move || items.clone().into_iter()
+                                                                key=|item: &ContactFollowRecord| item.uuid.clone()
+                                                                children=move |item| {
+                                                                    let has_next_follow_up = item.next_follow_up_at.is_some();
+                                                                    let next_follow_up_text = item
+                                                                        .next_follow_up_at
+                                                                        .clone()
+                                                                        .unwrap_or_default();
+                                                                    view! {
+                                                                        <div class="rounded-box bg-base-200/50 p-3 space-y-2">
+                                                                            <div class="flex items-center justify-between gap-2">
+                                                                                <span class="text-sm font-medium">
+                                                                                    {follow_record_operator_label(&item)}
+                                                                                </span>
+                                                                                <span class="text-xs text-base-content/60">
+                                                                                    {item.created_at.clone()}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div class="text-sm whitespace-pre-wrap break-all">
+                                                                                {item.content.clone()}
+                                                                            </div>
+                                                                            <Show when=move || has_next_follow_up>
+                                                                                <div class="text-xs text-base-content/60">
+                                                                                    {format!(
+                                                                                        "下次跟进：{}",
+                                                                                        next_follow_up_text.clone()
+                                                                                    )}
+                                                                                </div>
+                                                                            </Show>
+                                                                        </div>
+                                                                    }
+                                                                }
+                                                            />
+                                                        </div>
+                                                    }
+                                                    .into_any()
+                                                }
+                                            })
+                                        }}
+                                    </Transition>
+                                </div>
+                            }
+                            .into_any()
+                        }
+                    } else {
+                        view! {
+                            <div class="text-sm text-base-content/60">"暂无订单详情"</div>
+                        }
+                        .into_any()
+                    }
+                }}
+
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button class="btn" on:click=move |_| show_detail_modal.set(false)>
+                    "关闭"
+                </button>
+            </div>
+        </div>
+    }
+    .into_any()
+}
+
+#[component]
+fn LazyOrderDetailModal(
+    show: RwSignal<bool>,
+    detail_order: RwSignal<Option<Order>>,
+    order_logs: Resource<Vec<OrderChangeLogDto>>,
+    settlement_status: RwSignal<String>,
+    settlement_note: RwSignal<String>,
+    paid_amount_cents: RwSignal<String>,
+    payment_method: RwSignal<String>,
+    paid_at: RwSignal<String>,
+    save_settlement: Callback<()>,
+    after_sales_case_type: RwSignal<String>,
+    after_sales_description: RwSignal<String>,
+    creating_after_sales_case: RwSignal<bool>,
+    save_after_sales_case: Callback<()>,
+    after_sales_cases: Resource<Vec<AfterSalesCase>>,
+    open_after_sales_case: Callback<AfterSalesCase>,
+    follow_up_content: RwSignal<String>,
+    next_follow_up_at: RwSignal<String>,
+    creating_follow_record: RwSignal<bool>,
+    save_follow_record: Callback<()>,
+    follow_records: Resource<Vec<ContactFollowRecord>>,
+) -> impl IntoView {
+    view! {
+        <Modal show=show box_class=DETAIL_MODAL_BOX_CLASS>
+            <Show when=move || show.get() fallback=|| ()>
+                <Suspense fallback=move || orders_modal_loading("订单详情")>
+                    {move || {
+                        let order_logs = order_logs.clone();
+                        let after_sales_cases = after_sales_cases.clone();
+                        let open_after_sales_case = open_after_sales_case.clone();
+                        let follow_records = follow_records.clone();
+                        let save_settlement = save_settlement.clone();
+                        let save_after_sales_case = save_after_sales_case.clone();
+                        let save_follow_record = save_follow_record.clone();
+
+                        Suspend::new(async move {
+                            load_order_detail_modal_content(
+                                detail_order,
+                                order_logs,
+                                settlement_status,
+                                settlement_note,
+                                paid_amount_cents,
+                                payment_method,
+                                paid_at,
+                                save_settlement,
+                                after_sales_case_type,
+                                after_sales_description,
+                                creating_after_sales_case,
+                                save_after_sales_case,
+                                after_sales_cases,
+                                open_after_sales_case,
+                                follow_up_content,
+                                next_follow_up_at,
+                                creating_follow_record,
+                                save_follow_record,
+                                follow_records,
+                                show,
+                            )
+                            .await
+                        })
+                    }}
+                </Suspense>
+            </Show>
+        </Modal>
+    }
+}
+
+#[leptos::lazy]
+fn load_after_sales_modal_content(
+    active_after_sales_case: RwSignal<Option<AfterSalesCase>>,
+    refund_amount_cents: RwSignal<String>,
+    refund_reason: RwSignal<String>,
+    saving_after_sales_refund: RwSignal<bool>,
+    save_after_sales_refund: Callback<()>,
+    after_sales_record_status: RwSignal<String>,
+    after_sales_record_content: RwSignal<String>,
+    creating_after_sales_record: RwSignal<bool>,
+    save_after_sales_record: Callback<()>,
+    after_sales_case_records: Resource<Vec<AfterSalesCaseRecord>>,
+    users: Resource<Vec<User>>,
+    rework_assigned_user_uuid: RwSignal<String>,
+    rework_start_at: RwSignal<String>,
+    rework_end_at: RwSignal<String>,
+    rework_note: RwSignal<String>,
+    creating_rework: RwSignal<bool>,
+    save_after_sales_rework: Callback<()>,
+    after_sales_reworks: Resource<Vec<AfterSalesRework>>,
+    show_after_sales_modal: RwSignal<bool>,
+) -> AnyView {
+    view! {
+        <div class="space-y-4">
+            <h3 class="text-lg font-semibold">"售后处理记录"</h3>
+            {move || {
+                if let Some(item) = active_after_sales_case.get() {
+                    view! {
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {detail_item("工单ID", item.uuid.clone())}
+                            {detail_item("售后类型", after_sales_type_label(&item.case_type).to_string())}
+                            {detail_item("状态", after_sales_status_label(&item.status).to_string())}
+                            {detail_item("退款金额(分)", display_optional_i64(item.refund_amount_cents))}
+                            {detail_item("退款原因", display_optional(item.refund_reason.clone()))}
+                            {detail_item("创建时间", item.created_at.clone())}
+                        </div>
+                    }
+                    .into_any()
+                } else {
+                    view! { <div class="text-sm text-base-content/60">"暂无售后工单"</div> }.into_any()
+                }
+            }}
+
+            <div class="rounded-box border border-base-200 p-4 space-y-3">
+                <div class="font-medium">"退款信息"</div>
+                <div class="grid gap-3">
+                    <input
+                        class="input input-bordered"
+                        type="number"
+                        min="0"
+                        prop:value=move || refund_amount_cents.get()
+                        on:input=move |ev| refund_amount_cents.set(event_target_value(&ev))
+                        placeholder="填写退款金额(分)"
+                    />
+                    <textarea
+                        class="textarea textarea-bordered min-h-24"
+                        prop:value=move || refund_reason.get()
+                        on:input=move |ev| refund_reason.set(event_target_value(&ev))
+                        placeholder="填写退款原因"
+                    />
+                    <div class="flex justify-end">
+                        <button
+                            class=move || {
+                                if saving_after_sales_refund.get() {
+                                    "btn btn-sm btn-primary btn-disabled"
+                                } else {
+                                    "btn btn-sm btn-primary"
+                                }
+                            }
+                            disabled=move || saving_after_sales_refund.get()
+                            on:click=move |_| save_after_sales_refund.run(())
+                        >
+                            {move || if saving_after_sales_refund.get() { "保存中..." } else { "保存退款信息" }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-box border border-base-200 p-4 space-y-3">
+                <div class="font-medium">"新增处理记录"</div>
+                <div class="grid gap-3">
+                    <select
+                        class="select select-bordered"
+                        prop:value=move || after_sales_record_status.get()
+                        on:change=move |ev| after_sales_record_status.set(event_target_value(&ev))
+                    >
+                        <option value="processing">"处理中"</option>
+                        <option value="resolved">"已解决"</option>
+                        <option value="closed">"已关闭"</option>
+                    </select>
+                    <textarea
+                        class="textarea textarea-bordered min-h-24"
+                        prop:value=move || after_sales_record_content.get()
+                        on:input=move |ev| after_sales_record_content.set(event_target_value(&ev))
+                        placeholder="填写本次处理过程、沟通结果或处理结论"
+                    />
+                    <div class="flex justify-end">
+                        <button
+                            class=move || {
+                                if creating_after_sales_record.get() {
+                                    "btn btn-sm btn-primary btn-disabled"
+                                } else {
+                                    "btn btn-sm btn-primary"
+                                }
+                            }
+                            disabled=move || creating_after_sales_record.get()
+                            on:click=move |_| save_after_sales_record.run(())
+                        >
+                            {move || if creating_after_sales_record.get() { "保存中..." } else { "保存处理记录" }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-box border border-base-200 p-4 space-y-3">
+                <div class="font-medium">"历史处理记录"</div>
+                <Transition fallback=move || view! {
+                    <div class="text-sm text-base-content/60">"加载中..."</div>
+                }>
+                    {move || {
+                        after_sales_case_records.get().map(|items| {
+                            if items.is_empty() {
+                                view! {
+                                    <div class="text-sm text-base-content/60">"暂无处理记录"</div>
+                                }
+                                .into_any()
+                            } else {
+                                view! {
+                                    <div class="space-y-3">
+                                        <For
+                                            each=move || items.clone().into_iter()
+                                            key=|item: &AfterSalesCaseRecord| item.uuid.clone()
+                                            children=move |item| {
+                                                let operator_label = item
+                                                    .operator_name
+                                                    .clone()
+                                                    .filter(|value| !value.trim().is_empty())
+                                                    .or_else(|| item.operator_uuid.clone())
+                                                    .unwrap_or_else(|| "系统".to_string());
+                                                view! {
+                                                    <div class="rounded-box bg-base-200/50 p-3 space-y-2">
+                                                        <div class="flex items-center justify-between gap-2">
+                                                            <span class="text-sm font-medium">{operator_label}</span>
+                                                            <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
+                                                        </div>
+                                                        <div class="text-xs text-base-content/60">
+                                                            {format!("状态：{}", after_sales_status_label(&item.status))}
+                                                        </div>
+                                                        <div class="text-sm whitespace-pre-wrap break-all">{item.content.clone()}</div>
+                                                    </div>
+                                                }
+                                            }
+                                        />
+                                    </div>
+                                }
+                                .into_any()
+                            }
+                        })
+                    }}
+                </Transition>
+            </div>
+
+            <div class="rounded-box border border-base-200 p-4 space-y-3">
+                <div class="font-medium">"返工安排"</div>
+                <div class="grid gap-3">
+                    <Transition fallback=move || view! {
+                        <select class="select select-bordered w-full" disabled=true>
+                            <option value="">"加载中..."</option>
+                        </select>
+                    }>
+                        {move || {
+                            let items = users.get().unwrap_or_default();
+                            let options = items
+                                .into_iter()
+                                .map(|user| view! {
+                                    <option value={user.uuid}>{user.user_name}</option>
+                                })
+                                .collect::<Vec<_>>();
+                            view! {
+                                <select
+                                    class="select select-bordered w-full"
+                                    prop:value=move || rework_assigned_user_uuid.get()
+                                    on:change=move |ev| rework_assigned_user_uuid.set(event_target_value(&ev))
+                                >
+                                    <option value="">"请选择返工人员"</option>
+                                    {options}
+                                </select>
+                            }
+                            .into_any()
+                        }}
+                    </Transition>
+                    <FlyonDateTimePicker
+                        value=rework_start_at
+                        class="input input-bordered".to_string()
+                    />
+                    <FlyonDateTimePicker
+                        value=rework_end_at
+                        class="input input-bordered".to_string()
+                    />
+                    <textarea
+                        class="textarea textarea-bordered min-h-24"
+                        prop:value=move || rework_note.get()
+                        on:input=move |ev| rework_note.set(event_target_value(&ev))
+                        placeholder="填写返工说明或补充安排"
+                    />
+                    <div class="flex justify-end">
+                        <button
+                            class=move || {
+                                if creating_rework.get() {
+                                    "btn btn-sm btn-primary btn-disabled"
+                                } else {
+                                    "btn btn-sm btn-primary"
+                                }
+                            }
+                            disabled=move || creating_rework.get()
+                            on:click=move |_| save_after_sales_rework.run(())
+                        >
+                            {move || if creating_rework.get() { "保存中..." } else { "保存返工安排" }}
+                        </button>
+                    </div>
+                </div>
+
+                <Transition fallback=move || view! {
+                    <div class="text-sm text-base-content/60">"加载中..."</div>
+                }>
+                    {move || {
+                        after_sales_reworks.get().map(|items| {
+                            if items.is_empty() {
+                                view! { <div class="text-sm text-base-content/60">"暂无返工安排"</div> }.into_any()
+                            } else {
+                                view! {
+                                    <div class="space-y-3">
+                                        <For
+                                            each=move || items.clone().into_iter()
+                                            key=|item: &AfterSalesRework| item.uuid.clone()
+                                            children=move |item| {
+                                                let assigned_user_name = item
+                                                    .assigned_user_name
+                                                    .clone()
+                                                    .unwrap_or_else(|| item.assigned_user_uuid.clone());
+                                                let has_note = item.note.as_ref().map(|v| !v.trim().is_empty()).unwrap_or(false);
+                                                let note_text = item.note.clone().unwrap_or_default();
+                                                view! {
+                                                    <div class="rounded-box bg-base-200/50 p-3 space-y-2">
+                                                        <div class="flex items-center justify-between gap-2">
+                                                            <span class="text-sm font-medium">{assigned_user_name}</span>
+                                                            <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
+                                                        </div>
+                                                        <div class="text-xs text-base-content/60">
+                                                            {format!("返工时间：{} ~ {}", item.scheduled_start_at, item.scheduled_end_at)}
+                                                        </div>
+                                                        <div class="text-xs text-base-content/60">
+                                                            {format!("状态：{}", after_sales_rework_status_label(&item.status))}
+                                                        </div>
+                                                        <Show when=move || has_note>
+                                                            <div class="text-sm whitespace-pre-wrap break-all">
+                                                                {note_text.clone()}
+                                                            </div>
+                                                        </Show>
+                                                    </div>
+                                                }
+                                            }
+                                        />
+                                    </div>
+                                }
+                                .into_any()
+                            }
+                        })
+                    }}
+                </Transition>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button class="btn" on:click=move |_| show_after_sales_modal.set(false)>
+                    "关闭"
+                </button>
+            </div>
+        </div>
+    }
+    .into_any()
+}
+
+#[component]
+fn LazyAfterSalesModal(
+    show: RwSignal<bool>,
+    active_after_sales_case: RwSignal<Option<AfterSalesCase>>,
+    refund_amount_cents: RwSignal<String>,
+    refund_reason: RwSignal<String>,
+    saving_after_sales_refund: RwSignal<bool>,
+    save_after_sales_refund: Callback<()>,
+    after_sales_record_status: RwSignal<String>,
+    after_sales_record_content: RwSignal<String>,
+    creating_after_sales_record: RwSignal<bool>,
+    save_after_sales_record: Callback<()>,
+    after_sales_case_records: Resource<Vec<AfterSalesCaseRecord>>,
+    users: Resource<Vec<User>>,
+    rework_assigned_user_uuid: RwSignal<String>,
+    rework_start_at: RwSignal<String>,
+    rework_end_at: RwSignal<String>,
+    rework_note: RwSignal<String>,
+    creating_rework: RwSignal<bool>,
+    save_after_sales_rework: Callback<()>,
+    after_sales_reworks: Resource<Vec<AfterSalesRework>>,
+) -> impl IntoView {
+    view! {
+        <Modal show=show box_class=DETAIL_MODAL_BOX_CLASS>
+            <Show when=move || show.get() fallback=|| ()>
+                <Suspense fallback=move || orders_modal_loading("售后处理记录")>
+                    {move || {
+                        let after_sales_case_records = after_sales_case_records.clone();
+                        let users = users.clone();
+                        let after_sales_reworks = after_sales_reworks.clone();
+                        let save_after_sales_refund = save_after_sales_refund.clone();
+                        let save_after_sales_record = save_after_sales_record.clone();
+                        let save_after_sales_rework = save_after_sales_rework.clone();
+
+                        Suspend::new(async move {
+                            load_after_sales_modal_content(
+                                active_after_sales_case,
+                                refund_amount_cents,
+                                refund_reason,
+                                saving_after_sales_refund,
+                                save_after_sales_refund,
+                                after_sales_record_status,
+                                after_sales_record_content,
+                                creating_after_sales_record,
+                                save_after_sales_record,
+                                after_sales_case_records,
+                                users,
+                                rework_assigned_user_uuid,
+                                rework_start_at,
+                                rework_end_at,
+                                rework_note,
+                                creating_rework,
+                                save_after_sales_rework,
+                                after_sales_reworks,
+                                show,
+                            )
+                            .await
+                        })
+                    }}
+                </Suspense>
+            </Show>
+        </Modal>
     }
 }
 
@@ -382,7 +1224,7 @@ pub fn OrdersPage() -> impl IntoView {
         show_detail_modal.set(true);
     };
 
-    let open_after_sales_case = move |item: AfterSalesCase| {
+    let open_after_sales_case = Callback::new(move |item: AfterSalesCase| {
         after_sales_record_status.set(item.status.clone());
         after_sales_record_content.set(String::new());
         refund_amount_cents.set(
@@ -397,7 +1239,7 @@ pub fn OrdersPage() -> impl IntoView {
         rework_note.set(String::new());
         active_after_sales_case.set(Some(item));
         show_after_sales_modal.set(true);
-    };
+    });
 
     let save_order_details = move |_| {
         let uuid = editing_order_uuid.get();
@@ -478,7 +1320,7 @@ pub fn OrdersPage() -> impl IntoView {
         });
     };
 
-    let save_settlement = move |_| {
+    let save_settlement = Callback::new(move |_| {
         let Some(order) = detail_order.get() else {
             return;
         };
@@ -514,9 +1356,9 @@ pub fn OrdersPage() -> impl IntoView {
                 Err(err) => error(format!("更新结算失败: {}", err)),
             }
         });
-    };
+    });
 
-    let save_follow_record = move |_| {
+    let save_follow_record = Callback::new(move |_| {
         let Some(order) = detail_order.get() else {
             return;
         };
@@ -556,9 +1398,9 @@ pub fn OrdersPage() -> impl IntoView {
             }
             creating_follow_record.set(false);
         });
-    };
+    });
 
-    let save_after_sales_case = move |_| {
+    let save_after_sales_case = Callback::new(move |_| {
         let Some(order) = detail_order.get() else {
             return;
         };
@@ -592,9 +1434,9 @@ pub fn OrdersPage() -> impl IntoView {
             }
             creating_after_sales_case.set(false);
         });
-    };
+    });
 
-    let save_after_sales_record = move |_| {
+    let save_after_sales_record = Callback::new(move |_| {
         let Some(item) = active_after_sales_case.get() else {
             return;
         };
@@ -623,9 +1465,9 @@ pub fn OrdersPage() -> impl IntoView {
             }
             creating_after_sales_record.set(false);
         });
-    };
+    });
 
-    let save_after_sales_refund = move |_| {
+    let save_after_sales_refund = Callback::new(move |_| {
         let Some(item) = active_after_sales_case.get() else {
             return;
         };
@@ -662,9 +1504,9 @@ pub fn OrdersPage() -> impl IntoView {
             }
             saving_after_sales_refund.set(false);
         });
-    };
+    });
 
-    let save_after_sales_rework = move |_| {
+    let save_after_sales_rework = Callback::new(move |_| {
         let Some(item) = active_after_sales_case.get() else {
             return;
         };
@@ -702,7 +1544,7 @@ pub fn OrdersPage() -> impl IntoView {
             }
             creating_rework.set(false);
         });
-    };
+    });
 
     view! {
         <Title text="订单管理 - PicoCRM"/>
@@ -939,636 +1781,50 @@ pub fn OrdersPage() -> impl IntoView {
             </div>
         </Modal>
 
-        <Modal show=show_detail_modal box_class=DETAIL_MODAL_BOX_CLASS>
-            <div class="space-y-4">
-                <h3 class="text-lg font-semibold">"订单详情"</h3>
-                {move || {
-                    if let Some(order) = detail_order.get() {
-                        let customer_name = order
-                            .customer_name
-                            .clone()
-                            .filter(|value| !value.trim().is_empty())
-                            .unwrap_or_else(|| "未知客户".to_string());
-                        view! {
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {detail_item("订单ID", order.uuid.clone())}
-                                {detail_item("需求单ID", display_optional(order.request_id.clone()))}
-                                {detail_item("服务项目", display_optional(order.service_catalog_name.clone()))}
-                                {detail_item("客户", customer_name)}
-                                {detail_item("客户UUID", display_optional(order.customer_uuid.clone()))}
-                                {detail_item("状态", order_status_label(&order.status).to_string())}
-                                {detail_item("取消原因", display_optional(order.cancellation_reason.clone()))}
-                                {detail_item("完成时间", display_optional(order.completed_at.clone()))}
-                                {detail_item("结算状态", settlement_status_label(&order.settlement_status).to_string())}
-                                {detail_item("订单金额(分)", order.amount_cents.to_string())}
-                                {detail_item("实收金额(分)", display_optional_i64(order.paid_amount_cents))}
-                                {detail_item("支付方式", payment_method_label(order.payment_method.as_deref()).to_string())}
-                                {detail_item("收款时间", display_optional(order.paid_at.clone()))}
-                                {detail_item("服务开始", display_optional(order.scheduled_start_at.clone()))}
-                                {detail_item("服务结束", display_optional(order.scheduled_end_at.clone()))}
-                                {detail_item("派工备注", display_optional(order.dispatch_note.clone()))}
-                                {detail_item("备注", display_optional(order.notes.clone()))}
-                                {detail_item("结算备注", display_optional(order.settlement_note.clone()))}
-                                {detail_item("创建时间", order.inserted_at.clone())}
-                                {detail_item("更新时间", order.updated_at.clone())}
-                            </div>
-                        }.into_any()
-                    } else {
-                        view! { <div class="text-sm text-base-content/60">"暂无详情"</div> }.into_any()
-                    }
-                }}
+        <LazyOrderDetailModal
+            show=show_detail_modal
+            detail_order=detail_order
+            order_logs=order_logs.clone()
+            settlement_status=settlement_status
+            settlement_note=settlement_note
+            paid_amount_cents=paid_amount_cents
+            payment_method=payment_method
+            paid_at=paid_at
+            save_settlement=save_settlement
+            after_sales_case_type=after_sales_case_type
+            after_sales_description=after_sales_description
+            creating_after_sales_case=creating_after_sales_case
+            save_after_sales_case=save_after_sales_case
+            after_sales_cases=after_sales_cases.clone()
+            open_after_sales_case=open_after_sales_case
+            follow_up_content=follow_up_content
+            next_follow_up_at=next_follow_up_at
+            creating_follow_record=creating_follow_record
+            save_follow_record=save_follow_record
+            follow_records=follow_records.clone()
+        />
 
-                <div class="rounded-box border border-base-200 p-4 space-y-3">
-                    <div class="font-medium">"收款更新"</div>
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <select
-                            class="select select-bordered"
-                            prop:value=move || settlement_status.get()
-                            on:change=move |ev| settlement_status.set(event_target_value(&ev))
-                        >
-                            <option value="unsettled">"未结算"</option>
-                            <option value="settled">"已结算"</option>
-                        </select>
-                        <select
-                            class="select select-bordered"
-                            prop:value=move || payment_method.get()
-                            on:change=move |ev| payment_method.set(event_target_value(&ev))
-                        >
-                            <option value="">"请选择支付方式"</option>
-                            <option value="cash">"现金"</option>
-                            <option value="wechat">"微信"</option>
-                            <option value="alipay">"支付宝"</option>
-                            <option value="bank_transfer">"银行转账"</option>
-                            <option value="other">"其他"</option>
-                        </select>
-                        <input
-                            class="input input-bordered"
-                            type="number"
-                            min="0"
-                            prop:value=move || paid_amount_cents.get()
-                            on:input=move |ev| paid_amount_cents.set(event_target_value(&ev))
-                            placeholder="填写实收金额(分)"
-                        />
-                        <input
-                            class="input input-bordered"
-                            prop:value=move || paid_at.get()
-                            on:input=move |ev| paid_at.set(event_target_value(&ev))
-                            placeholder="收款时间，例如 2026-04-21T10:20:00Z"
-                        />
-                        <input
-                            class="input input-bordered md:col-span-2"
-                            prop:value=move || settlement_note.get()
-                            on:input=move |ev| settlement_note.set(event_target_value(&ev))
-                            placeholder="填写结算备注"
-                        />
-                    </div>
-                    <div class="flex justify-end">
-                        <button class="btn btn-sm btn-primary" on:click=save_settlement>
-                            "保存结算状态"
-                        </button>
-                    </div>
-                </div>
-
-                <div class="rounded-box border border-base-200 p-4 space-y-3">
-                    <div class="font-medium">"变更记录"</div>
-                    <Transition fallback=move || view! { <div class="text-sm text-base-content/60">"加载中..."</div> }>
-                        {move || {
-                            order_logs.get().map(|logs| {
-                                if logs.is_empty() {
-                                    view! { <div class="text-sm text-base-content/60">"暂无变更记录"</div> }.into_any()
-                                } else {
-                                    view! {
-                                        <div class="space-y-3">
-                                            <For
-                                            each=move || logs.clone().into_iter().enumerate()
-                                            key=|(idx, item)| format!("{}-{}", idx, item.uuid)
-                                            children=move |(_, item)| {
-                                                let diff_items = order_log_diff_items(&item);
-                                                let has_diff = !diff_items.is_empty();
-                                                let diff_rows = diff_items
-                                                    .iter()
-                                                    .cloned()
-                                                    .map(|field| {
-                                                        view! {
-                                                            <div class="grid gap-2 rounded bg-base-100 p-2 text-xs md:grid-cols-[120px,1fr,1fr]">
-                                                                <div class="font-medium text-base-content/70">{field.0}</div>
-                                                                <div>
-                                                                    <div class="text-[11px] text-base-content/50">"变更前"</div>
-                                                                    <div class="whitespace-pre-wrap break-all">{field.1}</div>
-                                                                </div>
-                                                                <div>
-                                                                    <div class="text-[11px] text-base-content/50">"变更后"</div>
-                                                                    <div class="whitespace-pre-wrap break-all">{field.2}</div>
-                                                                </div>
-                                                            </div>
-                                                        }
-                                                    })
-                                                    .collect_view();
-                                                view! {
-                                                    <div class="rounded-box bg-base-200/50 p-3 space-y-2">
-                                                        <div class="flex items-center justify-between gap-2">
-                                                            <span class="font-medium text-sm">{order_log_action_label(&item.action)}</span>
-                                                            <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
-                                                        </div>
-                                                        <div class="text-xs text-base-content/60">
-                                                            {format!(
-                                                                "操作人UUID: {}",
-                                                                item.operator_uuid.clone().unwrap_or_else(|| "-".to_string())
-                                                            )}
-                                                        </div>
-                                                        {if has_diff {
-                                                            view! {
-                                                                <div class="space-y-2">
-                                                                    {diff_rows}
-                                                                </div>
-                                                            }.into_any()
-                                                        } else {
-                                                            view! {
-                                                                <div class="text-xs text-base-content/60">
-                                                                    "该操作没有记录到具体字段差异"
-                                                                </div>
-                                                            }.into_any()
-                                                        }}
-                                                    </div>
-                                                }
-                                            }
-                                            />
-                                        </div>
-                                    }.into_any()
-                                }
-                            })
-                        }}
-                    </Transition>
-                </div>
-
-                <div class="rounded-box border border-base-200 p-4 space-y-4">
-                    <div class="font-medium">"售后工单"</div>
-                    <div class="space-y-4">
-                        <div class="grid gap-3">
-                            <select
-                                class="select select-bordered"
-                                prop:value=move || after_sales_case_type.get()
-                                on:change=move |ev| after_sales_case_type.set(event_target_value(&ev))
-                            >
-                                <option value="">"请选择售后类型"</option>
-                                <option value="complaint">"投诉"</option>
-                                <option value="rework">"返工"</option>
-                                <option value="refund">"退款"</option>
-                                <option value="other">"其他"</option>
-                            </select>
-                            <textarea
-                                class="textarea textarea-bordered min-h-24"
-                                prop:value=move || after_sales_description.get()
-                                on:input=move |ev| after_sales_description.set(event_target_value(&ev))
-                                placeholder="填写售后问题描述"
-                            />
-                            <div class="flex justify-end">
-                                <button
-                                    class=move || {
-                                        if creating_after_sales_case.get() {
-                                            "btn btn-sm btn-primary btn-disabled"
-                                        } else {
-                                            "btn btn-sm btn-primary"
-                                        }
-                                    }
-                                    disabled=move || creating_after_sales_case.get()
-                                    on:click=save_after_sales_case
-                                >
-                                    {move || if creating_after_sales_case.get() { "创建中..." } else { "创建售后工单" }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <Transition fallback=move || view! {
-                            <div class="text-sm text-base-content/60">"加载中..."</div>
-                        }>
-                            {move || {
-                                after_sales_cases.get().map(|items| {
-                                    if items.is_empty() {
-                                        view! {
-                                            <div class="text-sm text-base-content/60">"暂无售后工单"</div>
-                                        }.into_any()
-                                    } else {
-                                        view! {
-                                            <div class="space-y-3">
-                                                <For
-                                                    each=move || items.clone().into_iter()
-                                                    key=|item: &AfterSalesCase| item.uuid.clone()
-                                                    children=move |item| {
-                                                        let operator_label = item
-                                                            .operator_name
-                                                            .clone()
-                                                            .filter(|value| !value.trim().is_empty())
-                                                            .or_else(|| item.operator_uuid.clone())
-                                                            .unwrap_or_else(|| "系统".to_string());
-                                                        view! {
-                                                            <div class="rounded-box bg-base-200/50 p-3 space-y-2">
-                                                                <div class="flex items-center justify-between gap-2">
-                                                                    <span class="text-sm font-medium">
-                                                                        {after_sales_type_label(&item.case_type)}
-                                                                    </span>
-                                                                    <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
-                                                                </div>
-                                                                <div class="text-xs text-base-content/60">
-                                                                    {format!("创建人：{} / 状态：{}", operator_label, after_sales_status_label(&item.status))}
-                                                                </div>
-                                                                <div class="text-sm whitespace-pre-wrap break-all">{item.description.clone()}</div>
-                                                                <div class="flex justify-end">
-                                                                    <button class="btn btn-soft btn-xs" on:click=move |_| open_after_sales_case(item.clone())>
-                                                                        "处理记录"
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        }
-                                                    }
-                                                />
-                                            </div>
-                                        }.into_any()
-                                    }
-                                })
-                            }}
-                        </Transition>
-                    </div>
-                </div>
-
-                <div class="rounded-box border border-base-200 p-4 space-y-4">
-                    <div class="font-medium">"客户回访"</div>
-                    {move || {
-                        if let Some(order) = detail_order.get() {
-                            if order.status != "completed" {
-                                view! {
-                                    <div class="text-sm text-base-content/60">
-                                        "订单未完成，暂不支持记录回访结果"
-                                    </div>
-                                }.into_any()
-                            } else if order.customer_uuid.as_deref().unwrap_or_default().is_empty() {
-                                view! {
-                                    <div class="text-sm text-base-content/60">
-                                        "订单缺少客户信息，无法记录回访结果"
-                                    </div>
-                                }.into_any()
-                            } else {
-                                view! {
-                                    <div class="space-y-4">
-                                        <div class="grid gap-3">
-                                            <textarea
-                                                class="textarea textarea-bordered min-h-24"
-                                                prop:value=move || follow_up_content.get()
-                                                on:input=move |ev| follow_up_content.set(event_target_value(&ev))
-                                                placeholder="填写本次回访结果、客户评价或后续安排"
-                                            />
-                                            <FlyonDateTimePicker
-                                                value=next_follow_up_at
-                                                class="input input-bordered".to_string()
-                                            />
-                                            <div class="flex justify-end">
-                                                <button
-                                                    class=move || {
-                                                        if creating_follow_record.get() {
-                                                            "btn btn-sm btn-primary btn-disabled"
-                                                        } else {
-                                                            "btn btn-sm btn-primary"
-                                                        }
-                                                    }
-                                                    disabled=move || creating_follow_record.get()
-                                                    on:click=save_follow_record
-                                                >
-                                                    {move || {
-                                                        if creating_follow_record.get() {
-                                                            "保存中..."
-                                                        } else {
-                                                            "保存回访"
-                                                        }
-                                                    }}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <Transition fallback=move || view! {
-                                            <div class="text-sm text-base-content/60">"加载中..."</div>
-                                        }>
-                                            {move || {
-                                                follow_records.get().map(|items| {
-                                                    if items.is_empty() {
-                                                        view! {
-                                                            <div class="text-sm text-base-content/60">
-                                                                "暂无回访记录"
-                                                            </div>
-                                                        }.into_any()
-                                                    } else {
-                                                        view! {
-                                                            <div class="space-y-3">
-                                                                <For
-                                                                    each=move || items.clone().into_iter()
-                                                                    key=|item: &ContactFollowRecord| item.uuid.clone()
-                                                                    children=move |item| {
-                                                                        let has_next_follow_up = item.next_follow_up_at.is_some();
-                                                                        let next_follow_up_text = item
-                                                                            .next_follow_up_at
-                                                                            .clone()
-                                                                            .unwrap_or_default();
-                                                                        view! {
-                                                                            <div class="rounded-box bg-base-200/50 p-3 space-y-2">
-                                                                                <div class="flex items-center justify-between gap-2">
-                                                                                    <span class="text-sm font-medium">
-                                                                                        {follow_record_operator_label(&item)}
-                                                                                    </span>
-                                                                                    <span class="text-xs text-base-content/60">
-                                                                                        {item.created_at.clone()}
-                                                                                    </span>
-                                                                                </div>
-                                                                                <div class="text-sm whitespace-pre-wrap break-all">
-                                                                                    {item.content.clone()}
-                                                                                </div>
-                                                                                <Show when=move || has_next_follow_up>
-                                                                                    <div class="text-xs text-base-content/60">
-                                                                                        {format!(
-                                                                                            "下次跟进：{}",
-                                                                                            next_follow_up_text.clone()
-                                                                                        )}
-                                                                                    </div>
-                                                                                </Show>
-                                                                            </div>
-                                                                        }
-                                                                    }
-                                                                />
-                                                            </div>
-                                                        }.into_any()
-                                                    }
-                                                })
-                                            }}
-                                        </Transition>
-                                    </div>
-                                }.into_any()
-                            }
-                        } else {
-                            view! {
-                                <div class="text-sm text-base-content/60">"暂无订单详情"</div>
-                            }.into_any()
-                        }
-                    }}
-                </div>
-
-                <div class="flex justify-end gap-2">
-                    <button class="btn" on:click=move |_| show_detail_modal.set(false)>
-                        "关闭"
-                    </button>
-                </div>
-            </div>
-        </Modal>
-
-        <Modal show=show_after_sales_modal box_class=DETAIL_MODAL_BOX_CLASS>
-            <div class="space-y-4">
-                <h3 class="text-lg font-semibold">"售后处理记录"</h3>
-                {move || {
-                    if let Some(item) = active_after_sales_case.get() {
-                        view! {
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {detail_item("工单ID", item.uuid.clone())}
-                                {detail_item("售后类型", after_sales_type_label(&item.case_type).to_string())}
-                                {detail_item("状态", after_sales_status_label(&item.status).to_string())}
-                                {detail_item("退款金额(分)", display_optional_i64(item.refund_amount_cents))}
-                                {detail_item("退款原因", display_optional(item.refund_reason.clone()))}
-                                {detail_item("创建时间", item.created_at.clone())}
-                            </div>
-                        }.into_any()
-                    } else {
-                        view! { <div class="text-sm text-base-content/60">"暂无售后工单"</div> }.into_any()
-                    }
-                }}
-
-                <div class="rounded-box border border-base-200 p-4 space-y-3">
-                    <div class="font-medium">"退款信息"</div>
-                    <div class="grid gap-3">
-                        <input
-                            class="input input-bordered"
-                            type="number"
-                            min="0"
-                            prop:value=move || refund_amount_cents.get()
-                            on:input=move |ev| refund_amount_cents.set(event_target_value(&ev))
-                            placeholder="填写退款金额(分)"
-                        />
-                        <textarea
-                            class="textarea textarea-bordered min-h-24"
-                            prop:value=move || refund_reason.get()
-                            on:input=move |ev| refund_reason.set(event_target_value(&ev))
-                            placeholder="填写退款原因"
-                        />
-                        <div class="flex justify-end">
-                            <button
-                                class=move || {
-                                    if saving_after_sales_refund.get() {
-                                        "btn btn-sm btn-primary btn-disabled"
-                                    } else {
-                                        "btn btn-sm btn-primary"
-                                    }
-                                }
-                                disabled=move || saving_after_sales_refund.get()
-                                on:click=save_after_sales_refund
-                            >
-                                {move || if saving_after_sales_refund.get() { "保存中..." } else { "保存退款信息" }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="rounded-box border border-base-200 p-4 space-y-3">
-                    <div class="font-medium">"新增处理记录"</div>
-                    <div class="grid gap-3">
-                        <select
-                            class="select select-bordered"
-                            prop:value=move || after_sales_record_status.get()
-                            on:change=move |ev| after_sales_record_status.set(event_target_value(&ev))
-                        >
-                            <option value="processing">"处理中"</option>
-                            <option value="resolved">"已解决"</option>
-                            <option value="closed">"已关闭"</option>
-                        </select>
-                        <textarea
-                            class="textarea textarea-bordered min-h-24"
-                            prop:value=move || after_sales_record_content.get()
-                            on:input=move |ev| after_sales_record_content.set(event_target_value(&ev))
-                            placeholder="填写本次处理过程、沟通结果或处理结论"
-                        />
-                        <div class="flex justify-end">
-                            <button
-                                class=move || {
-                                    if creating_after_sales_record.get() {
-                                        "btn btn-sm btn-primary btn-disabled"
-                                    } else {
-                                        "btn btn-sm btn-primary"
-                                    }
-                                }
-                                disabled=move || creating_after_sales_record.get()
-                                on:click=save_after_sales_record
-                            >
-                                {move || if creating_after_sales_record.get() { "保存中..." } else { "保存处理记录" }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="rounded-box border border-base-200 p-4 space-y-3">
-                    <div class="font-medium">"历史处理记录"</div>
-                    <Transition fallback=move || view! {
-                        <div class="text-sm text-base-content/60">"加载中..."</div>
-                    }>
-                        {move || {
-                            after_sales_case_records.get().map(|items| {
-                                if items.is_empty() {
-                                    view! {
-                                        <div class="text-sm text-base-content/60">"暂无处理记录"</div>
-                                    }.into_any()
-                                } else {
-                                    view! {
-                                        <div class="space-y-3">
-                                            <For
-                                                each=move || items.clone().into_iter()
-                                                key=|item: &AfterSalesCaseRecord| item.uuid.clone()
-                                                children=move |item| {
-                                                    let operator_label = item
-                                                        .operator_name
-                                                        .clone()
-                                                        .filter(|value| !value.trim().is_empty())
-                                                        .or_else(|| item.operator_uuid.clone())
-                                                        .unwrap_or_else(|| "系统".to_string());
-                                                    view! {
-                                                        <div class="rounded-box bg-base-200/50 p-3 space-y-2">
-                                                            <div class="flex items-center justify-between gap-2">
-                                                                <span class="text-sm font-medium">{operator_label}</span>
-                                                                <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
-                                                            </div>
-                                                            <div class="text-xs text-base-content/60">
-                                                                {format!("状态：{}", after_sales_status_label(&item.status))}
-                                                            </div>
-                                                            <div class="text-sm whitespace-pre-wrap break-all">{item.content.clone()}</div>
-                                                        </div>
-                                                    }
-                                                }
-                                            />
-                                        </div>
-                                    }.into_any()
-                                }
-                            })
-                        }}
-                    </Transition>
-                </div>
-
-                <div class="rounded-box border border-base-200 p-4 space-y-3">
-                    <div class="font-medium">"返工安排"</div>
-                    <div class="grid gap-3">
-                        <Transition fallback=move || view! {
-                            <select class="select select-bordered w-full" disabled=true>
-                                <option value="">"加载中..."</option>
-                            </select>
-                        }>
-                            {move || {
-                                let items = users.get().unwrap_or_default();
-                                let options = items
-                                    .into_iter()
-                                    .map(|user| view! {
-                                        <option value={user.uuid}>{user.user_name}</option>
-                                    })
-                                    .collect::<Vec<_>>();
-                                view! {
-                                    <select
-                                        class="select select-bordered w-full"
-                                        prop:value=move || rework_assigned_user_uuid.get()
-                                        on:change=move |ev| rework_assigned_user_uuid.set(event_target_value(&ev))
-                                    >
-                                        <option value="">"请选择返工人员"</option>
-                                        {options}
-                                    </select>
-                                }.into_any()
-                            }}
-                        </Transition>
-                        <FlyonDateTimePicker
-                            value=rework_start_at
-                            class="input input-bordered".to_string()
-                        />
-                        <FlyonDateTimePicker
-                            value=rework_end_at
-                            class="input input-bordered".to_string()
-                        />
-                        <textarea
-                            class="textarea textarea-bordered min-h-24"
-                            prop:value=move || rework_note.get()
-                            on:input=move |ev| rework_note.set(event_target_value(&ev))
-                            placeholder="填写返工说明或补充安排"
-                        />
-                        <div class="flex justify-end">
-                            <button
-                                class=move || {
-                                    if creating_rework.get() {
-                                        "btn btn-sm btn-primary btn-disabled"
-                                    } else {
-                                        "btn btn-sm btn-primary"
-                                    }
-                                }
-                                disabled=move || creating_rework.get()
-                                on:click=save_after_sales_rework
-                            >
-                                {move || if creating_rework.get() { "保存中..." } else { "保存返工安排" }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <Transition fallback=move || view! {
-                        <div class="text-sm text-base-content/60">"加载中..."</div>
-                    }>
-                        {move || {
-                            after_sales_reworks.get().map(|items| {
-                                if items.is_empty() {
-                                    view! { <div class="text-sm text-base-content/60">"暂无返工安排"</div> }.into_any()
-                                } else {
-                                    view! {
-                                        <div class="space-y-3">
-                                            <For
-                                                each=move || items.clone().into_iter()
-                                                key=|item: &AfterSalesRework| item.uuid.clone()
-                                                children=move |item| {
-                                                    let assigned_user_name = item
-                                                        .assigned_user_name
-                                                        .clone()
-                                                        .unwrap_or_else(|| item.assigned_user_uuid.clone());
-                                                    let has_note = item.note.as_ref().map(|v| !v.trim().is_empty()).unwrap_or(false);
-                                                    let note_text = item.note.clone().unwrap_or_default();
-                                                    view! {
-                                                        <div class="rounded-box bg-base-200/50 p-3 space-y-2">
-                                                            <div class="flex items-center justify-between gap-2">
-                                                                <span class="text-sm font-medium">{assigned_user_name}</span>
-                                                                <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
-                                                            </div>
-                                                            <div class="text-xs text-base-content/60">
-                                                                {format!("返工时间：{} ~ {}", item.scheduled_start_at, item.scheduled_end_at)}
-                                                            </div>
-                                                            <div class="text-xs text-base-content/60">
-                                                                {format!("状态：{}", after_sales_rework_status_label(&item.status))}
-                                                            </div>
-                                                            <Show when=move || has_note>
-                                                                <div class="text-sm whitespace-pre-wrap break-all">
-                                                                    {note_text.clone()}
-                                                                </div>
-                                                            </Show>
-                                                        </div>
-                                                    }
-                                                }
-                                            />
-                                        </div>
-                                    }.into_any()
-                                }
-                            })
-                        }}
-                    </Transition>
-                </div>
-
-                <div class="flex justify-end gap-2">
-                    <button class="btn" on:click=move |_| show_after_sales_modal.set(false)>
-                        "关闭"
-                    </button>
-                </div>
-            </div>
-        </Modal>
+        <LazyAfterSalesModal
+            show=show_after_sales_modal
+            active_after_sales_case=active_after_sales_case
+            refund_amount_cents=refund_amount_cents
+            refund_reason=refund_reason
+            saving_after_sales_refund=saving_after_sales_refund
+            save_after_sales_refund=save_after_sales_refund
+            after_sales_record_status=after_sales_record_status
+            after_sales_record_content=after_sales_record_content
+            creating_after_sales_record=creating_after_sales_record
+            save_after_sales_record=save_after_sales_record
+            after_sales_case_records=after_sales_case_records.clone()
+            users=users.clone()
+            rework_assigned_user_uuid=rework_assigned_user_uuid
+            rework_start_at=rework_start_at
+            rework_end_at=rework_end_at
+            rework_note=rework_note
+            creating_rework=creating_rework
+            save_after_sales_rework=save_after_sales_rework
+            after_sales_reworks=after_sales_reworks.clone()
+        />
     }
 }
 

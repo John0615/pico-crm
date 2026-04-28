@@ -5,8 +5,24 @@ use crate::pages::admin::{
     AdminAnalytics, AdminMerchants, AdminUsers, SystemSettings, TenantMaintenance,
 };
 use crate::pages::{
-    ContactsManagement, Login, OrdersPage, SchedulesPage, ServiceCatalogsPage, ServiceRequestsPage,
+    ContactsManagement, Dashboard, Login, OrdersPage, SchedulesPage, ServiceCatalogsPage,
+    ServiceRequestsPage,
 };
+
+#[derive(Debug)]
+pub struct DashboardRoute;
+
+#[lazy_route]
+impl LazyRoute for DashboardRoute {
+    fn data() -> Self {
+        Self
+    }
+
+    fn view(this: Self) -> AnyView {
+        let _ = this;
+        view! { <Dashboard/> }.into_any()
+    }
+}
 
 #[derive(Debug)]
 pub struct LoginRoute;

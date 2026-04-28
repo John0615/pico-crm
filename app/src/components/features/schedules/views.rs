@@ -12,6 +12,204 @@ use std::collections::{HashMap, HashSet};
 
 use super::support::*;
 
+fn schedules_panel_fallback(label: &'static str) -> AnyView {
+    view! {
+        <div class="overflow-x-auto overflow-y-auto h-[calc(100vh-260px)] bg-base-100 rounded-lg shadow">
+            <div class="p-6 text-sm text-base-content/60">{label}</div>
+        </div>
+    }
+    .into_any()
+}
+
+#[leptos::lazy]
+fn load_schedules_backlog_panel(
+    available_orders: Resource<(Vec<Order>, u64)>,
+    contact_labels: RwSignal<HashMap<String, String>>,
+    pending_contacts: RwSignal<HashSet<String>>,
+    open_new_schedule_for_order: Callback<String>,
+) -> AnyView {
+    view! {
+        <SchedulesBacklogPanel
+            available_orders=available_orders
+            contact_labels=contact_labels
+            pending_contacts=pending_contacts
+            open_new_schedule_for_order=open_new_schedule_for_order
+        />
+    }
+    .into_any()
+}
+
+#[component]
+pub fn LazySchedulesBacklogPanel(
+    available_orders: Resource<(Vec<Order>, u64)>,
+    contact_labels: RwSignal<HashMap<String, String>>,
+    pending_contacts: RwSignal<HashSet<String>>,
+    open_new_schedule_for_order: Callback<String>,
+) -> impl IntoView {
+    view! {
+        <Suspense fallback=move || schedules_panel_fallback("加载未排班订单...")>
+            {move || {
+                let available_orders = available_orders.clone();
+                let open_new_schedule_for_order = open_new_schedule_for_order.clone();
+
+                Suspend::new(async move {
+                    load_schedules_backlog_panel(
+                        available_orders,
+                        contact_labels,
+                        pending_contacts,
+                        open_new_schedule_for_order,
+                    )
+                    .await
+                })
+            }}
+        </Suspense>
+    }
+}
+
+#[leptos::lazy]
+fn load_schedules_calendar_panel(
+    data: Resource<(Vec<Schedule>, u64)>,
+    calendar_date_start: RwSignal<String>,
+    calendar_date_end: RwSignal<String>,
+    user_labels: RwSignal<HashMap<String, String>>,
+    contact_labels: RwSignal<HashMap<String, String>>,
+    pending_contacts: RwSignal<HashSet<String>>,
+    user_filter: RwSignal<String>,
+    is_worker: Signal<bool>,
+    open_assignment: Callback<Schedule>,
+    open_detail: Callback<Schedule>,
+) -> AnyView {
+    view! {
+        <SchedulesCalendarPanel
+            data=data
+            calendar_date_start=calendar_date_start
+            calendar_date_end=calendar_date_end
+            user_labels=user_labels
+            contact_labels=contact_labels
+            pending_contacts=pending_contacts
+            user_filter=user_filter
+            is_worker=is_worker
+            open_assignment=open_assignment
+            open_detail=open_detail
+        />
+    }
+    .into_any()
+}
+
+#[component]
+pub fn LazySchedulesCalendarPanel(
+    data: Resource<(Vec<Schedule>, u64)>,
+    calendar_date_start: RwSignal<String>,
+    calendar_date_end: RwSignal<String>,
+    user_labels: RwSignal<HashMap<String, String>>,
+    contact_labels: RwSignal<HashMap<String, String>>,
+    pending_contacts: RwSignal<HashSet<String>>,
+    user_filter: RwSignal<String>,
+    #[prop(into)] is_worker: Signal<bool>,
+    open_assignment: Callback<Schedule>,
+    open_detail: Callback<Schedule>,
+) -> impl IntoView {
+    view! {
+        <Suspense fallback=move || schedules_panel_fallback("加载日历视图...")>
+            {move || {
+                let data = data.clone();
+                let is_worker = is_worker.clone();
+                let open_assignment = open_assignment.clone();
+                let open_detail = open_detail.clone();
+
+                Suspend::new(async move {
+                    load_schedules_calendar_panel(
+                        data,
+                        calendar_date_start,
+                        calendar_date_end,
+                        user_labels,
+                        contact_labels,
+                        pending_contacts,
+                        user_filter,
+                        is_worker,
+                        open_assignment,
+                        open_detail,
+                    )
+                    .await
+                })
+            }}
+        </Suspense>
+    }
+}
+
+#[leptos::lazy]
+fn load_schedules_list_panel(
+    data: Resource<(Vec<Schedule>, u64)>,
+    contact_labels: RwSignal<HashMap<String, String>>,
+    pending_contacts: RwSignal<HashSet<String>>,
+    user_labels: RwSignal<HashMap<String, String>>,
+    pending_users: RwSignal<HashSet<String>>,
+    is_worker: Signal<bool>,
+    open_assignment: Callback<Schedule>,
+    cancel_assignment: Callback<String>,
+    update_status: Callback<(String, String)>,
+    open_detail: Callback<Schedule>,
+) -> AnyView {
+    view! {
+        <SchedulesListPanel
+            data=data
+            contact_labels=contact_labels
+            pending_contacts=pending_contacts
+            user_labels=user_labels
+            pending_users=pending_users
+            is_worker=is_worker
+            open_assignment=open_assignment
+            cancel_assignment=cancel_assignment
+            update_status=update_status
+            open_detail=open_detail
+        />
+    }
+    .into_any()
+}
+
+#[component]
+pub fn LazySchedulesListPanel(
+    data: Resource<(Vec<Schedule>, u64)>,
+    contact_labels: RwSignal<HashMap<String, String>>,
+    pending_contacts: RwSignal<HashSet<String>>,
+    user_labels: RwSignal<HashMap<String, String>>,
+    pending_users: RwSignal<HashSet<String>>,
+    #[prop(into)] is_worker: Signal<bool>,
+    open_assignment: Callback<Schedule>,
+    cancel_assignment: Callback<String>,
+    update_status: Callback<(String, String)>,
+    open_detail: Callback<Schedule>,
+) -> impl IntoView {
+    view! {
+        <Suspense fallback=move || schedules_panel_fallback("加载列表视图...")>
+            {move || {
+                let data = data.clone();
+                let is_worker = is_worker.clone();
+                let open_assignment = open_assignment.clone();
+                let cancel_assignment = cancel_assignment.clone();
+                let update_status = update_status.clone();
+                let open_detail = open_detail.clone();
+
+                Suspend::new(async move {
+                    load_schedules_list_panel(
+                        data,
+                        contact_labels,
+                        pending_contacts,
+                        user_labels,
+                        pending_users,
+                        is_worker,
+                        open_assignment,
+                        cancel_assignment,
+                        update_status,
+                        open_detail,
+                    )
+                    .await
+                })
+            }}
+        </Suspense>
+    }
+}
+
 #[component]
 pub fn SchedulesFiltersCard(
     view_mode: RwSignal<String>,

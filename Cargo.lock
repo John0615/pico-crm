@@ -155,7 +155,6 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "backend",
- "base64",
  "cfg-if",
  "chrono",
  "cookie",
@@ -165,8 +164,6 @@ dependencies = [
  "leptos_axum",
  "leptos_meta",
  "leptos_router",
- "reactive_stores 0.2.5",
- "regex",
  "serde",
  "serde_json",
  "shared",
@@ -4095,23 +4092,6 @@ dependencies = [
 
 [[package]]
 name = "reactive_stores"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79983e88dfd1a2925e29a4853ab9161b234ea78dd0d44ed33a706c9cd5e35762"
-dependencies = [
- "dashmap",
- "guardian",
- "itertools",
- "or_poisoned",
- "paste",
- "reactive_graph",
- "reactive_stores_macro",
- "rustc-hash",
- "send_wrapper",
-]
-
-[[package]]
-name = "reactive_stores"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35372f05664a62a3dd389503371a15b8feb3396f99f6ec000de651fddb030942"
@@ -5407,7 +5387,7 @@ dependencies = [
  "parking_lot",
  "paste",
  "reactive_graph",
- "reactive_stores 0.3.1",
+ "reactive_stores",
  "rustc-hash",
  "rustc_version",
  "send_wrapper",

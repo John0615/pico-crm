@@ -1032,7 +1032,7 @@ pub fn SchedulesPage() -> impl IntoView {
             </Show>
 
             <Show when=move || view_mode.get() == "backlog">
-                <SchedulesBacklogPanel
+                <LazySchedulesBacklogPanel
                     available_orders=available_orders.clone()
                     contact_labels=contact_labels
                     pending_contacts=pending_contacts
@@ -1041,7 +1041,7 @@ pub fn SchedulesPage() -> impl IntoView {
             </Show>
 
             <Show when=move || view_mode.get() == "calendar">
-                <SchedulesCalendarPanel
+                <LazySchedulesCalendarPanel
                     data=data.clone()
                     calendar_date_start=calendar_date_start
                     calendar_date_end=calendar_date_end
@@ -1056,7 +1056,7 @@ pub fn SchedulesPage() -> impl IntoView {
             </Show>
 
             <Show when=move || view_mode.get() == "list">
-                <SchedulesListPanel
+                <LazySchedulesListPanel
                     data=data.clone()
                     contact_labels=contact_labels
                     pending_contacts=pending_contacts

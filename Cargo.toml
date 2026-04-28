@@ -37,7 +37,6 @@ leptos = { version = "0.8.10", default-features = false }
 leptos_meta = { version = "0.8.5", default-features = false }
 leptos_router = { version = "0.8.11", default-features = false }
 leptos_axum = { version = "0.8.6" }
-reactive_stores = "0.2.2"
 
 axum = "0.8.6"
 cfg-if = "1"
@@ -145,6 +144,13 @@ lib-features = []
 # Optional. Defaults to false.
 lib-default-features = false
 
+# Keep release wasm optimization compatible with older system Binaryen packages.
+wasm-opt-features = [
+    "--enable-bulk-memory",
+    "--enable-nontrapping-float-to-int",
+    "--enable-sign-ext",
+    "--enable-mutable-globals",
+]
 
 # The tailwind input file.
 #
