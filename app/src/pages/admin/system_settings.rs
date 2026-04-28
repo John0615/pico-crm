@@ -109,6 +109,22 @@ pub fn SystemSettings() -> impl IntoView {
                 <div class="p-6 text-sm text-base-content/60">"加载中..."</div>
             }>
                 {move || data.get().map(|categories| {
+                    if categories.is_empty() {
+                        return view! {
+                            <div class="card bg-base-100 shadow-xl">
+                                <div class="card-body space-y-3">
+                                    <h2 class="card-title">"系统设置"</h2>
+                                    <p class="text-sm text-base-content/70">
+                                        "当前没有可维护的系统配置项，所以页面看起来会像空白。"
+                                    </p>
+                                    <div class="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-base-content/80">
+                                        "原因通常是 system_config_categories 和 system_config_items 还没有初始化数据。"
+                                    </div>
+                                </div>
+                            </div>
+                        }.into_any();
+                    }
+
                     let active_code = active_tab.get();
                     let active_category = categories
                         .iter()
@@ -322,7 +338,7 @@ pub fn SystemSettings() -> impl IntoView {
                                 "保存设置"
                             </button>
                         </div>
-                    }
+                    }.into_any()
                 })}
             </Suspense>
         </div>

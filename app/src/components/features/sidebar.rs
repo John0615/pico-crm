@@ -546,21 +546,6 @@ pub fn Sidebar() -> impl IntoView {
                                         "系统设置"
                                     </a>
                                 </li>
-                                <li>
-                                    <a
-                                        href="/admin/maintenance"
-                                        class=move || {
-                                            if is_active("/admin/maintenance") {
-                                                "menu-active w-full"
-                                            } else {
-                                                "w-full"
-                                            }
-                                        }
-                                    >
-                                        <span class="icon-[tabler--tool] size-5"></span>
-                                        "租户维护"
-                                    </a>
-                                </li>
                             </ul>
                         </li>
                         <li class="hidden overlay-minified:block dropdown relative [--adaptive:adaptive] [--strategy:fixed] [--offset:12] [--placement:right-start]">
@@ -611,21 +596,6 @@ pub fn Sidebar() -> impl IntoView {
                                     >
                                         <span class="icon-[tabler--settings] size-5"></span>
                                         "系统设置"
-                                    </a>
-                                </li>
-                                <li>
-                                    <a
-                                        href="/admin/maintenance"
-                                        class=move || {
-                                            if is_active("/admin/maintenance") {
-                                                "menu-active w-full"
-                                            } else {
-                                                "w-full"
-                                            }
-                                        }
-                                    >
-                                        <span class="icon-[tabler--tool] size-5"></span>
-                                        "租户维护"
                                     </a>
                                 </li>
                             </ul>

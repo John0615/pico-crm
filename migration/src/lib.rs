@@ -18,6 +18,7 @@ mod m20260501_000016_create_table_after_sales_case_records;
 mod m20260501_000017_create_table_after_sales_reworks;
 mod m20260501_000018_make_user_name_globally_unique;
 mod m20260501_000019_make_user_contact_globally_unique;
+mod m20260501_000020_seed_system_config_defaults;
 
 pub struct Migrator;
 
@@ -44,6 +45,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260501_000017_create_table_after_sales_reworks::Migration),
             Box::new(m20260501_000018_make_user_name_globally_unique::Migration),
             Box::new(m20260501_000019_make_user_contact_globally_unique::Migration),
+            Box::new(m20260501_000020_seed_system_config_defaults::Migration),
         ]
     }
 }
