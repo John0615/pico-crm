@@ -79,6 +79,21 @@ pub fn SchedulesPage() -> impl IntoView {
     let user_labels: RwSignal<HashMap<String, String>> = RwSignal::new(HashMap::new());
     let pending_contacts: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
     let pending_users: RwSignal<HashSet<String>> = RwSignal::new(HashSet::new());
+    let client_ready = RwSignal::new(false);
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let client_ready = client_ready;
+        Effect::new(move |_| {
+            if client_ready.get_untracked() {
+                return;
+            }
+            set_timeout(
+                move || client_ready.set(true),
+                std::time::Duration::from_millis(0),
+            );
+        });
+    }
 
     Effect::new(move |_| {
         if view_mode.get() != "calendar" {
@@ -118,15 +133,12 @@ pub fn SchedulesPage() -> impl IntoView {
         }
     });
 
-    let current_user = Resource::new(
-        move || (),
-        |_| async move {
-            call_api(get_user_info()).await.unwrap_or_else(|e| {
-                logging::error!("Error loading user info: {e}");
-                User::default()
-            })
-        },
-    );
+    let current_user = LocalResource::new(move || async move {
+        call_api(get_user_info()).await.unwrap_or_else(|e| {
+            logging::error!("Error loading user info: {e}");
+            User::default()
+        })
+    });
 
     let is_worker = Memo::new(move |_| {
         current_user.with(|value| {
@@ -143,6 +155,9 @@ pub fn SchedulesPage() -> impl IntoView {
     });
 
     Effect::new(move |_| {
+        if !client_ready.get() {
+            return;
+        }
         if is_worker.get() && view_mode.get() == "backlog" {
             view_mode.set("list".to_string());
         }
@@ -233,6 +248,9 @@ pub fn SchedulesPage() -> impl IntoView {
     });
 
     Effect::new(move || {
+        if !client_ready.get() {
+            return;
+        }
         let map = query.with(|value| value.clone());
         if let Some(status) = map.get("status") {
             if status_filter.get() != status {
@@ -956,6 +974,7 @@ pub fn SchedulesPage() -> impl IntoView {
     });
 
     let is_worker_signal = Signal::derive(move || is_worker.get());
+    let show_backlog_tab = Signal::derive(move || !client_ready.get() || !is_worker.get());
     let current_user_uuid = Signal::derive(move || {
         current_user.with(|value| {
             value
@@ -975,7 +994,7 @@ pub fn SchedulesPage() -> impl IntoView {
                 <h1 class="text-2xl font-semibold">"排班管理"</h1>
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="tabs tabs-boxed">
-                        <Show when=move || !is_worker.get() fallback=|| ()>
+                        <Show when=move || show_backlog_tab.get() fallback=|| ()>
                             <button
                                 class=move || {
                                     if view_mode.get() == "backlog" {

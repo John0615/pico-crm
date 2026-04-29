@@ -171,16 +171,12 @@ pub fn Navbar() -> impl IntoView {
         });
     });
 
-    let data = Resource::new(
-        move || (),
-        |_| async move {
-            let result = call_api(get_user_info()).await.unwrap_or_else(|e| {
-                logging::error!("Error loading user: {e}");
-                User::default()
-            });
-            result
-        },
-    );
+    let data = LocalResource::new(move || async move {
+        call_api(get_user_info()).await.unwrap_or_else(|e| {
+            logging::error!("Error loading user: {e}");
+            User::default()
+        })
+    });
     view! {
         <div class="navbar bg-base-100 sticky top-0 z-50 border-b border-base-200 shadow-sm h-16 min-h-16 w-full px-4">
             <div class="navbar-start gap-2 items-center">

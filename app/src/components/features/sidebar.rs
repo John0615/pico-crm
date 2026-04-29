@@ -8,16 +8,12 @@ use shared::user::User;
 #[component]
 pub fn Sidebar() -> impl IntoView {
     let location = use_location();
-    let user_data = Resource::new(
-        move || (),
-        |_| async move {
-            let result = call_api(get_user_info()).await.unwrap_or_else(|e| {
-                logging::error!("Error loading user info: {e}");
-                User::default()
-            });
-            result
-        },
-    );
+    let user_data = LocalResource::new(move || async move {
+        call_api(get_user_info()).await.unwrap_or_else(|e| {
+            logging::error!("Error loading user info: {e}");
+            User::default()
+        })
+    });
     let user_info = move || {
         user_data.with(|value| {
             value.as_ref().map(|user| {

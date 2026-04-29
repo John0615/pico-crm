@@ -17,7 +17,6 @@ mod ssr {
     pub use backend::infrastructure::repositories::crm::order_repository_impl::SeaOrmOrderRepository;
     pub use backend::infrastructure::repositories::crm::schedule_repository_impl::SeaOrmScheduleRepository;
     pub use backend::infrastructure::repositories::crm::service_request_repository_impl::SeaOrmServiceRequestRepository;
-    pub use backend::infrastructure::tenant::TenantContext;
 
     pub async fn wait_for_order_projection(
         pool: &Database,
@@ -47,10 +46,8 @@ mod ssr {
 )]
 pub async fn fetch_orders(params: OrderQuery) -> Result<ListResult<Order>, ServerFnError> {
     use self::ssr::*;
-    use axum::Extension;
-    use leptos_axum::extract;
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
     let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = OrderQueryService::new(query);
@@ -69,10 +66,8 @@ pub async fn fetch_orders(params: OrderQuery) -> Result<ListResult<Order>, Serve
 )]
 pub async fn get_order(uuid: String) -> Result<Option<Order>, ServerFnError> {
     use self::ssr::*;
-    use axum::Extension;
-    use leptos_axum::extract;
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
     let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = OrderQueryService::new(query);
@@ -91,10 +86,8 @@ pub async fn get_order(uuid: String) -> Result<Option<Order>, ServerFnError> {
 )]
 pub async fn get_order_change_logs(uuid: String) -> Result<Vec<OrderChangeLogDto>, ServerFnError> {
     use self::ssr::*;
-    use axum::Extension;
-    use leptos_axum::extract;
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
     let query = SeaOrmOrderQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = OrderQueryService::new(query);
@@ -118,7 +111,7 @@ pub async fn create_order_from_request(
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
@@ -161,7 +154,7 @@ pub async fn update_order(
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
@@ -199,7 +192,7 @@ pub async fn cancel_order(
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
@@ -237,7 +230,7 @@ pub async fn update_order_status(
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
@@ -276,7 +269,7 @@ pub async fn update_order_assignment(
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());
@@ -315,7 +308,7 @@ pub async fn update_order_settlement(
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<shared::user::User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
     let order_repo = SeaOrmOrderRepository::new(pool.connection.clone(), merchant_id.clone());

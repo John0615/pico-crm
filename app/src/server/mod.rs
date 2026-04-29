@@ -29,3 +29,47 @@ pub use service_catalog_handlers::*;
 pub use service_request_handlers::*;
 pub use system_config_handlers::*;
 pub use user_handlers::*;
+
+#[cfg(feature = "ssr")]
+pub async fn resolve_tenant_context(
+) -> Result<backend::infrastructure::tenant::TenantContext, leptos::prelude::ServerFnError> {
+    use axum::Extension;
+    use backend::infrastructure::tenant::TenantContext;
+    use leptos::prelude::{use_context, ServerFnError};
+    use leptos_axum::extract;
+    use shared::user::User;
+
+    if let Ok(Extension(tenant)) = extract::<Extension<TenantContext>>().await {
+        return Ok(tenant);
+    }
+
+    if let Some(user) = use_context::<User>() {
+        if let Some(merchant_id) = user
+            .merchant_uuid
+            .clone()
+            .filter(|id| !id.trim().is_empty())
+        {
+            return Ok(TenantContext {
+                merchant_id,
+                role: user.role,
+            });
+        }
+    }
+
+    if let Ok(Extension(user)) = extract::<Extension<User>>().await {
+        if let Some(merchant_id) = user
+            .merchant_uuid
+            .clone()
+            .filter(|id| !id.trim().is_empty())
+        {
+            return Ok(TenantContext {
+                merchant_id,
+                role: user.role,
+            });
+        }
+    }
+
+    Err(ServerFnError::new(
+        "缺少租户上下文，无法识别当前商户".to_string(),
+    ))
+}

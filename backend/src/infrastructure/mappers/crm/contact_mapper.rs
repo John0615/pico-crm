@@ -56,10 +56,15 @@ impl ContactMapper {
         }
     }
 
-    pub fn to_active_entity(contact: Contact) -> ActiveContactEntity {
+    pub fn to_active_entity(
+        contact: Contact,
+        creator_uuid: String,
+    ) -> Result<ActiveContactEntity, String> {
         let uuid = Uuid::parse_str(&contact.uuid).unwrap_or_else(|_| Uuid::new_v4());
+        let creator_uuid = Uuid::parse_str(&creator_uuid)
+            .map_err(|e| format!("invalid creator_uuid: {}", e))?;
 
-        ActiveContactEntity {
+        Ok(ActiveContactEntity {
             contact_uuid: Set(uuid),
             merchant_id: Set(None),
             user_name: Set(contact.name),
@@ -74,8 +79,8 @@ impl ContactMapper {
             follow_up_status: Set(contact.follow_up_status.as_str().to_string()),
             inserted_at: Set(contact.inserted_at),
             updated_at: Set(contact.updated_at),
-            creator_uuid: Set(uuid),
-        }
+            creator_uuid: Set(creator_uuid),
+        })
     }
 
     pub fn to_update_active_entity(

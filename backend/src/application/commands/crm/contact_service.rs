@@ -10,14 +10,17 @@ impl<R: ContactRepository> ContactAppService<R> {
         Self { contact_repo }
     }
 
-    pub async fn create_contact(&self, contact: Contact) -> Result<(), String> {
+    pub async fn create_contact(&self, contact: Contact, creator_uuid: String) -> Result<(), String> {
         let domain_contact: crate::domain::crm::contact::Contact = contact.try_into()?;
 
         domain_contact.verify()?;
         self.ensure_phone_number_available(&domain_contact.phone, None)
             .await?;
 
-        let _new_contact = self.contact_repo.create_contact(domain_contact).await?;
+        let _new_contact = self
+            .contact_repo
+            .create_contact(domain_contact, creator_uuid)
+            .await?;
         Ok(())
     }
 
@@ -68,6 +71,7 @@ mod tests {
     struct FakeContactRepository {
         existing: Arc<Mutex<Option<DomainContact>>>,
         created: Arc<Mutex<Vec<DomainContact>>>,
+        creator_uuids: Arc<Mutex<Vec<String>>>,
         updated: Arc<Mutex<Vec<DomainUpdateContact>>>,
     }
 
@@ -75,10 +79,16 @@ mod tests {
         fn create_contact(
             &self,
             contact: DomainContact,
+            creator_uuid: String,
         ) -> impl std::future::Future<Output = Result<DomainContact, String>> + Send {
             let created = self.created.clone();
+            let creator_uuids = self.creator_uuids.clone();
             async move {
                 created.lock().expect("lock created").push(contact.clone());
+                creator_uuids
+                    .lock()
+                    .expect("lock creator_uuids")
+                    .push(creator_uuid);
                 Ok(contact)
             }
         }
@@ -152,7 +162,7 @@ mod tests {
                 user_name: "新客户".to_string(),
                 phone_number: "13800138000".to_string(),
                 ..Default::default()
-            })
+            }, "11111111-1111-1111-1111-111111111111".to_string())
             .await
             .expect_err("duplicate phone should be rejected");
 
@@ -193,5 +203,30 @@ mod tests {
             .expect("same contact should be allowed to keep phone");
 
         assert_eq!(updated.lock().expect("lock updated").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn create_contact_passes_creator_uuid_to_repository() {
+        let repo = FakeContactRepository::default();
+        let creator_uuids = repo.creator_uuids.clone();
+        let service = ContactAppService::new(repo);
+        let creator_uuid = "11111111-1111-1111-1111-111111111111".to_string();
+
+        service
+            .create_contact(
+                Contact {
+                    user_name: "新客户".to_string(),
+                    phone_number: "13800138003".to_string(),
+                    ..Default::default()
+                },
+                creator_uuid.clone(),
+            )
+            .await
+            .expect("create contact should pass creator uuid");
+
+        assert_eq!(
+            creator_uuids.lock().expect("lock creator_uuids").as_slice(),
+            [creator_uuid]
+        );
     }
 }

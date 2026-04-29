@@ -8,12 +8,15 @@ pub fn Modal(
     #[prop(optional)] box_class: &'static str,
     children: Children,
 ) -> impl IntoView {
+    let disable_scroll_constraints =
+        box_class.contains("max-h-none") && box_class.contains("overflow-visible");
+
     // 默认类：modal-box w-11/12 max-h-[80vh] overflow-y-auto
     // 如果 box_class 中包含 max-h-none 和 overflow-visible，则使用这些自定义类
     // 否则保持默认的 max-h-[80vh] overflow-y-auto
 
     let modal_box_class: String =
-        if box_class.contains("max-h-none") && box_class.contains("overflow-visible") {
+        if disable_scroll_constraints {
             // 用户希望禁用滚动限制，使用自定义类
             if box_class.is_empty() {
                 "modal-box w-11/12 max-h-none overflow-visible".to_string()
@@ -36,7 +39,18 @@ pub fn Modal(
 
     view! {
         <dialog open=move || *show.read() class="modal modal-bottom sm:modal-middle">
-            <div class=modal_box_class>
+            <div
+                class=modal_box_class
+                style:max-height=move || {
+                    disable_scroll_constraints.then_some("none")
+                }
+                style:overflow=move || {
+                    disable_scroll_constraints.then_some("visible")
+                }
+                style:overflow-y=move || {
+                    disable_scroll_constraints.then_some("visible")
+                }
+            >
                 <button
                     class="btn btn-sm btn-circle absolute right-2 top-2"
                     on:click=move |_| show.set(false)

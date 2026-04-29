@@ -26,15 +26,17 @@ impl ContactRepository for SeaOrmContactRepository {
     fn create_contact(
         &self,
         contact: Contact,
+        creator_uuid: String,
     ) -> impl Future<Output = Result<Contact, String>> + Send {
         let db = self.db.clone();
         let merchant_id = self.merchant_id.clone();
         async move {
             with_shared_txn(&db, |txn| {
                 let merchant_id = merchant_id.clone();
+                let creator_uuid = creator_uuid.clone();
                 Box::pin(async move {
                     let merchant_uuid = parse_merchant_uuid(&merchant_id)?;
-                    let mut entity = ContactMapper::to_active_entity(contact); // 转换为 Entity
+                    let mut entity = ContactMapper::to_active_entity(contact, creator_uuid)?; // 转换为 Entity
                     entity.merchant_id = sea_orm::ActiveValue::Set(Some(merchant_uuid));
                     let new_entity = entity
                         .insert(txn)

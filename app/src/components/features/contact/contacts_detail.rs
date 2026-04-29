@@ -342,7 +342,7 @@ fn build_contact_address(contact: &Contact) -> String {
     if parts.is_empty() {
         "暂无地址信息".to_string()
     } else {
-        parts.join(" / ")
+        join_strings(&parts, " / ")
     }
 }
 
@@ -366,6 +366,17 @@ fn follow_up_status_badge_class(value: Option<&str>) -> &'static str {
         "completed" => "badge-success",
         _ => "badge-ghost",
     }
+}
+
+fn join_strings(values: &[String], separator: &str) -> String {
+    let mut result = String::new();
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            result.push_str(separator);
+        }
+        result.push_str(value);
+    }
+    result
 }
 
 fn empty_dash(value: &str) -> String {

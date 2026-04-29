@@ -9,18 +9,15 @@ use shared::user::{CreateUserRequest, PagedResult, User, UserListQuery};
     endpoint = "/get_user",
 )]
 pub async fn get_user(uuid: String) -> Result<User, ServerFnError> {
-    use axum::Extension;
     use backend::application::queries::identity::user_service::UserAppService;
     use backend::infrastructure::db::Database;
     use backend::infrastructure::queries::identity::user_query_impl::SeaOrmUserQuery;
-    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
-    use leptos_axum::extract;
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
 
     // 创建查询repository和service
     let query_repository = SeaOrmUserQuery::new(db, tenant.merchant_id.clone());
@@ -41,18 +38,15 @@ pub async fn get_user(uuid: String) -> Result<User, ServerFnError> {
     endpoint = "/fetch_users",
 )]
 pub async fn fetch_users(params: UserListQuery) -> Result<PagedResult<User>, ServerFnError> {
-    use axum::Extension;
     use backend::application::queries::identity::user_service::UserAppService;
     use backend::infrastructure::db::Database;
     use backend::infrastructure::queries::identity::user_query_impl::SeaOrmUserQuery;
-    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
-    use leptos_axum::extract;
 
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
 
     // 创建查询repository和service
     let query_repository = SeaOrmUserQuery::new(db, tenant.merchant_id.clone());
@@ -82,7 +76,6 @@ pub async fn create_user(request: CreateUserRequest) -> Result<User, ServerFnErr
     use backend::application::commands::identity::user_service::UserCommandService;
     use backend::infrastructure::db::Database;
     use backend::infrastructure::repositories::identity::user_repository_impl::SeaOrmUserRepository;
-    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
     use leptos_axum::extract;
 
@@ -97,7 +90,7 @@ pub async fn create_user(request: CreateUserRequest) -> Result<User, ServerFnErr
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
 
     // 创建repository和service
     let repository = SeaOrmUserRepository::new(db, tenant.merchant_id.clone());
@@ -124,7 +117,6 @@ pub async fn update_user(uuid: String, request: CreateUserRequest) -> Result<Use
     use backend::application::commands::identity::user_service::UserCommandService;
     use backend::infrastructure::db::Database;
     use backend::infrastructure::repositories::identity::user_repository_impl::SeaOrmUserRepository;
-    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
     use leptos_axum::extract;
 
@@ -141,7 +133,7 @@ pub async fn update_user(uuid: String, request: CreateUserRequest) -> Result<Use
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
 
     // 创建repository和service
     let repository = SeaOrmUserRepository::new(db, tenant.merchant_id.clone());
@@ -168,7 +160,6 @@ pub async fn delete_user(uuid: String) -> Result<(), ServerFnError> {
     use backend::application::commands::identity::user_service::UserCommandService;
     use backend::infrastructure::db::Database;
     use backend::infrastructure::repositories::identity::user_repository_impl::SeaOrmUserRepository;
-    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
     use leptos_axum::extract;
 
@@ -185,7 +176,7 @@ pub async fn delete_user(uuid: String) -> Result<(), ServerFnError> {
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
 
     // 创建repository和service
     let repository = SeaOrmUserRepository::new(db, tenant.merchant_id.clone());
@@ -211,7 +202,6 @@ pub async fn toggle_user_status(uuid: String) -> Result<User, ServerFnError> {
     use backend::application::commands::identity::user_service::UserCommandService;
     use backend::infrastructure::db::Database;
     use backend::infrastructure::repositories::identity::user_repository_impl::SeaOrmUserRepository;
-    use backend::infrastructure::tenant::TenantContext;
     use leptos::prelude::*;
     use leptos_axum::extract;
 
@@ -228,7 +218,7 @@ pub async fn toggle_user_status(uuid: String) -> Result<User, ServerFnError> {
     // 从上下文获取数据库连接池
     let pool = expect_context::<Database>();
     let db = pool.get_connection().clone();
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
 
     // 创建repository和service
     let repository = SeaOrmUserRepository::new(db, tenant.merchant_id.clone());

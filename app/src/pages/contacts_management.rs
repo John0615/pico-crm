@@ -488,9 +488,9 @@ fn tags_summary(tags: &[String]) -> String {
     if tags.is_empty() {
         "-".to_string()
     } else if tags.len() <= 3 {
-        tags.join(" / ")
+        join_strings(tags, " / ")
     } else {
-        format!("{} / +{}", tags[..3].join(" / "), tags.len() - 3)
+        format!("{} / +{}", join_strings(&tags[..3], " / "), tags.len() - 3)
     }
 }
 
@@ -501,4 +501,15 @@ fn normalize_optional(value: String) -> Option<String> {
     } else {
         Some(trimmed.to_string())
     }
+}
+
+fn join_strings(values: &[String], separator: &str) -> String {
+    let mut result = String::new();
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            result.push_str(separator);
+        }
+        result.push_str(value);
+    }
+    result
 }

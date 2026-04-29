@@ -4,6 +4,7 @@ pub trait ContactRepository: Send + Sync {
     fn create_contact(
         &self,
         contact: Contact,
+        creator_uuid: String,
     ) -> impl std::future::Future<Output = Result<Contact, String>> + Send;
 
     fn update_contact(

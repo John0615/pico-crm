@@ -12,33 +12,6 @@ use std::collections::{HashMap, HashSet};
 
 use super::support::*;
 
-fn schedules_panel_fallback(label: &'static str) -> AnyView {
-    view! {
-        <div class="overflow-x-auto overflow-y-auto h-[calc(100vh-260px)] bg-base-100 rounded-lg shadow">
-            <div class="p-6 text-sm text-base-content/60">{label}</div>
-        </div>
-    }
-    .into_any()
-}
-
-#[leptos::lazy]
-fn load_schedules_backlog_panel(
-    available_orders: Resource<(Vec<Order>, u64)>,
-    contact_labels: RwSignal<HashMap<String, String>>,
-    pending_contacts: RwSignal<HashSet<String>>,
-    open_new_schedule_for_order: Callback<String>,
-) -> AnyView {
-    view! {
-        <SchedulesBacklogPanel
-            available_orders=available_orders
-            contact_labels=contact_labels
-            pending_contacts=pending_contacts
-            open_new_schedule_for_order=open_new_schedule_for_order
-        />
-    }
-    .into_any()
-}
-
 #[component]
 pub fn LazySchedulesBacklogPanel(
     available_orders: Resource<(Vec<Order>, u64)>,
@@ -47,53 +20,13 @@ pub fn LazySchedulesBacklogPanel(
     open_new_schedule_for_order: Callback<String>,
 ) -> impl IntoView {
     view! {
-        <Suspense fallback=move || schedules_panel_fallback("加载未排班订单...")>
-            {move || {
-                let available_orders = available_orders.clone();
-                let open_new_schedule_for_order = open_new_schedule_for_order.clone();
-
-                Suspend::new(async move {
-                    load_schedules_backlog_panel(
-                        available_orders,
-                        contact_labels,
-                        pending_contacts,
-                        open_new_schedule_for_order,
-                    )
-                    .await
-                })
-            }}
-        </Suspense>
-    }
-}
-
-#[leptos::lazy]
-fn load_schedules_calendar_panel(
-    data: Resource<(Vec<Schedule>, u64)>,
-    calendar_date_start: RwSignal<String>,
-    calendar_date_end: RwSignal<String>,
-    user_labels: RwSignal<HashMap<String, String>>,
-    contact_labels: RwSignal<HashMap<String, String>>,
-    pending_contacts: RwSignal<HashSet<String>>,
-    user_filter: RwSignal<String>,
-    is_worker: Signal<bool>,
-    open_assignment: Callback<Schedule>,
-    open_detail: Callback<Schedule>,
-) -> AnyView {
-    view! {
-        <SchedulesCalendarPanel
-            data=data
-            calendar_date_start=calendar_date_start
-            calendar_date_end=calendar_date_end
-            user_labels=user_labels
+        <SchedulesBacklogPanel
+            available_orders=available_orders
             contact_labels=contact_labels
             pending_contacts=pending_contacts
-            user_filter=user_filter
-            is_worker=is_worker
-            open_assignment=open_assignment
-            open_detail=open_detail
+            open_new_schedule_for_order=open_new_schedule_for_order
         />
     }
-    .into_any()
 }
 
 #[component]
@@ -110,61 +43,19 @@ pub fn LazySchedulesCalendarPanel(
     open_detail: Callback<Schedule>,
 ) -> impl IntoView {
     view! {
-        <Suspense fallback=move || schedules_panel_fallback("加载日历视图...")>
-            {move || {
-                let data = data.clone();
-                let is_worker = is_worker.clone();
-                let open_assignment = open_assignment.clone();
-                let open_detail = open_detail.clone();
-
-                Suspend::new(async move {
-                    load_schedules_calendar_panel(
-                        data,
-                        calendar_date_start,
-                        calendar_date_end,
-                        user_labels,
-                        contact_labels,
-                        pending_contacts,
-                        user_filter,
-                        is_worker,
-                        open_assignment,
-                        open_detail,
-                    )
-                    .await
-                })
-            }}
-        </Suspense>
-    }
-}
-
-#[leptos::lazy]
-fn load_schedules_list_panel(
-    data: Resource<(Vec<Schedule>, u64)>,
-    contact_labels: RwSignal<HashMap<String, String>>,
-    pending_contacts: RwSignal<HashSet<String>>,
-    user_labels: RwSignal<HashMap<String, String>>,
-    pending_users: RwSignal<HashSet<String>>,
-    is_worker: Signal<bool>,
-    open_assignment: Callback<Schedule>,
-    cancel_assignment: Callback<String>,
-    update_status: Callback<(String, String)>,
-    open_detail: Callback<Schedule>,
-) -> AnyView {
-    view! {
-        <SchedulesListPanel
+        <SchedulesCalendarPanel
             data=data
+            calendar_date_start=calendar_date_start
+            calendar_date_end=calendar_date_end
+            user_labels=user_labels
             contact_labels=contact_labels
             pending_contacts=pending_contacts
-            user_labels=user_labels
-            pending_users=pending_users
+            user_filter=user_filter
             is_worker=is_worker
             open_assignment=open_assignment
-            cancel_assignment=cancel_assignment
-            update_status=update_status
             open_detail=open_detail
         />
     }
-    .into_any()
 }
 
 #[component]
@@ -181,32 +72,18 @@ pub fn LazySchedulesListPanel(
     open_detail: Callback<Schedule>,
 ) -> impl IntoView {
     view! {
-        <Suspense fallback=move || schedules_panel_fallback("加载列表视图...")>
-            {move || {
-                let data = data.clone();
-                let is_worker = is_worker.clone();
-                let open_assignment = open_assignment.clone();
-                let cancel_assignment = cancel_assignment.clone();
-                let update_status = update_status.clone();
-                let open_detail = open_detail.clone();
-
-                Suspend::new(async move {
-                    load_schedules_list_panel(
-                        data,
-                        contact_labels,
-                        pending_contacts,
-                        user_labels,
-                        pending_users,
-                        is_worker,
-                        open_assignment,
-                        cancel_assignment,
-                        update_status,
-                        open_detail,
-                    )
-                    .await
-                })
-            }}
-        </Suspense>
+        <SchedulesListPanel
+            data=data
+            contact_labels=contact_labels
+            pending_contacts=pending_contacts
+            user_labels=user_labels
+            pending_users=pending_users
+            is_worker=is_worker
+            open_assignment=open_assignment
+            cancel_assignment=cancel_assignment
+            update_status=update_status
+            open_detail=open_detail
+        />
     }
 }
 
@@ -1397,126 +1274,125 @@ pub fn ScheduleDetailModal(
 
                 <div class="rounded-box border border-base-200 p-4 space-y-4">
                     <div class="font-medium">"服务反馈"</div>
-                    {move || {
-                        let current_user_uuid = current_user_uuid.get();
-                        let feedback_items = schedule_feedbacks.get().unwrap_or_default();
-                        let already_submitted = feedback_items
-                            .iter()
-                            .any(|item| item.user_uuid.as_deref() == Some(current_user_uuid.as_str()));
-                        let can_submit = detail_schedule
-                            .get()
-                            .map(|schedule| {
-                                is_worker.get()
-                                    && schedule.schedule_status == "done"
-                                    && schedule.order_status == "completed"
-                                    && schedule.assigned_user_uuid.as_deref()
-                                        == Some(current_user_uuid.as_str())
-                                    && !already_submitted
-                            })
-                            .unwrap_or(false);
+                    <Transition fallback=move || view! {
+                        <div class="text-sm text-base-content/60">"加载中..."</div>
+                    }>
+                        {move || {
+                            schedule_feedbacks.get().map(|items| {
+                                let current_user_uuid = current_user_uuid.get();
+                                let already_submitted = items
+                                    .iter()
+                                    .any(|item| item.user_uuid.as_deref() == Some(current_user_uuid.as_str()));
+                                let can_submit = detail_schedule
+                                    .get()
+                                    .map(|schedule| {
+                                        is_worker.get()
+                                            && schedule.schedule_status == "done"
+                                            && schedule.order_status == "completed"
+                                            && schedule.assigned_user_uuid.as_deref()
+                                                == Some(current_user_uuid.as_str())
+                                            && !already_submitted
+                                    })
+                                    .unwrap_or(false);
 
-                        view! {
-                            <div class="space-y-4">
-                                <Show when=move || already_submitted>
-                                    <div class="text-sm text-success">
-                                        "你已提交过该订单反馈，当前为只读状态"
-                                    </div>
-                                </Show>
-                                <Show
-                                    when=move || can_submit
-                                    fallback=move || view! {
-                                        <div class="text-sm text-base-content/60">
-                                            "仅完成服务的执行人员可提交反馈，其他角色可查看历史反馈"
-                                        </div>
+                                let feedback_list = if items.is_empty() {
+                                    view! {
+                                        <div class="text-sm text-base-content/60">"暂无服务反馈"</div>
                                     }
-                                >
-                                    <div class="grid gap-3">
-                                        <select
-                                            class="select select-bordered"
-                                            prop:value=move || feedback_rating.get()
-                                            on:change=move |ev| feedback_rating.set(event_target_value(&ev))
-                                        >
-                                            <option value="">"请选择评分（可选）"</option>
-                                            <option value="5">"5 分"</option>
-                                            <option value="4">"4 分"</option>
-                                            <option value="3">"3 分"</option>
-                                            <option value="2">"2 分"</option>
-                                            <option value="1">"1 分"</option>
-                                        </select>
-                                        <textarea
-                                            class="textarea textarea-bordered min-h-24"
-                                            prop:value=move || feedback_content.get()
-                                            on:input=move |ev| feedback_content.set(event_target_value(&ev))
-                                            placeholder="填写服务内容、异常情况或客户现场反馈"
-                                        ></textarea>
-                                        <div class="flex justify-end">
-                                            <button
-                                                class=move || {
-                                                    if creating_feedback.get() {
-                                                        "btn btn-sm btn-primary btn-disabled"
-                                                    } else {
-                                                        "btn btn-sm btn-primary"
+                                    .into_any()
+                                } else {
+                                    view! {
+                                        <div class="space-y-3">
+                                            <For
+                                                each=move || items.clone().into_iter()
+                                                key=|item: &OrderFeedback| item.uuid.clone()
+                                                children=move |item| {
+                                                    let rating_label = item
+                                                        .rating
+                                                        .map(|value| format!("{} 分", value))
+                                                        .unwrap_or_else(|| "未评分".to_string());
+                                                    let user_label = item
+                                                        .user_name
+                                                        .clone()
+                                                        .filter(|value| !value.trim().is_empty())
+                                                        .or_else(|| item.user_uuid.clone())
+                                                        .unwrap_or_else(|| "系统".to_string());
+                                                    view! {
+                                                        <div class="rounded-box bg-base-200/50 p-3 space-y-2">
+                                                            <div class="flex items-center justify-between gap-2">
+                                                                <span class="text-sm font-medium">{user_label}</span>
+                                                                <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
+                                                            </div>
+                                                            <div class="text-xs text-base-content/60">{rating_label}</div>
+                                                            <div class="text-sm whitespace-pre-wrap break-all">{item.content.clone()}</div>
+                                                        </div>
                                                     }
                                                 }
-                                                disabled=move || creating_feedback.get()
-                                                on:click=move |_| submit_feedback.run(())
-                                            >
-                                                {move || if creating_feedback.get() { "提交中..." } else { "提交反馈" }}
-                                            </button>
+                                            />
                                         </div>
-                                    </div>
-                                </Show>
+                                    }
+                                    .into_any()
+                                };
 
-                                <Transition fallback=move || view! {
-                                    <div class="text-sm text-base-content/60">"加载中..."</div>
-                                }>
-                                    {move || {
-                                        schedule_feedbacks.get().map(|items| {
-                                            if items.is_empty() {
-                                                view! {
-                                                    <div class="text-sm text-base-content/60">"暂无服务反馈"</div>
-                                                }
-                                                .into_any()
-                                            } else {
-                                                view! {
-                                                    <div class="space-y-3">
-                                                        <For
-                                                            each=move || items.clone().into_iter()
-                                                            key=|item: &OrderFeedback| item.uuid.clone()
-                                                            children=move |item| {
-                                                                let rating_label = item
-                                                                    .rating
-                                                                    .map(|value| format!("{} 分", value))
-                                                                    .unwrap_or_else(|| "未评分".to_string());
-                                                                let user_label = item
-                                                                    .user_name
-                                                                    .clone()
-                                                                    .filter(|value| !value.trim().is_empty())
-                                                                    .or_else(|| item.user_uuid.clone())
-                                                                    .unwrap_or_else(|| "系统".to_string());
-                                                                view! {
-                                                                    <div class="rounded-box bg-base-200/50 p-3 space-y-2">
-                                                                        <div class="flex items-center justify-between gap-2">
-                                                                            <span class="text-sm font-medium">{user_label}</span>
-                                                                            <span class="text-xs text-base-content/60">{item.created_at.clone()}</span>
-                                                                        </div>
-                                                                        <div class="text-xs text-base-content/60">{rating_label}</div>
-                                                                        <div class="text-sm whitespace-pre-wrap break-all">{item.content.clone()}</div>
-                                                                    </div>
-                                                                }
-                                                            }
-                                                        />
-                                                    </div>
-                                                }
-                                                .into_any()
+                                view! {
+                                    <div class="space-y-4">
+                                        <Show when=move || already_submitted>
+                                            <div class="text-sm text-success">
+                                                "你已提交过该订单反馈，当前为只读状态"
+                                            </div>
+                                        </Show>
+                                        <Show
+                                            when=move || can_submit
+                                            fallback=move || view! {
+                                                <div class="text-sm text-base-content/60">
+                                                    "仅完成服务的执行人员可提交反馈，其他角色可查看历史反馈"
+                                                </div>
                                             }
-                                        })
-                                    }}
-                                </Transition>
-                            </div>
-                        }
-                        .into_any()
-                    }}
+                                        >
+                                            <div class="grid gap-3">
+                                                <select
+                                                    class="select select-bordered"
+                                                    prop:value=move || feedback_rating.get()
+                                                    on:change=move |ev| feedback_rating.set(event_target_value(&ev))
+                                                >
+                                                    <option value="">"请选择评分（可选）"</option>
+                                                    <option value="5">"5 分"</option>
+                                                    <option value="4">"4 分"</option>
+                                                    <option value="3">"3 分"</option>
+                                                    <option value="2">"2 分"</option>
+                                                    <option value="1">"1 分"</option>
+                                                </select>
+                                                <textarea
+                                                    class="textarea textarea-bordered min-h-24"
+                                                    prop:value=move || feedback_content.get()
+                                                    on:input=move |ev| feedback_content.set(event_target_value(&ev))
+                                                    placeholder="填写服务内容、异常情况或客户现场反馈"
+                                                ></textarea>
+                                                <div class="flex justify-end">
+                                                    <button
+                                                        class=move || {
+                                                            if creating_feedback.get() {
+                                                                "btn btn-sm btn-primary btn-disabled"
+                                                            } else {
+                                                                "btn btn-sm btn-primary"
+                                                            }
+                                                        }
+                                                        disabled=move || creating_feedback.get()
+                                                        on:click=move |_| submit_feedback.run(())
+                                                    >
+                                                        {move || if creating_feedback.get() { "提交中..." } else { "提交反馈" }}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </Show>
+
+                                        {feedback_list}
+                                    </div>
+                                }
+                                .into_any()
+                            })
+                        }}
+                    </Transition>
                 </div>
                 <div class="flex justify-end gap-2">
                     <button class="btn" on:click=move |_| show.set(false)>

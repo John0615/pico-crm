@@ -204,7 +204,7 @@ fn build_contact_form_fields(contact: &Contact) -> Vec<FormField> {
             label: "标签".to_string(),
             field_type: FieldType::Text,
             required: false,
-            value: ArcRwSignal::new(contact.tags.join(", ")),
+            value: ArcRwSignal::new(join_strings(&contact.tags, ", ")),
             placeholder: Some("多个标签用逗号分隔".into()),
             error_message: ArcRwSignal::new(None),
             validation: Some(ValidationRule::Custom(CustomValidator::new(|val: &str| {
@@ -280,4 +280,15 @@ fn parse_tags_input(value: &str) -> Vec<String> {
         tags.push(trimmed.to_string());
     }
     tags
+}
+
+fn join_strings(values: &[String], separator: &str) -> String {
+    let mut result = String::new();
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            result.push_str(separator);
+        }
+        result.push_str(value);
+    }
+    result
 }

@@ -1,10 +1,7 @@
 use leptos::prelude::*;
 use server_fn::ServerFnError;
 use shared::{
-    service_catalog::{
-        CreateServiceCatalogRequest, ServiceCatalog, ServiceCatalogQuery,
-        UpdateServiceCatalogRequest,
-    },
+    service_catalog::{CreateServiceCatalogRequest, ServiceCatalog, UpdateServiceCatalogRequest},
     ListResult,
 };
 
@@ -15,7 +12,6 @@ mod ssr {
     pub use backend::infrastructure::db::Database;
     pub use backend::infrastructure::queries::crm::service_catalog_query_impl::SeaOrmServiceCatalogQuery;
     pub use backend::infrastructure::repositories::crm::service_catalog_repository_impl::SeaOrmServiceCatalogRepository;
-    pub use backend::infrastructure::tenant::TenantContext;
 }
 
 #[server(
@@ -29,10 +25,9 @@ pub async fn fetch_service_catalogs(
     active_only: Option<bool>,
 ) -> Result<ListResult<ServiceCatalog>, ServerFnError> {
     use self::ssr::*;
-    use axum::Extension;
-    use leptos_axum::extract;
+    use shared::service_catalog::ServiceCatalogQuery;
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
     let query = SeaOrmServiceCatalogQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
     let service = ServiceCatalogQueryService::new(query);
@@ -68,7 +63,7 @@ pub async fn create_service_catalog(
         return Err(ServerFnError::new("无权限维护服务项目".to_string()));
     }
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
     let repo =
         SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
@@ -100,7 +95,7 @@ pub async fn update_service_catalog(
         return Err(ServerFnError::new("无权限维护服务项目".to_string()));
     }
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
     let repo =
         SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.merchant_id.clone());
@@ -129,7 +124,7 @@ pub async fn delete_service_catalog(uuid: String) -> Result<(), ServerFnError> {
         return Err(ServerFnError::new("无权限维护服务项目".to_string()));
     }
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
     let repo =
         SeaOrmServiceCatalogRepository::new(pool.connection.clone(), tenant.merchant_id.clone());

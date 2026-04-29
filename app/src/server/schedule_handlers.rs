@@ -21,7 +21,6 @@ mod ssr {
     pub use backend::infrastructure::repositories::crm::order_feedback_repository_impl::SeaOrmOrderFeedbackRepository;
     pub use backend::infrastructure::repositories::crm::order_repository_impl::SeaOrmOrderRepository;
     pub use backend::infrastructure::repositories::crm::schedule_repository_impl::SeaOrmScheduleRepository;
-    pub use backend::infrastructure::tenant::TenantContext;
 }
 
 #[server(
@@ -35,7 +34,7 @@ pub async fn fetch_schedules(params: ScheduleQuery) -> Result<ListResult<Schedul
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
 
     let mut params = params;
@@ -64,7 +63,7 @@ pub async fn get_schedule(uuid: String) -> Result<Option<Schedule>, ServerFnErro
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
 
     let query = SeaOrmScheduleQuery::new(pool.connection.clone(), tenant.merchant_id.clone());
@@ -102,7 +101,7 @@ pub async fn create_schedule(
     let Extension(current_user): Extension<User> = extract().await?;
     ensure_operator(&current_user)?;
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
 
     let order_repo =
@@ -134,7 +133,7 @@ pub async fn update_schedule(
     let Extension(current_user): Extension<User> = extract().await?;
     ensure_operator(&current_user)?;
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
 
     let order_repo =
@@ -163,7 +162,7 @@ pub async fn cancel_schedule(order_uuid: String) -> Result<Schedule, ServerFnErr
     let Extension(current_user): Extension<User> = extract().await?;
     ensure_operator(&current_user)?;
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
 
     let order_repo =
@@ -193,7 +192,7 @@ pub async fn update_schedule_status(
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let pool = expect_context::<Database>();
     let merchant_id = tenant.merchant_id.clone();
 
@@ -243,7 +242,7 @@ pub async fn fetch_schedule_feedbacks(
     use leptos_axum::extract;
 
     let Extension(current_user): Extension<User> = extract().await?;
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
 
@@ -290,7 +289,7 @@ pub async fn create_schedule_feedback(
         return Err(ServerFnError::new("仅家政人员可提交服务反馈".to_string()));
     }
 
-    let Extension(tenant): Extension<TenantContext> = extract().await?;
+    let tenant = crate::server::resolve_tenant_context().await?;
     let merchant_id = tenant.merchant_id.clone();
     let pool = expect_context::<Database>();
 

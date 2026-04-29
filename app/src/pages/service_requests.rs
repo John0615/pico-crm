@@ -1,5 +1,5 @@
 use crate::components::ui::date_picker::{FlyonDatePicker, FlyonDateTimePicker};
-use crate::components::ui::modal::Modal;
+use crate::components::ui::modal::{Modal, DETAIL_MODAL_BOX_CLASS};
 use crate::components::ui::pagination::Pagination;
 use crate::components::ui::table::{Column, DaisyTable, Identifiable};
 use crate::components::ui::toast::{error, success};
@@ -646,7 +646,7 @@ pub fn ServiceRequestsPage() -> impl IntoView {
             </Transition>
         </div>
 
-        <Modal show=show_modal>
+        <Modal show=show_modal box_class=DETAIL_MODAL_BOX_CLASS>
             <h3 class="text-lg font-semibold mb-4">"需求单"</h3>
                 <div class="space-y-3">
                     <label class="form-control w-full">

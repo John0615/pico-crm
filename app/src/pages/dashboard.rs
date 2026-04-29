@@ -12,33 +12,28 @@ pub fn Dashboard() -> impl IntoView {
     let date_start = RwSignal::new(String::new());
     let date_end = RwSignal::new(String::new());
 
-    let data = Resource::new(
-        move || {
-            (
-                preset.get(),
-                date_start.get(),
-                date_end.get(),
-                *refresh_count.read(),
-            )
-        },
-        |(preset, start, end, _)| async move {
-            let (preset, start, end) = if preset == "custom" {
-                (None, normalize_optional(&start), normalize_optional(&end))
-            } else {
-                (Some(preset), None, None)
-            };
+    let data = LocalResource::new(move || async move {
+        let preset = preset.get();
+        let start = date_start.get();
+        let end = date_end.get();
+        let _refresh_count = refresh_count.get();
 
-            let query = MerchantDashboardQuery {
-                preset,
-                start,
-                end,
-                timezone: Some("Asia/Shanghai".to_string()),
-                granularity: Some("day".to_string()),
-            };
+        let (preset, start, end) = if preset == "custom" {
+            (None, normalize_optional(&start), normalize_optional(&end))
+        } else {
+            (Some(preset), None, None)
+        };
 
-            call_api(fetch_merchant_dashboard(query)).await
-        },
-    );
+        let query = MerchantDashboardQuery {
+            preset,
+            start,
+            end,
+            timezone: Some("Asia/Shanghai".to_string()),
+            granularity: Some("day".to_string()),
+        };
+
+        call_api(fetch_merchant_dashboard(query)).await
+    });
 
     let on_refresh = move |_| refresh_count.update(|value| *value += 1);
     let on_preset_change = move |ev| {
