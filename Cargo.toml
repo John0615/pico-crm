@@ -146,6 +146,7 @@ lib-default-features = false
 
 # Keep release wasm optimization compatible with older system Binaryen packages.
 wasm-opt-features = [
+    "-Oz",
     "--enable-bulk-memory",
     "--enable-nontrapping-float-to-int",
     "--enable-sign-ext",

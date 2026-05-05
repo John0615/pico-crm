@@ -61,7 +61,7 @@ pub fn AdminUsers() -> impl IntoView {
                 page,
                 page_size,
                 name: normalize_optional(name),
-                role: Some("user".to_string()),
+                role: None,
                 status: normalize_optional(account_status),
                 employment_status: normalize_optional(employment_status),
                 skill: normalize_optional(skill),
@@ -241,6 +241,18 @@ pub fn AdminUsers() -> impl IntoView {
                             let user: Option<User> = use_context::<User>();
                             let badge_class = user.as_ref().map(|u| employment_status_badge_class(&u.employment_status)).unwrap_or("badge-ghost");
                             let label = user.as_ref().map(|u| employment_status_label(&u.employment_status).to_string()).unwrap_or_else(|| "-".to_string());
+                            view! { <span class=format!("badge {}", badge_class)>{label}</span> }
+                        }
+                    </Column>
+                    <Column
+                        slot:columns
+                        label="角色".to_string()
+                        prop="role".to_string()
+                    >
+                        {
+                            let user: Option<User> = use_context::<User>();
+                            let label = user.as_ref().map(|u| role_label(&u.role)).unwrap_or("-");
+                            let badge_class = user.as_ref().map(|u| role_badge_class(&u.role)).unwrap_or("badge-ghost");
                             view! { <span class=format!("badge {}", badge_class)>{label}</span> }
                         }
                     </Column>
@@ -502,6 +514,26 @@ fn health_status_label(value: &str) -> &'static str {
         "attention" => "需关注",
         "expired" => "已过期",
         _ => "未知",
+    }
+}
+
+fn role_label(role: &str) -> &'static str {
+    match role {
+        "admin" => "管理员",
+        "user" => "家政人员",
+        "operator" => "商户负责人",
+        "merchant" => "商户运营",
+        _ => "未知",
+    }
+}
+
+fn role_badge_class(role: &str) -> &'static str {
+    match role {
+        "admin" => "badge-error",
+        "user" => "badge-primary",
+        "operator" => "badge-warning",
+        "merchant" => "badge-info",
+        _ => "badge-ghost",
     }
 }
 

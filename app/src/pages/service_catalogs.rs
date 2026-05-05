@@ -202,83 +202,85 @@ pub fn ServiceCatalogsPage() -> impl IntoView {
                 <button class="btn btn-primary" on:click=open_create>"新增服务项目"</button>
             </div>
 
-            <div class="overflow-x-auto bg-base-100 rounded-lg shadow">
-                <DaisyTable data=data>
-                    <Column slot:columns prop="name".to_string() label="名称".to_string() class="font-semibold">
-                        {
-                            let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
-                            view! { <span>{item.as_ref().map(|value| value.name.clone()).unwrap_or_default()}</span> }
-                        }
-                    </Column>
-                    <Column slot:columns prop="base_price_cents".to_string() label="基础价格(分)".to_string()>
-                        {
-                            let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
-                            view! { <span>{item.as_ref().map(|value| value.base_price_cents.to_string()).unwrap_or_else(|| "-".to_string())}</span> }
-                        }
-                    </Column>
-                    <Column slot:columns prop="default_duration_minutes".to_string() label="默认时长(分钟)".to_string()>
-                        {
-                            let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
-                            view! {
-                                <span>
-                                    {item.as_ref().and_then(|value| value.default_duration_minutes.map(|v| v.to_string())).unwrap_or_else(|| "-".to_string())}
-                                </span>
+            <div class="h-[calc(100vh-200px)] bg-base-100 rounded-lg shadow relative flex flex-col">
+                <div class="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+                    <DaisyTable data=data>
+                        <Column slot:columns prop="name".to_string() label="名称".to_string() class="font-semibold">
+                            {
+                                let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
+                                view! { <span>{item.as_ref().map(|value| value.name.clone()).unwrap_or_default()}</span> }
                             }
-                        }
-                    </Column>
-                    <Column slot:columns prop="status".to_string() label="状态".to_string()>
-                        {
-                            let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
-                            let active = item.as_ref().map(|value| value.is_active).unwrap_or(false);
-                            view! {
-                                <span class=move || if active { "badge badge-success" } else { "badge badge-ghost" }>
-                                    {if active { "启用" } else { "停用" }}
-                                </span>
+                        </Column>
+                        <Column slot:columns prop="base_price_cents".to_string() label="基础价格(分)".to_string()>
+                            {
+                                let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
+                                view! { <span>{item.as_ref().map(|value| value.base_price_cents.to_string()).unwrap_or_else(|| "-".to_string())}</span> }
                             }
-                        }
-                    </Column>
-                    <Column slot:columns prop="description".to_string() label="说明".to_string()>
-                        {
-                            let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
-                            view! {
-                                <div class="max-w-72 whitespace-normal text-sm opacity-80">
-                                    {item.as_ref().and_then(|value| value.description.clone()).unwrap_or_else(|| "-".to_string())}
-                                </div>
+                        </Column>
+                        <Column slot:columns prop="default_duration_minutes".to_string() label="默认时长(分钟)".to_string()>
+                            {
+                                let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
+                                view! {
+                                    <span>
+                                        {item.as_ref().and_then(|value| value.default_duration_minutes.map(|v| v.to_string())).unwrap_or_else(|| "-".to_string())}
+                                    </span>
+                                }
                             }
-                        }
-                    </Column>
-                    <Column slot:columns prop="sort_order".to_string() label="排序".to_string()>
-                        {
-                            let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
-                            view! { <span>{item.as_ref().map(|value| value.sort_order.to_string()).unwrap_or_else(|| "0".to_string())}</span> }
-                        }
-                    </Column>
-                    <Column slot:columns prop="actions".to_string() label="操作".to_string() class="text-right">
-                        {
-                            let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
-                            let item_for_edit = StoredValue::new(item.clone());
-                            let item_for_delete = StoredValue::new(item);
-                            view! {
-                                <div class="flex justify-end gap-1">
-                                    <button class="btn btn-soft btn-warning btn-xs" on:click=move |_| {
-                                        if let Some(value) = item_for_edit.with_value(|v| v.clone()) {
-                                            open_edit(value);
-                                        }
-                                    }>
-                                        "编辑"
-                                    </button>
-                                    <button class="btn btn-soft btn-error btn-xs" on:click=move |_| {
-                                        if let Some(value) = item_for_delete.with_value(|v| v.clone()) {
-                                            delete_row(value);
-                                        }
-                                    }>
-                                        "删除"
-                                    </button>
-                                </div>
+                        </Column>
+                        <Column slot:columns prop="status".to_string() label="状态".to_string()>
+                            {
+                                let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
+                                let active = item.as_ref().map(|value| value.is_active).unwrap_or(false);
+                                view! {
+                                    <span class=move || if active { "badge badge-success" } else { "badge badge-ghost" }>
+                                        {if active { "启用" } else { "停用" }}
+                                    </span>
+                                }
                             }
-                        }
-                    </Column>
-                </DaisyTable>
+                        </Column>
+                        <Column slot:columns prop="description".to_string() label="说明".to_string()>
+                            {
+                                let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
+                                view! {
+                                    <div class="max-w-72 whitespace-normal text-sm opacity-80">
+                                        {item.as_ref().and_then(|value| value.description.clone()).unwrap_or_else(|| "-".to_string())}
+                                    </div>
+                                }
+                            }
+                        </Column>
+                        <Column slot:columns prop="sort_order".to_string() label="排序".to_string()>
+                            {
+                                let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
+                                view! { <span>{item.as_ref().map(|value| value.sort_order.to_string()).unwrap_or_else(|| "0".to_string())}</span> }
+                            }
+                        </Column>
+                        <Column slot:columns prop="actions".to_string() label="操作".to_string() class="text-right">
+                            {
+                                let item: Option<ServiceCatalog> = use_context::<ServiceCatalog>();
+                                let item_for_edit = StoredValue::new(item.clone());
+                                let item_for_delete = StoredValue::new(item);
+                                view! {
+                                    <div class="flex justify-end gap-1">
+                                        <button class="btn btn-soft btn-warning btn-xs" on:click=move |_| {
+                                            if let Some(value) = item_for_edit.with_value(|v| v.clone()) {
+                                                open_edit(value);
+                                            }
+                                        }>
+                                            "编辑"
+                                        </button>
+                                        <button class="btn btn-soft btn-error btn-xs" on:click=move |_| {
+                                            if let Some(value) = item_for_delete.with_value(|v| v.clone()) {
+                                                delete_row(value);
+                                            }
+                                        }>
+                                            "删除"
+                                        </button>
+                                    </div>
+                                }
+                            }
+                        </Column>
+                    </DaisyTable>
+                </div>
             </div>
             <Transition>
                 {move || {

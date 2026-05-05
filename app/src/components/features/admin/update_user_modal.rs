@@ -61,7 +61,7 @@ where
             joined_at: optional_field_value(&fields, "joined_at"),
             avatar_url: (!avatar.is_empty()).then_some(avatar),
             merchant_uuid: None,
-            role: Some("user".to_string()),
+            role: optional_field_value(&fields, "role"),
         };
 
         match call_api(update_user(uuid, request)).await {
@@ -175,6 +175,20 @@ fn build_user_form_fields(user: Option<&User>, avatar_url: RwSignal<String>) -> 
             placeholder: Some("输入邮箱".into()),
             error_message: ArcRwSignal::new(None),
             validation: Some(ValidationRule::Email),
+        },
+        FormField {
+            name: "role".to_string(),
+            label: "角色".to_string(),
+            field_type: FieldType::Select(merchant_role_options()),
+            required: true,
+            value: ArcRwSignal::new(
+                user.map(|u| u.role.clone())
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or_else(|| "user".to_string()),
+            ),
+            placeholder: None,
+            error_message: ArcRwSignal::new(None),
+            validation: None,
         },
         FormField {
             name: "employment_status".to_string(),
@@ -340,6 +354,14 @@ fn build_user_form_fields(user: Option<&User>, avatar_url: RwSignal<String>) -> 
             error_message: ArcRwSignal::new(None),
             validation: None,
         },
+    ]
+}
+
+fn merchant_role_options() -> Vec<(String, String)> {
+    vec![
+        ("user".to_string(), "家政人员".to_string()),
+        ("merchant".to_string(), "商户运营".to_string()),
+        ("operator".to_string(), "商户负责人".to_string()),
     ]
 }
 
