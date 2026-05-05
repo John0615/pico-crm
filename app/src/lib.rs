@@ -29,6 +29,8 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <meta name="theme-color" content="#4f46e5"/>
+                <link rel="manifest" href="/manifest.json"/>
                 <AutoReload options=options.clone()/>
                 <HydrationScripts options/>
                 <MetaTags/>
@@ -38,6 +40,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <script src="/vendor/flatpickr.min.js"></script>
                 <script src="/vendor/zh.js"></script>
                 <script src="/vendor/flyonui.js"></script>
+                <script src="/sw-register.js"></script>
             </body>
         </html>
     }
