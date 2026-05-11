@@ -1,10 +1,12 @@
-# Pico-CRM (Housekeeping Edition)
+# Pico-CRM（家政版）
 
-Lightweight CRM built with Rust and Leptos. The current architecture direction is a single PostgreSQL database with shared tables scoped by `merchant_id`, while the MVP still targets the core flow: customers -> orders -> schedules -> completion.
+> 用 Rust 构建的家政行业定制化 CRM —— 稳定、高效、可按需扩展
 
-## Status
+A vertical CRM for housekeeping services, built with Rust and Leptos SSR. Designed for small-to-medium家政 companies managing 5–100 service staff. Core flow: customer profiles → service requests → orders → scheduling → fulfillment → after-sales.
 
-MVP in progress.
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
+Single PostgreSQL database with shared tables scoped by `merchant_id` for tenant isolation. Event-sourced core aggregates (Order, Schedule, ServiceRequest) with CQRS read-model projections.
 
 ## Highlights
 
@@ -92,6 +94,11 @@ LEPTOS_SITE_ROOT=./site ./server
 - `SMS_API_KEY`: SMS provider key (optional)
 - `ADMIN_TRIAL_DAYS_DEFAULT`: default trial length (optional)
 - `ADMIN_SMS_TEMPLATE_ID`: SMS template identifier (optional)
+
+## 联系与咨询
+
+- **Bug 反馈 & 功能建议**：[GitHub Issues](https://github.com/John0615/pico-crm/issues)
+- **定制开发**：有家政行业定制需求（私有部署、功能定制、行业适配），请邮件联系：**zhaosp0615@88.com**。
 
 ## Contributing
 
