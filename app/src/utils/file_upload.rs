@@ -92,16 +92,26 @@ pub async fn upload_file_info_with_data(
 
 /// 读取 File 对象为字节数组
 pub async fn read_file_as_bytes(file: &File) -> Result<Vec<u8>, String> {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
     let file_reader = FileReader::new().map_err(|_| "创建FileReader失败")?;
 
-    // 创建一个 Promise 来处理异步文件读取
+    // 闭包持有者放在 executor 外面，保证闭包生命周期跨越 await
+    type ClosureHolder = Rc<RefCell<Option<Closure<dyn FnMut(web_sys::Event)>>>>;
+    let onload_holder: ClosureHolder = Rc::new(RefCell::new(None));
+    let onerror_holder: ClosureHolder = Rc::new(RefCell::new(None));
+
     let promise = js_sys::Promise::new(&mut |resolve, reject| {
         let reader = file_reader.clone();
         let reject_clone = reject.clone();
         let reject_clone2 = reject.clone();
+        let onload_holder_inner = onload_holder.clone();
+        let onerror_holder_inner = onerror_holder.clone();
 
-        // 设置读取完成回调
         let onload = Closure::wrap(Box::new(move |_: web_sys::Event| {
+            // 先释放 onerror，保证互斥：两个回调只可能有一个执行
+            onerror_holder_inner.borrow_mut().take();
             if let Ok(result) = reader.result() {
                 resolve.call1(&JsValue::NULL, &result).unwrap();
             } else {
@@ -109,22 +119,22 @@ pub async fn read_file_as_bytes(file: &File) -> Result<Vec<u8>, String> {
                     .call1(&JsValue::NULL, &JsValue::from_str("读取文件失败"))
                     .unwrap();
             }
-        }) as Box<dyn FnMut(_)>);
+        }) as Box<dyn FnMut(web_sys::Event)>);
 
-        file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
-        onload.forget();
-
-        // 设置错误回调
         let onerror = Closure::wrap(Box::new(move |_: web_sys::Event| {
+            onload_holder_inner.borrow_mut().take();
             reject_clone2
                 .call1(&JsValue::NULL, &JsValue::from_str("读取文件出错"))
                 .unwrap();
-        }) as Box<dyn FnMut(_)>);
+        }) as Box<dyn FnMut(web_sys::Event)>);
 
+        file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
         file_reader.set_onerror(Some(onerror.as_ref().unchecked_ref()));
-        onerror.forget();
 
-        // 开始读取文件
+        // 把闭包所有权移到外面的 holder 里，防止 executor 返回后 drop
+        *onload_holder.borrow_mut() = Some(onload);
+        *onerror_holder.borrow_mut() = Some(onerror);
+
         if let Err(_) = file_reader.read_as_array_buffer(file) {
             reject
                 .call1(&JsValue::NULL, &JsValue::from_str("开始读取文件失败"))
@@ -136,6 +146,8 @@ pub async fn read_file_as_bytes(file: &File) -> Result<Vec<u8>, String> {
     let result = JsFuture::from(promise)
         .await
         .map_err(|_| "文件读取Promise失败")?;
+
+    // holders 在这里离开作用域，闭包安全释放，零泄漏
 
     // 将 ArrayBuffer 转换为 Vec<u8>
     let array_buffer = js_sys::ArrayBuffer::from(result);
