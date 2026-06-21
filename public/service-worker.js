@@ -4,7 +4,7 @@
 //   - API calls: Network-first
 //   - Vendor scripts: Cache-first
 
-const CACHE_NAME = 'pico-crm-v1';
+const CACHE_NAME = 'pico-crm-v2';
 const STATIC_ASSETS = [
   '/',
   '/vendor/flatpickr.min.css',
@@ -53,6 +53,13 @@ self.addEventListener('fetch', (event) => {
 
   // Skip browser extension requests
   if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Leptos build artifacts under /pkg can change between refreshes while keeping
+  // stable filenames in dev. Always prefer network here to avoid JS/WASM mismatch.
+  if (url.pathname.startsWith('/pkg/')) {
+    event.respondWith(networkFirst(event.request));
     return;
   }
 
