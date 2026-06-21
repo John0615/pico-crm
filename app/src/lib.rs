@@ -7,7 +7,7 @@ use leptos_router::{
     path, Lazy, StaticSegment,
 };
 
-use components::layouts::*;
+use layouts::*;
 use components::ui::{message_box::MessageBox, toast::Toast};
 use lazy_routes::{
     AdminAnalyticsRoute, AdminLoginRoute, AdminMerchantsRoute, ContactsManagementRoute,
@@ -17,6 +17,7 @@ use lazy_routes::{
 use pages::NotFoundPage;
 
 pub mod components;
+pub mod layouts;
 mod lazy_routes;
 pub mod pages;
 pub mod server;
